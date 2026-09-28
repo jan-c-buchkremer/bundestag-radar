@@ -8,6 +8,8 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from landscape import build, corpus, embed
 
 
@@ -54,6 +56,7 @@ def main(argv: list[str] | None = None) -> None:
     store = embed.open_store(args.store)
     args.out.mkdir(parents=True, exist_ok=True)
     summaries = []
+    period_speeches, period_vectors = [], []  # for speech_neighbours.json on --all
     for week in targets:
         speeches = corpus.load_week(conn, week)
         if not speeches:
@@ -71,6 +74,8 @@ def main(argv: list[str] | None = None) -> None:
         (args.out / f"{week}.html").write_text(build.render(payload), encoding="utf-8")
         (args.out / f"{week}.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         summaries.append(build.summary(payload))
+        period_speeches += speeches
+        period_vectors.append(vectors)
     if targets:
         print(f"wrote {len(summaries)} week page(s) to {args.out}")
     if with_overview:
@@ -83,6 +88,11 @@ def main(argv: list[str] | None = None) -> None:
         print(f"overview: {len(model['themes'])} themes, index written in {time.time() - t0:.0f} s")
     n = build.write_speech_clusters(args.out)
     print(f"speech_clusters.json: {n} speech ids")
+    if (n := build.write_speech_themes(args.out)) is not None:
+        print(f"speech_themes.json: {n} speech ids")
+    if args.all and period_speeches:  # a partial build would overwrite the period's neighbours with a subset
+        n = build.write_speech_neighbours(args.out, period_speeches, np.vstack(period_vectors))
+        print(f"speech_neighbours.json: {n} speech ids")
 
 
 if __name__ == "__main__":

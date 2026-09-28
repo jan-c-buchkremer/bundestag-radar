@@ -109,6 +109,24 @@ make the link `<week>.html#cluster=<cluster_id>`, `label` is the topic's label a
 Speeches without a topic (HDBSCAN noise, ceremonial single sittings) are left out. Cluster ids change when a week is
 rebuilt, so read the file of the same build as the pages.
 
+### `speech_themes.json` and `speech_neighbours.json`
+
+Also for the cards site, next to `speech_clusters.json` and keyed the same way (not published with the pages):
+
+```json
+{"ID218816800": {"theme_id": 3, "label": "Miete · Wohnen · Mietpreisbremse"}, …}
+{"ID218816800": ["ID218709300", "ID219102100", …], …}
+```
+
+`speech_themes.json` maps each speech to its period theme, with the id and label the index page uses
+(`index.html#thema=<theme_id>`); written whenever `period.json` is in the output directory. Speeches outside the
+period model (Regierungsbefragung, Zwischenfragen) or without a theme are left out.
+
+`speech_neighbours.json` lists up to five speeches of the whole period whose embeddings are most similar (cosine,
+best first), never from the speech's own agenda item; only matches with a similarity of at least 0.88 count, and a
+speech without any is left out. Values are the speeches' first foundation ids. Only `build --all` writes it, so a
+build of single weeks never replaces it with a partial one.
+
 The index takes `index.html#thema=<id>` to pre-select a period theme. Theme ids are by size and change when the
 period is re-clustered; week topic ids change when a week is rebuilt, so only `rede`/`open` links are stable.
 
