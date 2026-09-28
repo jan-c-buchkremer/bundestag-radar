@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> None:
 
     import time
 
-    from landscape import period
+    from landscape import origin, period
     from landscape.cluster import cluster
 
     week_ids = [w["week"] for w in all_weeks]
@@ -84,6 +84,9 @@ def main(argv: list[str] | None = None) -> None:
         model = period.build(conn, week_ids, store, args.out / "period.json", size)
         for t in model["themes"]:
             print(f"  {t['id']:2} ({t['n']:4}) {', '.join(t['terms'])}")
+        origins = origin.build(conn, week_ids, model)
+        build._write(args.out / "topic_origins.json", origins)
+        print(f"topic_origins.json: {sum(len(t['episodes']) for t in origins['themes'])} episodes")
         (args.out / "index.html").write_text(build.index_page(args.out), encoding="utf-8")
         print(f"overview: {len(model['themes'])} themes, index written in {time.time() - t0:.0f} s")
     n = build.write_speech_clusters(args.out)

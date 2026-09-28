@@ -104,6 +104,8 @@ def index_page(out: Path) -> str:
     payloads = load_payloads(out)
     cache = out / "period.json"
     overview = period.overview(json.loads(cache.read_text(encoding="utf-8")), payloads) if cache.exists() else None
+    if overview and (origins := out / "topic_origins.json").exists():  # origin.py, "Wer brachte das Thema auf?"
+        overview["origins"] = json.loads(origins.read_text(encoding="utf-8"))
     return render_index([summary(p) for p in payloads.values()], overview)
 
 
