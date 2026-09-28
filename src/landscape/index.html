@@ -6,8 +6,9 @@
 <title>Themenlandschaft des Bundestages</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
-:root { --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3; --accent: #2563eb; }
+:root { --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3; --accent: #2563eb; --accent-soft: #e8efff; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, -apple-system, sans-serif; }
 main { max-width: 1100px; margin: 0 auto; padding: 48px 24px 64px; }
@@ -32,12 +33,87 @@ a.tour em { display: block; margin-top: 8px; font-style: normal; color: var(--ac
 footer { color: var(--faint); font-size: 12.5px; margin-top: 48px; }
 @media (max-width: 600px) { main { padding: 28px 16px 48px; } h1 { font-size: 22px; } .grid, .tours { grid-template-columns: 1fr; } }
 footer a { color: var(--muted); }
+
+/* period overview: themes of the Wahlperiode as a streamgraph over the sitting weeks */
+#period { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 16px; margin-bottom: 36px; }
+#period[hidden] { display: none; }
+.phead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.phead h2 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+.phead .sub { color: var(--muted); font-size: 13px; flex: 1; min-width: 220px; }
+.segmented { display: inline-grid; grid-auto-flow: column; gap: 3px; background: var(--bg); border-radius: 8px; padding: 3px; }
+.segmented button { border: 0; background: transparent; border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; }
+.segmented button.on { background: var(--card); color: var(--text); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+#stream { position: relative; height: 380px; margin: 8px -8px 0; touch-action: pan-y; }
+#stream .plotly .cursor-pointer, #stream .plotly .nsewdrag { cursor: pointer !important; }
+#slabels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.slbl { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 11.5px; font-weight: 500; color: #33415c; text-shadow: 0 0 3px rgba(255,255,255,.9), 0 0 2px rgba(255,255,255,.9); }
+.slbl.on { font-weight: 600; color: #1d3f9e; }
+#stip { position: absolute; z-index: 5; pointer-events: none; display: none; min-width: 180px; max-width: 280px; transform: translate(-50%, calc(-100% - 12px));
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; box-shadow: 0 6px 20px rgba(0,0,0,.08); font-size: 12.5px; line-height: 1.45; }
+#stip b { display: block; font-weight: 600; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+#stip span { color: var(--muted); }
+#stip em { display: block; font-style: normal; color: var(--accent); font-size: 11.5px; margin-top: 3px; }
+.pbody { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.pbody h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px; }
+#themeList { position: relative; max-height: 330px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) 84px 38px; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+.trow:hover { background: var(--bg); }
+.trow.on { background: var(--accent-soft); }
+.trow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trow .n { text-align: right; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.trow svg { display: block; width: 84px; height: 18px; }
+.trow .name .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+.trow.faded { opacity: .38; }
+#areas { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 2px; }
+#areas button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 2px 10px 2px 7px; font: inherit; font-size: 12px; cursor: pointer; }
+#areas button:hover { border-color: #cdcdc8; }
+#areas button i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+#areas button span { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+#areas button.on { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+#areas.focus button:not(.on) { opacity: .45; }
+#themeCard .hint { color: var(--muted); font-size: 13px; margin: 0; }
+#themeCard h4 { font-size: 16px; font-weight: 600; margin: 0 0 2px; letter-spacing: -.01em; }
+#themeCard .terms { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+.go { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--accent); color: #fff; border-radius: 10px; padding: 9px 12px; text-decoration: none; margin-bottom: 14px; font-size: 13px; }
+.go:hover { background: #1d4fd0; }
+.go b { font-weight: 600; }
+.wk { display: grid; grid-template-columns: 128px minmax(0, 1fr) 30px; gap: 10px; align-items: center; padding: 4px 0; font-size: 13px; color: inherit; text-decoration: none; }
+.wk:hover .d { color: var(--accent); }
+.wk .d { white-space: nowrap; }
+.wk .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.wk .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.wk .c { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.agenda { margin: 12px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
+.agenda li { margin-bottom: 3px; }
+.pnote { color: var(--faint); font-size: 12px; margin: 10px 0 0; }
+@media (max-width: 760px) {
+  #period { padding: 14px 14px 12px; margin: 0 -4px 28px; }
+  #stream { height: 300px; margin: 6px -6px 0; }
+  .pbody { grid-template-columns: 1fr; }
+  #themeList { max-height: 280px; }
+  #areas { flex-wrap: nowrap; overflow-x: auto; margin: 10px -14px 0; padding: 0 14px 4px; scrollbar-width: none; }
+  #areas button { flex: none; font-size: 11.5px; }
+  #stip { max-width: 220px; min-width: 0; font-size: 12px; }
+  .trow { padding: 7px 6px; }
+}
 </style>
 </head>
 <body>
 <main>
   <h1>Themenlandschaft des Bundestages</h1>
-  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte: eine Rede ist ein Punkt, Nähe bedeutet ähnliche Inhalte, die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Eine Woche wählen, dann nach Fraktion, Tag, Tagesordnungspunkt oder Redner:in filtern.</p>
+  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte: eine Rede ist ein Punkt, Nähe bedeutet ähnliche Inhalte, die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
+  <section id="period" hidden>
+    <div class="phead"><h2>Themen der Wahlperiode</h2><span class="sub" id="psub"></span>
+      <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
+    <div id="areas" aria-label="Politikfelder"></div>
+    <div id="stream"><div id="slabels"></div><div id="stip"></div></div>
+    <div class="pbody">
+      <div><h3>Alle Themen</h3><div id="themeList"></div></div>
+      <div id="themeCard"></div>
+    </div>
+    <p class="pnote" id="pnote"></p>
+  </section>
   <div class="year">Touren zum Einstieg</div>
   <div class="tours" id="tours"></div>
   <div id="years"></div>
@@ -63,6 +139,189 @@ document.getElementById('years').innerHTML = [...years].map(([y, ws]) => `
       <div class="dates">${fmt(w.dates[0])} – ${fmt(w.dates[w.dates.length - 1])}${w.dates[0].slice(0, 4)}${w.speeches < 30 ? ' · Einzelsitzung' : ''}</div>
       <div class="topics">${w.clusters.slice(0, 6).map(t => `<span class="topic">${t.join(' · ')}</span>`).join('')}</div>
     </a>`).join('')}</div>`).join('');
+
+// --- period overview: one clustering over the whole Wahlperiode, drawn as a streamgraph over the sitting weeks ---
+const P = DATA.period;
+if (P && P.themes.length && window.Plotly) (() => {
+  const el = document.getElementById('stream'), tipEl = document.getElementById('stip'), labelsEl = document.getElementById('slabels');
+  const listEl = document.getElementById('themeList'), cardEl = document.getElementById('themeCard');
+  document.getElementById('period').hidden = false;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const W = P.weeks, N = W.length, T = P.themes, byTheme = Object.fromEntries(T.map(t => [t.id, t]));
+  const info = Object.fromEntries(DATA.weeks.map(w => [w.week, w]));
+  const ACRONYMS = new Set(['usa', 'nato', 'eu', 'uno', 'un', 'kfw', 'ki', 'eeg', 'geg', 'bka', 'bnd', 'öpnv', 'lng', 'co2', 'gkv', 'pkv', 'iwf', 'oecd', 'bmz', 'kfor', 'unifil', 'kritis', 'spd', 'cdu', 'csu', 'afd', 'ard', 'zdf']);
+  const cap = w => ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1);
+  const label = (t, n = 3) => t.terms.slice(0, n).map(cap).join(' · ');
+  const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const kw = w => `KW ${+w.slice(6)}`;
+  const weekName = w => { const i = info[w]; return i ? `${kw(w)} · ${fmt(i.dates[0])}–${fmt(i.dates.at(-1))}${i.dates[0].slice(0, 4)}` : `${kw(w)} ${w.slice(0, 4)}`; };
+  const link = (t, i) => `${W[i]}.html${t.focus[i] != null ? '#cluster=' + t.focus[i] : ''}`;
+  const totals = W.map((_, i) => T.reduce((a, t) => a + t.counts[i], 0));
+  const shown = T.reduce((a, t) => a + t.n, 0);
+  document.getElementById('psub').textContent = `${T.length} Themen aus ${shown.toLocaleString('de')} Reden in ${N} Sitzungswochen`;
+  const rest = P.unassigned.reduce((a, b) => a + b, 0);
+  document.getElementById('pnote').textContent = `Ohne Regierungsbefragung und Zwischenfragen${rest ? `; ${rest.toLocaleString('de')} Reden ohne eindeutiges Thema sind nicht dargestellt` : ''}. Die Themen stammen aus einem Clustering über die ganze Wahlperiode, die Wochenkarten sind eigene Clusterings: Der Link öffnet das Thema der Woche, in dem die meisten dieser Reden liegen.`;
+
+  // policy areas (period.area): one hue family each, in the stacking order of the validated categorical palette, so
+  // neighbouring strata get the palette's adjacent-safe pairs; themes of one area are lighter/darker steps of its hue
+  const AREAS = [
+    ['wirtschaft', 'Wirtschaft & Finanzen', '#2a78d6'], ['soziales', 'Arbeit & Soziales', '#eb6834'], ['gesundheit', 'Gesundheit & Pflege', '#1baf7a'],
+    ['digital', 'Digitales, Verkehr & Forschung', '#eda100'], ['demokratie', 'Demokratie & Gesellschaft', '#e87ba4'], ['klima', 'Klima, Energie & Landwirtschaft', '#008300'],
+    ['sicherheit', 'Innere Sicherheit & Recht', '#4a3aa7'], ['aussen', 'Außen & Verteidigung', '#e34948'], ['weitere', 'Weitere', '#8a8a84'],
+  ];
+  const AREA = Object.fromEntries(AREAS.map(([k, name, hex], i) => [k, { k, name, hex, i }]));
+  const areaOf = t => AREA[t.area] || AREA.weitere;
+  const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+  const mix = (h, to, f) => { const a = rgb(h); return `rgb(${a.map((c, k) => Math.round(c + (to[k] - c) * f)).join(',')})`; };
+  const STEPS = [0, .42, -.22, .62, .22, -.38, .75];  // >0 towards white, <0 towards black; alternating so neighbours differ
+  // strata by area, inside a stratum by the week of each theme's peak
+  const peak = t => t.counts.indexOf(Math.max(...t.counts));
+  const order = [...T].sort((a, b) => areaOf(a).i - areaOf(b).i || peak(a) - peak(b) || b.n - a.n);
+  const COLOR = {};
+  AREAS.forEach(([k, , hex]) => order.filter(t => areaOf(t).k === k).forEach((t, j) => {
+    const f = STEPS[j % STEPS.length];
+    COLOR[t.id] = f >= 0 ? mix(hex, [255, 255, 255], f) : mix(hex, [20, 20, 30], -f);
+  }));
+  const FADE = c => { const m = c.match(/\d+/g).map(Number); return `rgb(${m.map(v => Math.round(v + (255 - v) * .78)).join(',')})`; };
+  let scale = 'n', sel = null, hover = null, focusArea = null, focusWeek = null, lo = {}, hi = {};
+  const emphasised = t => sel != null ? t.id === sel || t.id === hover : hover != null ? t.id === hover : focusArea ? areaOf(t).k === focusArea : true;
+  const val = (t, i) => scale === 'n' ? t.counts[i] : totals[i] ? 100 * t.counts[i] / totals[i] : 0;
+  const unit = v => scale === 'n' ? `${v} Reden` : `${v.toFixed(1).replace('.', ',')} %`;
+  // month ticks where the month changes, thinned to what fits; the year on the first tick and on the first tick of each new year
+  const monthTicks = W.map((w, i) => { const d = info[w]?.dates[0]; return d && (i === 0 || d.slice(0, 7) !== info[W[i - 1]]?.dates[0].slice(0, 7)) ? [i, d] : null; }).filter(Boolean);
+  const ticks = () => {
+    const gap = N * 58 / Math.max(el.clientWidth - 60, 1), out = [];  // ≥ 58 px between tick centres: labels are ≤ 46 px wide
+    monthTicks.forEach(([i, d]) => { if (!out.length || i - out.at(-1)[0] >= gap) out.push([i, d]); });
+    return out.map(([i, d], k) => [i, MONTHS[+d.slice(5, 7) - 1] + (k === 0 || d.slice(0, 4) !== out[k - 1][1].slice(0, 4) ? ` '${d.slice(2, 4)}` : '')]);
+  };
+  const phone = matchMedia('(max-width: 760px)');
+
+  function draw() {
+    const x = W.map((_, i) => i), base = W.map((_, i) => -order.reduce((a, t) => a + val(t, i), 0) / 2);
+    let acc = [...base];
+    order.forEach(t => { lo[t.id] = [...acc]; acc = acc.map((a, i) => a + val(t, i)); hi[t.id] = [...acc]; });
+    const color = t => emphasised(t) ? COLOR[t.id] : FADE(COLOR[t.id]);
+    const traces = [{ x, y: base, stackgroup: 's', mode: 'lines', line: { width: 0, shape: 'spline', smoothing: .6 }, fillcolor: 'rgba(0,0,0,0)', hoverinfo: 'skip' },
+      ...order.map(t => ({ x, y: W.map((_, i) => val(t, i)), stackgroup: 's', mode: 'lines', name: label(t), hoverinfo: 'skip',
+        line: { width: 1, color: css('--card'), shape: 'spline', smoothing: .6 }, fillcolor: color(t) }))];
+    const shapes = hover != null || focusWeek != null ? [{ type: 'line', xref: 'x', yref: 'paper', x0: 0, x1: 0, y0: 0, y1: 1, line: { color: '#9ca3af', width: 1 } }] : [];
+    if (shapes.length) shapes[0].x0 = shapes[0].x1 = hoverWeek ?? focusWeek;
+    const tk = ticks();
+    return Plotly.react(el, traces, {
+      margin: { l: 30, r: 30, t: 6, b: 28 }, paper_bgcolor: css('--card'), plot_bgcolor: css('--card'), showlegend: false,
+      font: { family: 'Inter, system-ui, sans-serif', size: 11, color: css('--muted') }, shapes,
+      xaxis: { range: [-.5, N - .5], fixedrange: true, showgrid: false, zeroline: false, tickmode: 'array', tickvals: tk.map(t => t[0]), ticktext: tk.map(t => t[1]), ticks: '', tickangle: 0, ticklabeloverflow: 'allow', tickfont: { color: css('--faint') } },
+      yaxis: { visible: false, fixedrange: true },
+    }, { staticPlot: true, responsive: true }).then(placeLabels);
+  }
+  let hoverWeek = null;
+
+  // labels on the thick parts of the biggest bands; a colliding label is dropped
+  function placeLabels() {
+    const fl = el._fullLayout;
+    if (!fl) return;
+    const px = i => fl.xaxis.l2p(i) + fl._size.l, py = y => fl.yaxis.l2p(y) + fl._size.t, Wd = el.clientWidth;
+    const cands = [...T].filter(emphasised).sort((a, b) => (b.id === sel) - (a.id === sel) || (b.id === hover) - (a.id === hover) || b.n - a.n).slice(0, phone.matches ? 8 : 16).map(t => {
+      let best = 0, bi = 0;
+      W.forEach((_, i) => { const h = py(lo[t.id][i]) - py(hi[t.id][i]); if (h > best && i > 0 && i < N - 1) { best = h; bi = i; } });
+      return { t, h: best, x: px(bi), y: (py(lo[t.id][bi]) + py(hi[t.id][bi])) / 2 };
+    }).filter(c => c.h >= (c.t.id === sel || c.t.id === hover ? 8 : 15));
+    labelsEl.innerHTML = cands.map(c => `<span class="slbl${c.t.id === sel ? ' on' : ''}">${esc(label(c.t, 2))}</span>`).join('');
+    const placed = [];
+    labelsEl.querySelectorAll('.slbl').forEach((l, k) => {
+      const c = cands[k], w = l.offsetWidth, h = l.offsetHeight, x = Math.min(Math.max(c.x, w / 2 + 4), Wd - w / 2 - 4);
+      if (placed.some(r => Math.abs(r.x - x) < (r.w + w) / 2 + 4 && Math.abs(r.y - c.y) < (r.h + h) / 2)) return l.remove();
+      l.style.left = x + 'px'; l.style.top = c.y + 'px'; placed.push({ x, y: c.y, w, h });
+    });
+  }
+
+  // hit test: the week under the pointer and the band that contains it (bands interpolated between weeks)
+  function at(ev) {
+    const fl = el._fullLayout;
+    if (!fl) return null;
+    const r = el.getBoundingClientRect(), x = fl.xaxis.p2l(ev.clientX - r.left - fl._size.l), y = fl.yaxis.p2l(ev.clientY - r.top - fl._size.t);
+    const i = Math.min(N - 1, Math.max(0, Math.round(x))), i0 = Math.max(0, Math.min(N - 2, Math.floor(x))), f = N > 1 ? Math.min(1, Math.max(0, x - i0)) : 0;
+    const lerp = a => N > 1 ? a[i0] + (a[i0 + 1] - a[i0]) * f : a[0];
+    return { i, t: order.find(t => lerp(lo[t.id]) <= y && y <= lerp(hi[t.id])) || null, cx: ev.clientX - r.left, cy: ev.clientY - r.top };
+  }
+  function showTip(h) {
+    if (!h || !h.t) { tipEl.style.display = 'none'; return; }
+    const c = h.t.counts[h.i], share = totals[h.i] ? Math.round(100 * c / totals[h.i]) : 0;
+    const act = !c ? '' : h.t.id === sel ? 'Klicken: diese Woche öffnen' : 'Klicken: Thema auswählen';
+    tipEl.innerHTML = `<b><i class="sw" style="background:${COLOR[h.t.id]}"></i>${esc(label(h.t))}</b><span>${esc(areaOf(h.t).name)}<br>${weekName(W[h.i])}<br>${c} Reden · ${share} % der Woche</span>${act ? `<em>${phone.matches ? act.replace('Klicken', 'Tippen') : act}</em>` : ''}`;
+    tipEl.style.display = 'block';
+    const w = tipEl.offsetWidth, left = Math.min(Math.max(h.cx, w / 2 + 4), el.clientWidth - w / 2 - 4);
+    tipEl.style.left = left + 'px'; tipEl.style.top = Math.max(h.cy, tipEl.offsetHeight + 16) + 'px';
+  }
+  el.addEventListener('pointermove', ev => {
+    if (ev.pointerType !== 'mouse') return;  // touch: a tap selects and shows the tip, see click
+    const h = at(ev), id = h?.t?.id ?? null, wk = h ? h.i : null;
+    showTip(h);
+    el.style.cursor = h?.t ? 'pointer' : 'default';
+    if (id !== hover || wk !== hoverWeek) { hover = id; hoverWeek = wk; draw(); }
+  });
+  el.addEventListener('pointerleave', ev => {
+    if (ev.pointerType !== 'mouse') return; tipEl.style.display = 'none'; hover = hoverWeek = null; draw();
+  });
+  el.addEventListener('click', ev => {
+    const h = at(ev);
+    if (!h || !h.t) { select(null); return; }
+    if (h.t.id === sel && h.t.counts[h.i]) { location.href = link(h.t, h.i); return; }  // second click on the chosen theme opens the week
+    select(h.t.id, h.i);
+    if (phone.matches) showTip(h);
+  });
+
+  const spark = t => {
+    const m = Math.max(...t.counts) || 1, pts = t.counts.map((c, i) => `${(84 * i / Math.max(N - 1, 1)).toFixed(1)},${(18 - 16 * c / m).toFixed(1)}`);
+    return `<svg viewBox="0 0 84 18" preserveAspectRatio="none" aria-hidden="true"><path fill="${COLOR[t.id]}" d="M0,18 L${pts.join(' L')} L84,18 Z"/></svg>`;
+  };
+  listEl.innerHTML = T.map(t => `<div class="trow" data-t="${t.id}" title="${esc(areaOf(t).name)}: ${esc(t.terms.join(' · '))}"><span class="name"><span class="dot" style="background:${COLOR[t.id]}"></span>${esc(label(t))}</span>${spark(t)}<span class="n">${t.n}</span></div>`).join('');
+  // legend: the areas with their speech counts; a click fades every other area
+  const areasEl = document.getElementById('areas');
+  areasEl.innerHTML = AREAS.filter(([k]) => T.some(t => areaOf(t).k === k)).map(([k, name, hex]) =>
+    `<button data-a="${k}"><i style="background:${hex}"></i>${esc(name)}<span>${T.filter(t => areaOf(t).k === k).reduce((a, t) => a + t.n, 0).toLocaleString('de')}</span></button>`).join('');
+  const syncAreas = () => {
+    areasEl.classList.toggle('focus', !!focusArea);
+    areasEl.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.a === focusArea));
+    listEl.querySelectorAll('.trow').forEach(r => r.classList.toggle('faded', !!focusArea && areaOf(byTheme[+r.dataset.t]).k !== focusArea));
+  };
+  areasEl.querySelectorAll('button').forEach(b => b.onclick = () => {
+    focusArea = focusArea === b.dataset.a ? null : b.dataset.a;
+    if (sel != null && focusArea && areaOf(byTheme[sel]).k !== focusArea) select(null);
+    syncAreas(); draw();
+  });
+  listEl.querySelectorAll('.trow').forEach(r => r.onclick = () => select(+r.dataset.t === sel ? null : +r.dataset.t));
+
+  function select(id, week = null) {
+    sel = id; focusWeek = id == null ? null : week;
+    listEl.querySelectorAll('.trow').forEach(r => r.classList.toggle('on', +r.dataset.t === id));
+    const row = listEl.querySelector('.trow.on');  // keep the chosen row visible inside the list, without scrolling the page
+    if (row && (row.offsetTop < listEl.scrollTop || row.offsetTop + row.offsetHeight > listEl.scrollTop + listEl.clientHeight)) listEl.scrollTop = row.offsetTop - listEl.clientHeight / 2;
+    history.replaceState(null, '', id == null ? location.pathname : `#thema=${id}`);
+    renderCard(); draw();
+  }
+  function renderCard() {
+    const t = byTheme[sel];
+    if (!t) {
+      cardEl.innerHTML = `<h3>Thema</h3><p class="hint">${phone.matches ? 'Ein Band antippen' : 'Mit der Maus über die Bänder fahren und eines anklicken'} oder ein Thema aus der Liste wählen: Dann stehen hier seine stärksten Wochen, und ein Link öffnet die Wochenkarte mit genau diesem Thema. Ein zweiter Klick auf das gewählte Band öffnet die Woche direkt.</p>`;
+      return;
+    }
+    const weeks = W.map((w, i) => i).filter(i => t.counts[i]).sort((a, b) => t.counts[b] - t.counts[a]);
+    const go = focusWeek != null && t.counts[focusWeek] ? focusWeek : weeks[0], max = t.counts[weeks[0]] || 1;
+    cardEl.innerHTML = `<h3><i class="sw" style="background:${COLOR[t.id]}"></i>${esc(areaOf(t).name)}</h3><h4>${esc(label(t))}</h4>
+      <div class="terms">${esc(t.terms.join(' · '))} · ${t.n} Reden in ${weeks.length} Wochen</div>
+      ${go != null ? `<a class="go" href="${link(t, go)}"><span>${kw(W[go])} ${W[go].slice(0, 4)} öffnen · ${t.counts[go]} Reden zu diesem Thema</span><b>→</b></a>` : ''}
+      <h3>Stärkste Wochen</h3>${weeks.slice(0, 6).map(i => `<a class="wk" href="${link(t, i)}"><span class="d">${kw(W[i])} · ${info[W[i]] ? fmt(info[W[i]].dates[0]) + W[i].slice(2, 4) : W[i].slice(0, 4)}</span><span class="bar"><i style="width:${100 * t.counts[i] / max}%"></i></span><span class="c">${t.counts[i]}</span></a>`).join('')}
+      ${t.agenda.length ? `<h3 style="margin-top:14px">Häufigste Tagesordnungspunkte</h3><ul class="agenda">${t.agenda.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}`;
+  }
+  document.querySelectorAll('#scale button').forEach(b => b.onclick = () => {
+    scale = b.dataset.v; document.querySelectorAll('#scale button').forEach(x => x.classList.toggle('on', x === b)); draw();
+  });
+  const start = +new URLSearchParams(location.hash.slice(1)).get('thema');
+  if (location.hash.includes('thema=') && byTheme[start]) select(start); else { renderCard(); draw(); }
+  addEventListener('resize', () => { if (el._fullLayout) Plotly.Plots.resize(el).then(placeLabels); });
+})();
 </script>
 </body>
 </html>

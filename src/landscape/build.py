@@ -14,7 +14,12 @@ HERE = Path(__file__).parent
 
 
 def week_payload(
-    week: str, speeches: list[Speech], clustering: Clustering, vectors: np.ndarray, weeks: list[str]
+    week: str,
+    speeches: list[Speech],
+    clustering: Clustering,
+    vectors: np.ndarray,
+    weeks: list[str],
+    decisions: dict[str, list[dict]] | None = None,
 ) -> dict:
     agenda_of = majority([s.agenda_title for s in speeches], clustering.labels)
     clusters = [
@@ -30,6 +35,9 @@ def week_payload(
             "y": round(float(y), 3),
             "cluster": int(label),
             "speaker": s.speaker,
+            "person_id": s.person_id,
+            "photo": s.photo,
+            **({"photo_credit": s.photo_credit} if s.photo_credit else {}),
             "fraction": s.fraction,
             "role": s.role,
             "date": s.date,
@@ -44,11 +52,15 @@ def week_payload(
             "similar": [speeches[j].id for j in near],
             "next": following[s.id],
             "paragraphs": s.paragraphs,
+            **({"zwischenfrage": True} if s.zwischenfrage else {}),
         }  # fmt: skip
         for s, (x, y), label, near in zip(speeches, clustering.xy, clustering.labels, neighbours(vectors), strict=True)
     ]
     linked = {k: v for s in speeches for k, v in s.linked.items()}  # Zwischenfragen too short to be points
-    return {"week": week, "weeks": weeks, "clusters": clusters, "speeches": points, "linked": linked}
+    return {
+        "week": week, "weeks": weeks, "clusters": clusters, "speeches": points, "linked": linked,
+        "decisions": decisions or {},  # agenda item id -> announced results, see corpus.decisions
+    }  # fmt: skip
 
 
 def _inline(template: str, payload: dict) -> str:
@@ -60,9 +72,25 @@ def render(payload: dict) -> str:
     return _inline("template.html", payload)
 
 
-def render_index(summaries: list[dict]) -> str:
-    """Landing page: one card per week, from `summary()` of each week payload."""
-    return _inline("index.html", {"weeks": summaries})
+def render_index(summaries: list[dict], overview: dict | None = None) -> str:
+    """Landing page: the period's themes over the weeks (`period.overview`), then one card per week, from
+    `summary()` of each week payload."""
+    return _inline("index.html", {"weeks": summaries, "period": overview})
+
+
+def load_payloads(out: Path) -> dict[str, dict]:
+    """Every week payload written to `out`, by week id."""
+    return {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in sorted(out.glob("20*-W*.json"))}
+
+
+def index_page(out: Path) -> str:
+    """The index from what is in `out`: the week payloads and, if built, the period model (`period.json`)."""
+    from landscape import period
+
+    payloads = load_payloads(out)
+    cache = out / "period.json"
+    overview = period.overview(json.loads(cache.read_text(encoding="utf-8")), payloads) if cache.exists() else None
+    return render_index([summary(p) for p in payloads.values()], overview)
 
 
 def summary(payload: dict) -> dict:

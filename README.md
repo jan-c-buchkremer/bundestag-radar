@@ -19,7 +19,8 @@ uv sync
 export BDF_DB=/path/to/bundestag-data-foundation/data/bundestag.sqlite   # default: ../bundestag-data-foundation/data/bundestag.sqlite
 uv run landscape weeks                 # sitting weeks in the store, with sitting numbers and speech counts
 uv run landscape build 2026-W28        # → data/out/2026-W28.html
-uv run landscape build --all           # every week plus data/out/index.html
+uv run landscape build overview        # period themes (data/out/period.json) + data/out/index.html from the built weeks
+uv run landscape build --all           # every week, the period overview and data/out/index.html
 uv run landscape serve                 # http://127.0.0.1:8000/ — re-renders pages from data/out/*.json on every request
 ```
 
@@ -49,7 +50,12 @@ read-only connections. The store is still opened with `mode=ro`.
 
 ## What the pages show
 
-`index.html` lists every sitting week with its main topics, newest first. Each week page:
+`index.html` opens with the **themes of the Wahlperiode**: one clustering over every speech of the period
+(without Regierungsbefragung and Zwischenfragen), drawn as a streamgraph over the sitting weeks. Hover shows theme,
+week and count; clicking a band picks the theme (its strongest weeks, agenda items and a link into the week), a
+second click on the chosen band opens that week with the matching week topic in focus. „Anteil“ switches to the
+share of each week. Bands are coloured by policy area (eight hue families plus „Weitere“, assigned from the theme's
+top terms); a click on an area in the legend fades the others. Below, the tours and every sitting week with its main topics, newest first. Each week page:
 
 - One point per speech; position from UMAP on the speech embedding; topic colour and label from HDBSCAN + c-TF-IDF.
 - Colour by topic, fraction, day, **agenda item** or role. Agenda-item colouring shows where one debate spreads
@@ -67,7 +73,29 @@ read-only connections. The store is still opened with `mode=ro`.
   speeches of the week. Click a topic label or a name in a filter list: bar charts by fraction, day, topic, agenda
   item and speaker, with the speeches listed; every bar opens its own card.
 - Regierungsbefragung turns are hidden by default (two-minute question/answer units under one agenda item); an
-  explicit speaker or agenda filter shows them anyway.
+  explicit speaker or agenda filter shows them anyway. Zwischenfragen long enough to be points are hidden the same
+  way („Zwischenfragen zeigen“); they stay readable as cards in the speech they interrupted and in the speaker's
+  profile, an explicit speaker filter shows them, and opening one by link switches the toggle on.
+- Links out to the [MdB cards](https://jan-c-buchkremer.github.io/bundestag-mdb-cards/): the speaker's name (and
+  portrait, hidden when there is none) opens their card, the agenda item its sitting page (`sitzungen/21-88.html#top-6`),
+  and every announced result of the agenda item its vote page, with „angenommen“/„abgelehnt“ as a badge.
+
+## Deep links
+
+Everything in the view is in the URL hash of a week page (`<week>.html#…`), so other sites can link into it:
+
+| key | example | effect |
+|---|---|---|
+| `rede` (alias `open`) | `2026-W28.html#open=ID218816800` | opens that speech. Continuation parts (`ID…-3`) and Zwischenfragen too short to be points open the speech they belong to. |
+| `cluster` | `2026-W28.html#cluster=4` | filters to that week topic and opens its card (the overview links this way) |
+| `fraction`, `weekday`, `agenda`, `speaker` | `#speaker=Anna Adler` | filters, `\|`-separated values |
+| `suche` | `#suche=Miete\|Wohnen` | saved search terms |
+| `farbe` | `#farbe=agenda` | colour mode: `cluster`, `fraction`, `weekday`, `agenda`, `mdb` |
+| `befragung`, `zwischenfragen`, `dim`, `size`, `showLabels` | `#zwischenfragen=1` | toggles, `1`/`0` |
+| `tour` | `#tour=woche` | starts a tour: `woche`, `debatte`, `person` |
+
+The index takes `index.html#thema=<id>` to pre-select a period theme. Theme ids are by size and change when the
+period is re-clustered; week topic ids change when a week is rebuilt, so only `rede`/`open` links are stable.
 
 ## Touren
 
@@ -88,6 +116,13 @@ fraction) and *Einer Person folgen* (speaker list, profile, similar speeches by 
 - Ministers have no fraction in the protocol; their party from the master data is used instead. Non-MdB
   ministers and Länder representatives are shown as "ohne Fraktion".
 - Speeches longer than the model window are embedded in paragraph-boundary chunks and mean-pooled.
+- A Zwischenfrage is another person's turn inside a rede that the chair did not announce as a Kurzintervention
+  (payload flag `zwischenfrage`). Kurzinterventionen are standalone statements and stay normal points.
+- The period overview re-uses the cached week embeddings; its themes are cached in `data/out/period.json` with a
+  fingerprint of the speeches and parameters, so a daily `--all` without new sittings only re-counts (~5 s instead of
+  ~40 s for UMAP + HDBSCAN on 8.7 k speeches). The whole `build --all` takes about 1.5 minutes with a warm cache.
+- The foundation's `decision`, `roll_call_vote.agenda_item_id` and `person_photo` are optional: with an older store
+  the vote links are simply missing and every portrait is tried (and hidden if it does not load).
 
 Decisions and their reasons: `docs/decisions.md`. Data examination that preceded the design: `docs/examination.md`.
 

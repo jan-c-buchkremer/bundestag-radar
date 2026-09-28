@@ -177,6 +177,18 @@ select:focus, input:focus { outline: 2px solid var(--accent-soft); border-color:
 #panel table.dist tr { cursor: pointer; }
 #panel table.dist tr:hover td:first-child { color: var(--accent); }
 #panel details summary { color: var(--muted); font-size: 12px; cursor: pointer; margin: 2px 0 4px; }
+.whohead { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.whohead h2 { margin: 0 !important; }
+.whohead h2 a { color: inherit; }
+.whohead h2 a:hover { color: var(--accent); text-decoration: none; }
+.whohead .ext { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; flex: none; background: var(--line); }
+.votes { display: flex; flex-direction: column; gap: 5px; margin: -6px 0 16px; }
+.vote { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.vote:hover { text-decoration: none; } .vote:hover .subj { color: var(--accent); }
+.res { flex: none; font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 7px; background: var(--bg); color: var(--muted); }
+.res.angenommen { background: #e3f3e3; color: #2f6f2f; } .res.abgelehnt { background: #fde8e8; color: #a8231a; }
+.vote .how { color: var(--faint); font-size: 11.5px; white-space: nowrap; }
 .close { float: right; color: var(--faint); background: none; border: 0; font-size: 18px; line-height: 1; cursor: pointer; margin: -4px -6px 0 0; }
 .close:hover { color: var(--text); }
 
@@ -279,6 +291,7 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
       </div>
       <label class="toggle">Gefilterte abdunkeln statt ausblenden <input type="checkbox" id="dim"></label>
       <label class="toggle">Regierungsbefragung zeigen <input type="checkbox" id="befragung"></label>
+      <label class="toggle">Zwischenfragen zeigen <input type="checkbox" id="zwischenfragen"></label>
       <label class="toggle">Größe nach Redelänge <input type="checkbox" id="size"></label>
       <label class="toggle">Themen-Labels <input type="checkbox" id="showLabels"></label>
     </div></div>
@@ -313,10 +326,24 @@ const cap = w => ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() +
 const clusterLabel = (c, n = 3) => c < 0 ? 'ohne Thema' : clusterById[c].terms.slice(0, n).map(cap).join(' · ');
 const excerpt = s => { const t = s.paragraphs.find(p => p[0] === 'text'); return t ? t[1].slice(0, 140) + '…' : ''; };
 const byId = Object.fromEntries(S.map(s => [s.id, s]));
+// a speech id from a link: a point, a Zwischenfrage too short to be one (→ the speech it interrupted),
+// or a continuation part of a split speech (ID…-3 → ID…)
+const resolveSpeech = id => {
+  if (!id || byId[id]) return id;
+  const host = S.find(s => s.paragraphs.some(([k, t]) => (k === 'zwischenfrage' || k === 'kurzintervention') && t === id));
+  if (host) return host.id;
+  const base = id.replace(/-\d+$/, '');
+  return byId[base] ? base : '';
+};
+// links out to the MdB cards site: speaker cards, portraits, sitting pages, vote pages
+const CARDS = 'https://jan-c-buchkremer.github.io/bundestag-mdb-cards/';
+const cardUrl = pid => `${CARDS}${encodeURIComponent(pid)}.html`;
+const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);
 S.forEach(s => {
   s.weekday = weekdayOf(s.date);
   s.befragung = s.agenda === 'Befragung der Bundesregierung';
+  s.zwischenfrage = !!s.zwischenfrage;  // another person's question inside a speech; readable from that speech's card
   s.text = s.paragraphs.filter(p => p[0] === 'text').map(p => p[1]).join('\n');
   s.haystack = `${s.speaker}\n${s.role || ''}\n${s.agenda}\n${s.text}`.toLowerCase();
 });
@@ -374,8 +401,8 @@ const GROUPS = {
   speaker: { of: s => s.speaker, name: v => v, color: v => FRACTION_COLORS[S.find(s => s.speaker === v).fraction] || NOISE, order: null },
 };
 document.getElementById('dayScale').innerHTML = dates.map(d => `<span><i style="background:${dayGradient(weekdayOf(d))}"></i>${GROUPS.weekday.name(weekdayOf(d))}</span>`).join('') + '<span class="hint">früh → spät</span>';
-const DEFAULTS = { mode: 'cluster', terms: [], live: '', dim: true, befragung: false, size: true, showLabels: true, open: '', peek: '' };
-const TOGGLES = ['dim', 'befragung', 'size', 'showLabels'];
+const DEFAULTS = { mode: 'cluster', terms: [], live: '', dim: true, befragung: false, zwischenfragen: false, size: true, showLabels: true, open: '', peek: '' };
+const TOGGLES = ['dim', 'befragung', 'zwischenfragen', 'size', 'showLabels'];
 const state = { ...DEFAULTS, checked: Object.fromEntries(Object.keys(GROUPS).map(k => [k, new Set()])) };
 const totals = Object.fromEntries(Object.keys(GROUPS).map(k => [k, Map.groupBy(S, GROUPS[k].of)]));
 const initialOrder = k => {
@@ -401,7 +428,7 @@ const decodeState = () => {
   for (const k in GROUPS) (h.get(k) || '').split('|').filter(Boolean).forEach(v => state.checked[k].add(k === 'cluster' ? +v : v));
   state.terms = (h.get('suche') || '').split('|').filter(Boolean).map(term => ({ term, on: true }));
   for (const k of TOGGLES) if (h.has(k)) state[k] = h.get(k) === '1';
-  state.open = h.get('rede') || '';
+  state.open = resolveSpeech(h.get('rede') || h.get('open') || '');  // #open= is the key the cards site links with
   startTourId = h.get('tour') || '';
 };
 decodeState();
@@ -485,7 +512,8 @@ function syncControls() {
 const dayOrItem = s => !(state.checked.weekday.size || state.checked.agenda.size) || state.checked.weekday.has(s.weekday) || state.checked.agenda.has(s.agenda_id);
 const matches = s => ['fraction', 'cluster', 'speaker'].every(k => !state.checked[k].size || state.checked[k].has(GROUPS[k].of(s))) && dayOrItem(s)
   && state.terms.every(t => !t.on || s.haystack.includes(t.term.toLowerCase()))
-  && (state.befragung || state.checked.speaker.size || state.checked.agenda.size || !s.befragung);  // an explicit speaker/TOP filter overrides the Befragung hide
+  && (state.befragung || state.checked.speaker.size || state.checked.agenda.size || !s.befragung)  // an explicit speaker/TOP filter overrides the Befragung hide
+  && (state.zwischenfragen || state.checked.speaker.size || !s.zwischenfrage);  // … and an explicit speaker filter the Zwischenfragen hide
 
 // --- drawing --------------------------------------------------------------------------
 const keyOf = { cluster: s => s.cluster, fraction: s => s.fraction, weekday: s => s.weekday, agenda: s => s.agenda_id, mdb: s => s.role ? 'Regierung' : 'Abgeordnete' };
@@ -581,7 +609,7 @@ const pick = (() => {
   const spread = [...Map.groupBy(S.filter(s => !s.befragung), s => s.agenda_id)].filter(([, v]) => v.length >= 8)
     .map(([id, v]) => ({ id, clusters: new Set(v.filter(s => s.cluster >= 0).map(s => s.cluster)).size, title: v[0].agenda }))
     .sort((a, b) => b.clusters - a.clusters)[0];
-  const speaker = [...Map.groupBy(S.filter(s => !s.befragung), s => s.speaker)].sort((a, b) => b[1].length - a[1].length)[0];
+  const speaker = [...Map.groupBy(S.filter(s => !s.befragung && !s.zwischenfrage), s => s.speaker)].sort((a, b) => b[1].length - a[1].length)[0];
   return { cluster: cluster ? cluster.id : -1, clusterLabel: cluster ? clusterLabel(cluster.id) : '', agenda: spread ? spread.id : '', agendaTitle: spread ? spread.title : '', agendaClusters: spread ? spread.clusters : 0, speaker: speaker ? speaker[0] : '' };
 })();
 const expand = id => document.getElementById(id).classList.remove('collapsed');
@@ -702,6 +730,14 @@ const breakdown = (g, skip) => DIMS.filter(([k]) => k !== skip).map(([k, title])
 const speechCard = (o, what, head = '') => `<div class="similar" data-open="${o.id}">${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}${o.weekday ? ' · ' + o.weekday : ''}</span></div><div class="what">${what}</div></div>`;
 const firstText = o => (o.paragraphs.find(p => p[0] === 'text') || ['', ''])[1];
 const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
+const avatar = (pid, credit) => `<img class="avatar" src="${CARDS}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
+const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Karte mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
+const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
+const RESULT_TEXT = { angenommen: 'angenommen', abgelehnt: 'abgelehnt' };
+const decisionsHtml = aid => {  // announced results of the agenda item, each linking to its vote page
+  const ds = (DATA.decisions || {})[aid] || [];
+  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${CARDS}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
+};
 
 // Zwischenfragen: a card where another person took the floor; one too short to be a point expands in place
 const MARKERS = { zwischenfrage: 'Zwischenfrage', kurzintervention: 'Kurzintervention', antwort: 'Antwort in der Rede' };
@@ -730,6 +766,7 @@ function showSpeech(s) {
   panelKind = 'speech';
   state.open = s.id;
   if (s.befragung) state.befragung = true;
+  if (s.zwischenfrage) state.zwischenfragen = true;
   if (mobile) {  // the speech takes the sheet's Details tab; the back button closes it again
     state.peek = ''; renderPeek();
     if (!levels.includes('speech')) pushLevel('speech');
@@ -739,11 +776,12 @@ function showSpeech(s) {
   const next = byId[s.next];
   panel.innerHTML = `
     <button class="close" onclick="closeSpeech()" title="Schließen (Esc)">×</button>
-    <h2>${esc(s.speaker)}</h2>
-    <div class="meta"><b>${esc(s.fraction)}</b>${s.role ? ' · ' + esc(s.role) : ''} · <a href="#" onclick="setSpeaker(${esc(JSON.stringify(s.speaker))});return false">alle Reden</a><br>
-      ${s.weekday} ${fmt(s.date)} · ${esc(s.top)}<br>${dot(AGENDA_COLOR[s.agenda_id])} ${esc(s.agenda)}<br>
+    ${whoHead(s.speaker, s)}
+    <div class="meta"><b>${esc(s.fraction)}</b>${s.role ? ' · ' + esc(s.role) : ''} · <a href="#" onclick="setSpeaker(${esc(JSON.stringify(s.speaker))});return false">alle Reden der Woche</a>${s.zwischenfrage ? ' · Zwischenfrage' : ''}<br>
+      ${s.weekday} ${fmt(s.date)} · ${topLink(s)}<br>${dot(AGENDA_COLOR[s.agenda_id])} ${esc(s.agenda)}<br>
       Thema: <a href="#" onclick="setCluster(${s.cluster});return false">${esc(clusterLabel(s.cluster))}</a> · ${s.chars.toLocaleString('de')} Zeichen · ${s.comments} Zwischenrufe/Beifall<br>
       <a href="${s.pdf}" target="_blank" rel="noopener">${esc(s.cite)} (PDF)</a> · Rede ${s.id}${s.drucksachen.length ? ' · Drs. ' + s.drucksachen.join(', ') : ''}</div>
+    ${decisionsHtml(s.agenda_id)}
     ${paras}
     ${next ? `<h3>Nächste Rede</h3>${speechCard(next, esc(next.agenda.slice(0, 80)))}` : ''}
     <h3>Ähnliche Reden</h3>${s.similar.map(id => speechCard(byId[id], esc(byId[id].agenda.slice(0, 80)))).join('')}`;
@@ -769,14 +807,14 @@ function showCluster(id) {
   panel.scrollTop = 0;
   tourCheck();
 }
-function showGroup(g, title, subtitle, k, v) {
-  panelKind = 'group'; lastCard = () => showGroup(g, title, subtitle, k, v); toDetail();
+function showGroup(g, title, subtitle, k, v, extra = '') {
+  panelKind = 'group'; lastCard = () => showGroup(g, title, subtitle, k, v, extra); toDetail();
   flags.card = { k, v };
   const only = k ? ` · <a href="#" data-only="${k}" data-v="${esc(v)}">nur diese zeigen</a>` : '';
   const list = g.length <= 40 ? `<h3>Reden</h3>${g.map(o => speechCard(o, `${esc(o.agenda.slice(0, 70))}<br>${esc(excerpt(o).slice(0, 110))}`)).join('')}` : '';
   panel.innerHTML = `<button class="close" onclick="showHint()" title="Schließen">×</button>
-    <h2>${esc(title)}</h2>
-    <div class="meta">${subtitle ? esc(subtitle) + ' · ' : ''}${g.length} Reden · ${g.reduce((a, s) => a + s.chars, 0).toLocaleString('de')} Zeichen · ${g.reduce((a, s) => a + s.comments, 0)} Zwischenrufe/Beifall${only}</div>${breakdown(g, k)}${list}`;
+    ${k === 'speaker' ? whoHead(title, g[0]) : `<h2>${esc(title)}</h2>`}
+    <div class="meta">${subtitle ? subtitle + ' · ' : ''}${g.length} Reden · ${g.reduce((a, s) => a + s.chars, 0).toLocaleString('de')} Zeichen · ${g.reduce((a, s) => a + s.comments, 0)} Zwischenrufe/Beifall${only}</div>${extra}${breakdown(g, k)}${list}`;
   panel.scrollTop = 0;
   tourCheck();
 }
@@ -784,9 +822,10 @@ function showGroup(g, title, subtitle, k, v) {
 function showCard(k, v) {
   if (k === 'cluster' && v >= 0) return showCluster(v);
   const g = S.filter(s => GROUPS[k].of(s) === v), a = g[0];
-  if (k === 'agenda') return showGroup(g, a.agenda, `${a.weekday} ${fmt(a.date)} · ${a.top}`, k, v);
+  if (k === 'agenda') return showGroup(g, a.agenda, `${a.weekday} ${fmt(a.date)} · ${topLink(a)}`, k, v, decisionsHtml(v));
   if (k === 'weekday') return showGroup(g, `${v} ${fmt(a.date)}`, 'Sitzungstag', k, v);
-  showGroup(g, GROUPS[k].name(v), { fraction: 'Fraktion', speaker: 'alle Reden dieser Woche', cluster: 'Reden ohne Thema' }[k], k, v);
+  const sub = { fraction: 'Fraktion', speaker: `${esc(a.fraction)} · alle Reden dieser Woche`, cluster: 'Reden ohne Thema' }[k];
+  showGroup(g, GROUPS[k].name(v), sub, k, v);
 }
 panel.addEventListener('click', e => {
   const el = e.target.closest('[data-open], [data-aside], [data-card], [data-only]');
@@ -986,7 +1025,8 @@ side.addEventListener('change', () => layoutSheet());
 addEventListener('resize', () => layoutSheet());
 layoutSheet();
 
-if (byId[state.open]) showSpeech(byId[state.open]); else showHint();
+const focus = [...state.checked.cluster];  // <week>.html#cluster=<id>, as linked from the overview: open that topic's card
+if (byId[state.open]) showSpeech(byId[state.open]); else if (focus.length === 1 && clusterById[focus[0]]) showCluster(focus[0]); else showHint();
 draw();
 if (TOURS[startTourId]) startTour(startTourId);
 map.on('plotly_relayouting', placeLabels);

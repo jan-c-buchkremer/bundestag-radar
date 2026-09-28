@@ -17,8 +17,7 @@ def serve(out: Path, port: int) -> None:
         def do_GET(self) -> None:  # noqa: N802 (http.server API)
             name = self.path.split("?")[0].split("#")[0].strip("/") or "index.html"
             if name == "index.html":
-                payloads = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(out.glob("20*.json"))]
-                html = build.render_index([build.summary(p) for p in payloads])
+                html = build.index_page(out)
             elif name.endswith(".html") and (out / name.replace(".html", ".json")).exists():
                 html = build.render(json.loads((out / name.replace(".html", ".json")).read_text(encoding="utf-8")))
             else:
