@@ -105,6 +105,9 @@ class Speech:
     end: tuple[str, int] = ("", 0)  # … and of the last
     paragraphs: list[tuple[str, str]] = field(default_factory=list)  # (kind, text) incl. interjections and markers
     linked: dict[str, dict] = field(default_factory=dict)  # marker targets that are too short to be speeches
+    zwischenfrage: bool = False  # another person's turn inside someone else's rede, announced (or taken) as a question
+    photo: bool = True  # a portrait exists on the cards site (always True while the store has no person_photo table)
+    photo_credit: str | None = None
 
     @property
     def n_comments(self) -> int:
@@ -152,6 +155,9 @@ def _assemble(parts: list[tuple[str, Speech]], by_part: dict[str, list[tuple[str
         sp.paragraphs.extend(by_part[pid])
     for other in {id(sp): sp for _, sp in parts if sp is not main}.values():
         other.paragraphs.append(("antwort", main.id))
+        # no marker when two interrupters follow each other; unannounced turns count as questions (decisions.md)
+        kind = next((k for k, target in main.paragraphs if k in MARKERS and target == other.id), "zwischenfrage")
+        other.zwischenfrage = kind == "zwischenfrage"
 
 
 def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
@@ -192,6 +198,10 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     for parts in rede.values():
         _assemble(parts, by_part)
 
+    credits = photos(conn)
+    if credits is not None:
+        for s in speeches:
+            s.photo, s.photo_credit = s.person_id in credits, credits.get(s.person_id)
     kept = [s for s in speeches if len(s.text) >= MIN_CHARS]
     dropped = {s.id: s for s in speeches if len(s.text) < MIN_CHARS}
     for s in kept:
@@ -200,3 +210,55 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
                 d = dropped[target]
                 s.linked[target] = {"speaker": d.speaker, "fraction": d.fraction, "paragraphs": d.paragraphs}
     return kept
+
+
+def has_table(conn: sqlite3.Connection, table: str, column: str | None = None) -> bool:
+    """Whether the store has this table (and column): newer foundation tables are optional."""
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+    return bool(cols) and (column is None or column in cols)
+
+
+def photos(conn: sqlite3.Connection) -> dict[str, str | None] | None:
+    """Photographer credit per person with a portrait; None if the store predates `person_photo` (then the page
+    tries every portrait and hides the ones that fail to load)."""
+    if not has_table(conn, "person_photo"):
+        return None
+    return {r[0]: r[1] for r in conn.execute("SELECT person_id, credit FROM person_photo")}
+
+
+def vote_page(vote_id: str) -> str:
+    """Cards-site path of a decision or roll-call vote page: "21/90/7" -> "abstimmungen/21-90-7.html"."""
+    return f"abstimmungen/{vote_id.replace('/', '-')}.html"
+
+
+def decisions(conn: sqlite3.Connection, agenda_ids: list[str]) -> dict[str, list[dict]]:
+    """Announced results per agenda item: {agenda item id: [{id, page, kind, result, subject}]}, in announcement
+    order. Reads `decision` and roll-call votes linked by `roll_call_vote.agenda_item_id`; empty if neither exists."""
+    out: dict[str, list[dict]] = {}
+    ids = sorted(set(agenda_ids))
+    marks = ",".join("?" * len(ids))
+    seen_votes: set[str] = set()
+    if ids and has_table(conn, "decision"):
+        for r in conn.execute(
+            f"SELECT id, agenda_item_id, kind, result, subject, roll_call_vote_id FROM decision "
+            f"WHERE agenda_item_id IN ({marks}) ORDER BY sitting_id, n",
+            ids,
+        ):
+            seen_votes.add(r["roll_call_vote_id"] or "")
+            out.setdefault(r["agenda_item_id"], []).append(
+                {"id": r["id"], "page": vote_page(r["roll_call_vote_id"] or r["id"]), "kind": r["kind"],
+                 "result": r["result"], "subject": r["subject"]}
+            )  # fmt: skip
+    if ids and has_table(conn, "roll_call_vote", "agenda_item_id"):
+        for r in conn.execute(
+            f"SELECT id, agenda_item_id, title, yes, no FROM roll_call_vote WHERE agenda_item_id IN ({marks}) "
+            f"ORDER BY number",
+            ids,
+        ):
+            if r["id"] in seen_votes:
+                continue
+            out.setdefault(r["agenda_item_id"], []).append(
+                {"id": r["id"], "page": vote_page(r["id"]), "kind": "namentlich",
+                 "result": "angenommen" if r["yes"] > r["no"] else "abgelehnt", "subject": r["title"]}
+            )  # fmt: skip
+    return out

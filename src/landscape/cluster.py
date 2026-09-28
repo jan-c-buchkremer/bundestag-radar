@@ -28,6 +28,7 @@ geehrte geehrter geehrten liebe lieber erste ersten zweite zweiten dritte
 präsident präsidentin kollege kollegin kolleginnen kollegen damen herren abgeordnete abgeordneten abgeordneter
 fraktion bundesregierung koalition antrag gesetz gesetzentwurf gesetzes ausschuss minister ministerin
 deutschland land bürgerinnen bürger menschen zwischenfrage frage antwort union afd grünen linke
+habe gegen genau endlich politik bundestag
 """.split()  # noqa: SIM905
 
 
