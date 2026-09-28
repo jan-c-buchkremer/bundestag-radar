@@ -17,12 +17,15 @@ def test_week_range():
 def test_load_week_rejoins_splits_and_fills_fraction(conn):
     speeches = corpus.load_week(conn, "2026-W28")
     by_id = {s.id: s for s in speeches}
-    assert set(by_id) == {"ID0", "ID1", "ID2"}  # ID1-2 is a short question, ID1-3 merged into ID1
+    assert set(by_id) == {"ID0", "ID1", "ID1-2", "ID2"}  # ID1-3 merged into ID1
     berg = by_id["ID1"]
     assert berg.part_ids == ["ID1", "ID1-3"] and berg.text.endswith("Kurze Antwort.")
     assert [k for k, _ in berg.paragraphs] == ["text", "comment", "chair", "zwischenfrage", "text"]
     assert berg.paragraphs[3] == ("zwischenfrage", "ID1-2") and berg.n_comments == 1
-    assert berg.linked["ID1-2"]["paragraphs"] == [("text", "Kurze Frage?"), ("antwort", "ID1")]
+    # a Zwischenfrage is a point at any length; the host page shows it in place from that point, not from `linked`
+    frage = by_id["ID1-2"]
+    assert frage.zwischenfrage and frage.paragraphs == [("text", "Kurze Frage?"), ("antwort", "ID1")]
+    assert berg.linked == {}
     assert berg.start == ("2026-07-08", 2) and berg.end == ("2026-07-08", 4)
     assert berg.speaker == "Bernd Berg"
     assert by_id["ID2"].fraction == "SPD" and by_id["ID2"].role == "Ministerin"  # from person.party
@@ -56,6 +59,23 @@ def test_short_title():
     assert st(zp, "Zusatzpunkt 28, 29") == "Zur X"
 
 
+def test_short_title_takes_the_first_sub_item():
+    """Combined items: the law of a) names the item, not the motion debated with it under b) or a ZP (as in
+    cards.titles, so both sites show the same title)."""
+    st = corpus.short_title
+    title = (
+        "a) – Zweite und dritte Beratung des von der Bundesregierung eingebrachten Entwurfs eines Gesetzes zur "
+        "Modernisierung des Bundespolizeigesetzes | Beschlussempfehlung und Bericht des Innenausschusses | "
+        "b) Beratung der Beschlussempfehlung und des Berichts des Innenausschusses zu dem Antrag der Fraktion "
+        "Die Linke | Grundrechte schützen"
+    )
+    assert st(title, "Zusatzpunkt 21") == "Zur Modernisierung des Bundespolizeigesetzes"
+    zp = "7 Erste Beratung des Entwurfs eines Gesetzes zur Mietpreisbremse | ZP 3 Beratung des Antrags der Fraktion X | Mieten stoppen"  # noqa: E501
+    assert st(zp, "Tagesordnungspunkt 7") == "Zur Mietpreisbremse"
+    antrag = "Beratung des Antrags der Fraktion der AfD | Deutschland braucht echte Reformen"
+    assert st(antrag, "Zusatzpunkt 18") == "Deutschland braucht echte Reformen"
+
+
 def _interrupted_rede(conn, base, chair, asker_text):
     """Adler speaks, Cohn interrupts after the chair's remark, Adler answers (sitting 21/91, week 2026-W37)."""
     conn.executemany(
@@ -84,6 +104,21 @@ def test_zwischenfrage_flag(conn):
     assert by_id["ID5-2"].zwischenfrage and by_id["ID5-2"].paragraphs[-1] == ("antwort", "ID5")
     assert not by_id["ID6-2"].zwischenfrage  # Kurzinterventionen stay normal points
     assert not by_id["ID5"].zwischenfrage and not by_id["ID3"].zwischenfrage
+
+
+def test_zwischenfragen_are_points_at_any_length(conn):
+    """No length split: short and long Zwischenfragen are both points, marked in the host speech; a short
+    Kurzintervention is still dropped and shipped in `linked`, as before."""
+    _interrupted_rede(conn, "ID5", "Gestatten Sie eine Zwischenfrage?", LONG)
+    _interrupted_rede(conn, "ID7", "Gestatten Sie eine Zwischenfrage?", "Stimmt das?")
+    _interrupted_rede(conn, "ID8", "Das Wort zu einer Kurzintervention hat Clara Cohn.", "Kurz: nein.")
+    by_id = {s.id: s for s in corpus.load_week(conn, "2026-W37")}
+    for host, frage in (("ID5", "ID5-2"), ("ID7", "ID7-2")):
+        assert by_id[frage].zwischenfrage and ("zwischenfrage", frage) in by_id[host].paragraphs
+        assert by_id[host].linked == {}
+    assert by_id["ID7-2"].text == "Stimmt das?"
+    assert "ID8-2" not in by_id and ("kurzintervention", "ID8-2") in by_id["ID8"].paragraphs
+    assert by_id["ID8"].linked["ID8-2"]["paragraphs"] == [("text", "Kurz: nein."), ("antwort", "ID8")]
 
 
 def test_link_fields_without_new_tables(conn):

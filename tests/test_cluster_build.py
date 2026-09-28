@@ -25,32 +25,47 @@ def test_neighbours_and_tiny_week_layout():
 
 def test_render_embeds_payload(conn):
     speeches = corpus.load_week(conn, "2026-W28")
-    clustering = Clustering(xy=np.zeros((3, 2)), labels=np.array([0, 0, -1]), terms={0: ["miete", "wohnen"]})
-    vectors = np.eye(3)
+    assert [s.id for s in speeches] == ["ID0", "ID1", "ID1-2", "ID2"]
+    labels = np.array([0, 0, 0, -1])
+    clustering = Clustering(xy=np.zeros((4, 2)), labels=labels, terms={0: ["miete", "wohnen", "kfw"]})
+    vectors = np.eye(4)
     payload = build.week_payload("2026-W28", speeches, clustering, vectors, ["2026-W28", "2026-W37"])
     assert payload["clusters"] == [
-        {"id": 0, "terms": ["miete", "wohnen"], "agenda": "Befragung der Bundesregierung", "n": 2}
+        {"id": 0, "terms": ["miete", "wohnen", "kfw"], "agenda": "Mietpreisbremse verlängern", "n": 3}
     ]
     p = payload["speeches"][1]
-    assert [s["next"] for s in payload["speeches"]] == ["ID1", "ID2", None]
-    assert payload["linked"]["ID1-2"]["speaker"] == "Clara Cohn"
-    assert p["comments"] == 1 and p["cluster"] == 0 and p["pdf"].endswith("21088.pdf") and len(p["similar"]) == 2
+    assert [s["next"] for s in payload["speeches"]] == ["ID1", "ID2", "ID2", None]  # ID1 skips its Zwischenfrage
+    assert payload["linked"] == {} and payload["speeches"][2]["zwischenfrage"] is True
+    assert p["comments"] == 1 and p["cluster"] == 0 and p["pdf"].endswith("21088.pdf") and len(p["similar"]) == 3
+    assert p["parts"] == ["ID1", "ID1-3"] and "parts" not in payload["speeches"][0]
     html = build.render(payload)
     assert "__DATA__" not in html
     start = html.index("const DATA = ") + len("const DATA = ")
-    assert json.loads(html[start : html.index(";\n", start)].replace("<\/", "</")) == json.loads(json.dumps(payload))
+    assert json.loads(html[start : html.index(";\n", start)].replace("<\\/", "</")) == json.loads(json.dumps(payload))
     index = build.render_index([build.summary(payload)])
-    assert '"speeches": 3' in index and '"2026-07-08"' in index and "#tour=" in index
+    assert '"speeches": 4' in index and '"2026-07-08"' in index and "#tour=" in index
 
 
 def test_payload_link_fields(conn):
     speeches = corpus.load_week(conn, "2026-W28")
-    clustering = Clustering(xy=np.zeros((3, 2)), labels=np.array([0, 0, -1]), terms={0: ["miete"]})
+    clustering = Clustering(xy=np.zeros((4, 2)), labels=np.array([0, 0, 0, -1]), terms={0: ["miete"]})
     decisions = {"21/88/2": [{"id": "21/88/h1", "page": "abstimmungen/21-88-h1.html", "result": "angenommen"}]}
-    payload = build.week_payload("2026-W28", speeches, clustering, np.eye(3), ["2026-W28"], decisions)
+    payload = build.week_payload("2026-W28", speeches, clustering, np.eye(4), ["2026-W28"], decisions)
     p = payload["speeches"][1]
     assert p["person_id"] == "2" and p["photo"] is True and "zwischenfrage" not in p
     assert payload["decisions"] == decisions
+
+
+def test_speech_clusters_export(conn, tmp_path):
+    speeches = corpus.load_week(conn, "2026-W28")
+    clustering = Clustering(xy=np.zeros((4, 2)), labels=np.array([3, 3, 3, -1]), terms={3: ["kfw", "miete", "x", "y"]})
+    payload = build.week_payload("2026-W28", speeches, clustering, np.eye(4), ["2026-W28"])
+    (tmp_path / "2026-W28.json").write_text(json.dumps(payload))
+    (tmp_path / "period.json").write_text("{}")  # not a week payload
+    assert build.write_speech_clusters(tmp_path) == 4
+    got = json.loads((tmp_path / "speech_clusters.json").read_text())
+    entry = {"week": "2026-W28", "cluster_id": 3, "label": "KFW · Miete · X"}
+    assert got == {"ID0": entry, "ID1": entry, "ID1-3": entry, "ID1-2": entry}  # ID2 is unclustered
 
 
 def _synthetic_period(n_per=30):

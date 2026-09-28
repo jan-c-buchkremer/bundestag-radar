@@ -48,7 +48,8 @@ footer a { color: var(--muted); }
 #slabels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .slbl { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 11.5px; font-weight: 500; color: #33415c; text-shadow: 0 0 3px rgba(255,255,255,.9), 0 0 2px rgba(255,255,255,.9); }
 .slbl.on { font-weight: 600; color: #1d3f9e; }
-#stip { position: absolute; z-index: 5; pointer-events: none; display: none; min-width: 180px; max-width: 280px; transform: translate(-50%, calc(-100% - 12px));
+/* the tooltip is fixed to the viewport and placed from the pointer (below-right, flipped at the edges), see placeTip */
+#stip { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; display: none; min-width: 180px; max-width: min(280px, calc(100vw - 16px));
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; box-shadow: 0 6px 20px rgba(0,0,0,.08); font-size: 12.5px; line-height: 1.45; }
 #stip b { display: block; font-weight: 600; }
 .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
@@ -94,7 +95,7 @@ footer a { color: var(--muted); }
   #themeList { max-height: 280px; }
   #areas { flex-wrap: nowrap; overflow-x: auto; margin: 10px -14px 0; padding: 0 14px 4px; scrollbar-width: none; }
   #areas button { flex: none; font-size: 11.5px; }
-  #stip { max-width: 220px; min-width: 0; font-size: 12px; }
+  #stip { max-width: min(220px, calc(100vw - 16px)); min-width: 0; font-size: 12px; }
   .trow { padding: 7px 6px; }
 }
 </style>
@@ -243,17 +244,33 @@ if (P && P.themes.length && window.Plotly) (() => {
     const r = el.getBoundingClientRect(), x = fl.xaxis.p2l(ev.clientX - r.left - fl._size.l), y = fl.yaxis.p2l(ev.clientY - r.top - fl._size.t);
     const i = Math.min(N - 1, Math.max(0, Math.round(x))), i0 = Math.max(0, Math.min(N - 2, Math.floor(x))), f = N > 1 ? Math.min(1, Math.max(0, x - i0)) : 0;
     const lerp = a => N > 1 ? a[i0] + (a[i0 + 1] - a[i0]) * f : a[0];
-    return { i, t: order.find(t => lerp(lo[t.id]) <= y && y <= lerp(hi[t.id])) || null, cx: ev.clientX - r.left, cy: ev.clientY - r.top };
+    return { i, t: order.find(t => lerp(lo[t.id]) <= y && y <= lerp(hi[t.id])) || null, cx: ev.clientX, cy: ev.clientY };
   }
+  // below-right of the pointer; flipped to the left / above where it would leave the viewport, then clamped to it
+  const TIP_GAP = 14, TIP_MARGIN = 8;
+  function placeTip(cx, cy) {
+    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    const w = tipEl.offsetWidth, h = tipEl.offsetHeight, clamp = (v, max) => Math.max(TIP_MARGIN, Math.min(v, max - TIP_MARGIN));
+    let x = cx + TIP_GAP, y = cy + TIP_GAP;
+    if (x + w > vw - TIP_MARGIN) x = cx - TIP_GAP - w;
+    if (y + h > vh - TIP_MARGIN) y = cy - TIP_GAP - h;
+    tipEl.style.left = clamp(x, vw - w) + 'px'; tipEl.style.top = clamp(y, vh - h) + 'px';
+  }
+  const hideTip = () => { tipEl.style.display = 'none'; };
+  document.body.appendChild(tipEl);  // out of the plot box: fixed to the viewport, above everything
+  addEventListener('scroll', hideTip, { passive: true });  // a fixed tip would stay put while the band scrolls away
+  addEventListener('resize', hideTip);
   function showTip(h) {
-    if (!h || !h.t) { tipEl.style.display = 'none'; return; }
+    if (!h || !h.t) { hideTip(); return; }
     const c = h.t.counts[h.i], share = totals[h.i] ? Math.round(100 * c / totals[h.i]) : 0;
     const act = !c ? '' : h.t.id === sel ? 'Klicken: diese Woche öffnen' : 'Klicken: Thema auswählen';
-    tipEl.innerHTML = `<b><i class="sw" style="background:${COLOR[h.t.id]}"></i>${esc(label(h.t))}</b><span>${esc(areaOf(h.t).name)}<br>${weekName(W[h.i])}<br>${c} Reden · ${share} % der Woche</span>${act ? `<em>${phone.matches ? act.replace('Klicken', 'Tippen') : act}</em>` : ''}`;
+    tipEl.innerHTML = `<b><i class="sw" style="background:${COLOR[h.t.id]}"></i>${esc(label(h.t))}</b><span>${esc(areaOf(h.t).name)}<br>${weekName(W[h.i])}<br>${c} Reden · ${share} % der Woche</span>${act ? `<em>${touched() ? act.replace('Klicken', 'Tippen') : act}</em>` : ''}`;
     tipEl.style.display = 'block';
-    const w = tipEl.offsetWidth, left = Math.min(Math.max(h.cx, w / 2 + 4), el.clientWidth - w / 2 - 4);
-    tipEl.style.left = left + 'px'; tipEl.style.top = Math.max(h.cy, tipEl.offsetHeight + 16) + 'px';
+    placeTip(h.cx, h.cy);
   }
+  let lastPointer = 'mouse';
+  const touched = () => lastPointer !== 'mouse' || phone.matches;
+  el.addEventListener('pointerdown', ev => { lastPointer = ev.pointerType; });
   el.addEventListener('pointermove', ev => {
     if (ev.pointerType !== 'mouse') return;  // touch: a tap selects and shows the tip, see click
     const h = at(ev), id = h?.t?.id ?? null, wk = h ? h.i : null;
@@ -262,15 +279,16 @@ if (P && P.themes.length && window.Plotly) (() => {
     if (id !== hover || wk !== hoverWeek) { hover = id; hoverWeek = wk; draw(); }
   });
   el.addEventListener('pointerleave', ev => {
-    if (ev.pointerType !== 'mouse') return; tipEl.style.display = 'none'; hover = hoverWeek = null; draw();
+    if (ev.pointerType !== 'mouse') return; hideTip(); hover = hoverWeek = null; draw();
   });
   el.addEventListener('click', ev => {
     const h = at(ev);
-    if (!h || !h.t) { select(null); return; }
+    if (!h || !h.t) { hideTip(); select(null); return; }
     if (h.t.id === sel && h.t.counts[h.i]) { location.href = link(h.t, h.i); return; }  // second click on the chosen theme opens the week
     select(h.t.id, h.i);
-    if (phone.matches) showTip(h);
+    if (touched()) showTip(h);  // no hover on touch: the tap that selects shows the tip at the finger
   });
+  document.addEventListener('click', ev => { if (!el.contains(ev.target)) hideTip(); });
 
   const spark = t => {
     const m = Math.max(...t.counts) || 1, pts = t.counts.map((c, i) => `${(84 * i / Math.max(N - 1, 1)).toFixed(1)},${(18 - 16 * c / m).toFixed(1)}`);

@@ -81,6 +81,8 @@ def main(argv: list[str] | None = None) -> None:
             print(f"  {t['id']:2} ({t['n']:4}) {', '.join(t['terms'])}")
         (args.out / "index.html").write_text(build.index_page(args.out), encoding="utf-8")
         print(f"overview: {len(model['themes'])} themes, index written in {time.time() - t0:.0f} s")
+    n = build.write_speech_clusters(args.out)
+    print(f"speech_clusters.json: {n} speech ids")
 
 
 if __name__ == "__main__":

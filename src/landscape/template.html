@@ -326,7 +326,7 @@ const cap = w => ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() +
 const clusterLabel = (c, n = 3) => c < 0 ? 'ohne Thema' : clusterById[c].terms.slice(0, n).map(cap).join(' · ');
 const excerpt = s => { const t = s.paragraphs.find(p => p[0] === 'text'); return t ? t[1].slice(0, 140) + '…' : ''; };
 const byId = Object.fromEntries(S.map(s => [s.id, s]));
-// a speech id from a link: a point, a Zwischenfrage too short to be one (→ the speech it interrupted),
+// a speech id from a link: a point, a Kurzintervention too short to be one (→ the speech it interrupted),
 // or a continuation part of a split speech (ID…-3 → ID…)
 const resolveSpeech = id => {
   if (!id || byId[id]) return id;
@@ -739,7 +739,9 @@ const decisionsHtml = aid => {  // announced results of the agenda item, each li
   return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${CARDS}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
 };
 
-// Zwischenfragen: a card where another person took the floor; one too short to be a point expands in place
+// another person taking the floor inside a speech. A Zwischenfrage is always shown in place, in full (every one is
+// also a point of its own, hidden on the map unless „Zwischenfragen zeigen“); a Kurzintervention that is a point is
+// a card that opens it, one too short to be a point expands in place; „Antwort“ leads from a Zwischenfrage back.
 const MARKERS = { zwischenfrage: 'Zwischenfrage', kurzintervention: 'Kurzintervention', antwort: 'Antwort in der Rede' };
 function markerCard(kind, id, s) {
   const o = byId[id] || DATA.linked[id];
@@ -750,9 +752,11 @@ function markerCard(kind, id, s) {
     what = (o.paragraphs.slice(i + 1).find(p => p[0] === 'text') || ['', what])[1];
   }
   const head = `<div class="kind">${MARKERS[kind]}</div>`;
-  if (byId[id]) return speechCard(o, esc(cut(what, 180)), head).replace('class="similar"', 'class="similar marker"');
-  const full = o.paragraphs.filter(([k]) => !(k in MARKERS)).map(([k, t]) => `<p class="${k}">${esc(t)}</p>`).join('');
-  return `<div class="similar marker" data-aside>${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}</span></div><div class="what">${esc(cut(what, 180))}</div><div class="full">${full}</div></div>`;
+  const inPlace = kind === 'zwischenfrage';
+  if (byId[id] && !inPlace) return speechCard(o, esc(cut(what, 180)), head).replace('class="similar"', 'class="similar marker"');
+  const full = o.paragraphs.filter(([k]) => !(k in MARKERS)).map(([k, t]) => `<p class="${k}">${k === 'text' ? highlight(t) : esc(t)}</p>`).join('');
+  const point = byId[id] ? ` · <a href="#" data-open="${o.id}" title="Die Zwischenfrage als eigenen Punkt auf der Karte öffnen">als Punkt öffnen</a>` : '';
+  return `<div class="similar marker${inPlace ? ' open' : ''}" data-aside>${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}${point}</span></div><div class="what">${esc(cut(what, 180))}</div><div class="full">${full}</div></div>`;
 }
 
 function showHint() {

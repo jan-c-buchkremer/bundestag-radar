@@ -51,8 +51,8 @@ read-only connections. The store is still opened with `mode=ro`.
 ## What the pages show
 
 `index.html` opens with the **themes of the Wahlperiode**: one clustering over every speech of the period
-(without Regierungsbefragung and Zwischenfragen), drawn as a streamgraph over the sitting weeks. Hover shows theme,
-week and count; clicking a band picks the theme (its strongest weeks, agenda items and a link into the week), a
+(without Regierungsbefragung and Zwischenfragen), drawn as a streamgraph over the sitting weeks. Hover (or a tap) shows theme,
+week and count in a tooltip below-right of the pointer that flips to stay on screen; clicking a band picks the theme (its strongest weeks, agenda items and a link into the week), a
 second click on the chosen band opens that week with the matching week topic in focus. „Anteil“ switches to the
 share of each week. Bands are coloured by policy area (eight hue families plus „Weitere“, assigned from the theme's
 top terms); a click on an area in the legend fades the others. Below, the tours and every sitting week with its main topics, newest first. Each week page:
@@ -73,9 +73,10 @@ top terms); a click on an area in the legend fades the others. Below, the tours 
   speeches of the week. Click a topic label or a name in a filter list: bar charts by fraction, day, topic, agenda
   item and speaker, with the speeches listed; every bar opens its own card.
 - Regierungsbefragung turns are hidden by default (two-minute question/answer units under one agenda item); an
-  explicit speaker or agenda filter shows them anyway. Zwischenfragen long enough to be points are hidden the same
-  way („Zwischenfragen zeigen“); they stay readable as cards in the speech they interrupted and in the speaker's
-  profile, an explicit speaker filter shows them, and opening one by link switches the toggle on.
+  explicit speaker or agenda filter shows them anyway. Every Zwischenfrage, whatever its length, is shown in full
+  where it was asked in the speech it interrupted, and is also a point of its own that is hidden the same way
+  („Zwischenfragen zeigen“, off by default); an explicit speaker filter shows them, and opening one (by link or from
+  the speech) switches the toggle on.
 - Links out to the [MdB cards](https://jan-c-buchkremer.github.io/bundestag-mdb-cards/): the speaker's name (and
   portrait, hidden when there is none) opens their card, the agenda item its sitting page (`sitzungen/21-88.html#top-6`),
   and every announced result of the agenda item its vote page, with „angenommen“/„abgelehnt“ as a badge.
@@ -86,13 +87,27 @@ Everything in the view is in the URL hash of a week page (`<week>.html#…`), so
 
 | key | example | effect |
 |---|---|---|
-| `rede` (alias `open`) | `2026-W28.html#open=ID218816800` | opens that speech. Continuation parts (`ID…-3`) and Zwischenfragen too short to be points open the speech they belong to. |
+| `rede` (alias `open`) | `2026-W28.html#open=ID218816800` | opens that speech. Continuation parts (`ID…-3`) and Kurzinterventionen too short to be points open the speech they belong to; a Zwischenfrage opens as its own point and switches „Zwischenfragen zeigen“ on. |
 | `cluster` | `2026-W28.html#cluster=4` | filters to that week topic and opens its card (the overview links this way) |
 | `fraction`, `weekday`, `agenda`, `speaker` | `#speaker=Anna Adler` | filters, `\|`-separated values |
 | `suche` | `#suche=Miete\|Wohnen` | saved search terms |
 | `farbe` | `#farbe=agenda` | colour mode: `cluster`, `fraction`, `weekday`, `agenda`, `mdb` |
 | `befragung`, `zwischenfragen`, `dim`, `size`, `showLabels` | `#zwischenfragen=1` | toggles, `1`/`0` |
 | `tour` | `#tour=woche` | starts a tour: `woche`, `debatte`, `person` |
+
+### `speech_clusters.json`
+
+Every build writes `data/out/speech_clusters.json` from all week payloads in `data/out`, for sites that link a
+speech to its week topic (the MdB cards site shows the topics of an agenda item with it):
+
+```json
+{"ID218816800": {"week": "2026-W28", "cluster_id": 4, "label": "Miete · Wohnen · Mietpreisbremse"}, …}
+```
+
+Keys are foundation speech ids, including continuation parts (`ID…-3`) and Zwischenfragen; `week` and `cluster_id`
+make the link `<week>.html#cluster=<cluster_id>`, `label` is the topic's label as the map shows it (top three terms).
+Speeches without a topic (HDBSCAN noise, ceremonial single sittings) are left out. Cluster ids change when a week is
+rebuilt, so read the file of the same build as the pages.
 
 The index takes `index.html#thema=<id>` to pre-select a period theme. Theme ids are by size and change when the
 period is re-clustered; week topic ids change when a week is rebuilt, so only `rede`/`open` links are stable.
@@ -110,9 +125,9 @@ fraction) and *Einer Person folgen* (speaker list, profile, similar speeches by 
 - A sitting week is the ISO week of the sitting date. No sitting week in WP 21 crosses a Sunday.
 - Speeches split by the foundation at Zwischenfragen (`ID…`, `ID…-2`, …) are re-joined per speaker. Where another
   person spoke in between, the main speech gets a marker paragraph pointing to that person's speech (a
-  Kurzintervention if the chair announced one, else a Zwischenfrage), and that speech a marker back. Questions
-  under 500 characters are not points; their text is shipped with the page and opens in place.
-- Speeches under 500 characters are dropped (procedural remarks, single questions).
+  Kurzintervention if the chair announced one, else a Zwischenfrage), and that speech a marker back.
+- Speeches under 500 characters are dropped (procedural remarks, single replies), except Zwischenfragen, which are
+  points at any length. A dropped Kurzintervention's text is shipped with the page and opens in place.
 - Ministers have no fraction in the protocol; their party from the master data is used instead. Non-MdB
   ministers and Länder representatives are shown as "ohne Fraktion".
 - Speeches longer than the model window are embedded in paragraph-boundary chunks and mean-pooled.
