@@ -11,6 +11,11 @@ from landscape.cluster import Clustering, majority, neighbours
 from landscape.corpus import Speech
 
 HERE = Path(__file__).parent
+# upper-cased in topic labels; the same set as `ACRONYMS` in template.html, so exported labels match the week page
+ACRONYMS = {
+    "usa", "nato", "eu", "uno", "un", "csd", "ard", "zdf", "kfw", "dfb", "fifa", "ki", "eeg", "geg", "stpo", "bgb",
+    "sgb", "bka", "bnd", "öpnv", "lng", "co2", "nis", "tv", "gkv", "pkv", "iwf", "oecd", "wto",
+}  # fmt: skip
 
 
 def week_payload(
@@ -52,11 +57,12 @@ def week_payload(
             "similar": [speeches[j].id for j in near],
             "next": following[s.id],
             "paragraphs": s.paragraphs,
+            **({"parts": s.part_ids} if len(s.part_ids) > 1 else {}),  # foundation ids re-joined into this speech
             **({"zwischenfrage": True} if s.zwischenfrage else {}),
         }  # fmt: skip
         for s, (x, y), label, near in zip(speeches, clustering.xy, clustering.labels, neighbours(vectors), strict=True)
     ]
-    linked = {k: v for s in speeches for k, v in s.linked.items()}  # Zwischenfragen too short to be points
+    linked = {k: v for s in speeches for k, v in s.linked.items()}  # marker targets too short to be points
     return {
         "week": week, "weeks": weeks, "clusters": clusters, "speeches": points, "linked": linked,
         "decisions": decisions or {},  # agenda item id -> announced results, see corpus.decisions
@@ -99,3 +105,30 @@ def summary(payload: dict) -> dict:
         "week": payload["week"], "dates": dates, "speeches": len(payload["speeches"]),
         "clusters": [c["terms"][:3] for c in sorted(payload["clusters"], key=lambda c: -c["n"])],
     }  # fmt: skip
+
+
+def topic_label(terms: list[str], n: int = 3) -> str:
+    """A week topic's label as the week page shows it: "Miete · Wohnen · KFW"."""
+    return " · ".join(t.upper() if t in ACRONYMS else t[:1].upper() + t[1:] for t in terms[:n])
+
+
+def speech_clusters(payloads: dict[str, dict]) -> dict[str, dict]:
+    """Every clustered speech of the built weeks -> its week topic, for sites linking into the maps
+    (`<week>.html#cluster=<cluster_id>`). Keyed by foundation speech id, continuation parts (`ID…-3`) included;
+    unclustered speeches are left out."""
+    out: dict[str, dict] = {}
+    for week, p in sorted(payloads.items()):
+        label = {c["id"]: topic_label(c["terms"]) for c in p["clusters"]}
+        for s in p["speeches"]:
+            if s["cluster"] in label:
+                entry = {"week": week, "cluster_id": s["cluster"], "label": label[s["cluster"]]}
+                for sid in s.get("parts", [s["id"]]):
+                    out[sid] = entry
+    return out
+
+
+def write_speech_clusters(out: Path) -> int:
+    """`speech_clusters.json` from every week payload in `out`; returns the number of speech ids."""
+    mapping = speech_clusters(load_payloads(out))
+    (out / "speech_clusters.json").write_text(json.dumps(mapping, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+    return len(mapping)

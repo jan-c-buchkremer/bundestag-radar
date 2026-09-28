@@ -32,6 +32,8 @@ _PROCEDURAL = re.compile(
     r"Beschlussempfehlung|Bericht des|Antrag der|zu dem Antrag|zu der|\(Schluss)",
 )
 _GESETZ = re.compile(r"^.*?Entwurfs eines (\w+ )?Gesetzes ")
+# where the next sub-item of a combined agenda item starts: "b) …", "25 b) …", "ZP 3 …", "2 Erste Beratung …"
+_SUB_ITEM = re.compile(r"^((\d+\s*)?[b-z]\)|ZP\s*\d+|\d+\s)")
 
 
 def connect() -> sqlite3.Connection:
@@ -69,7 +71,11 @@ def weeks(conn: sqlite3.Connection) -> list[dict]:
 
 
 def short_title(title: str | None, top_id: str) -> str:
-    """A label-sized title: the first non-procedural segment, or the law's name."""
+    """A label-sized title: the first non-procedural segment of the first sub-item, or the law's name.
+
+    Only the first sub-item counts: in "a) Entwurf eines Gesetzes … | b) Beratung des Antrags … | <Antrag title>"
+    the item is about the law, not the motion debated with it. The cards site has a copy (`cards.titles`); change
+    both together."""
     if not title:
         if top_id.startswith("Einzelplan"):
             num = top_id.removeprefix("Einzelplan").strip().lstrip("0")
@@ -78,7 +84,9 @@ def short_title(title: str | None, top_id: str) -> str:
     segments = [s.strip() for s in title.split("|") if not s.strip().startswith("(Schluss")]
     if not segments:
         return top_id
-    for s in segments:
+    first = next((i for i, s in enumerate(segments) if i and _SUB_ITEM.match(s) and _PROCEDURAL.match(s)),
+                 len(segments))  # fmt: skip
+    for s in segments[:first]:
         if not _PROCEDURAL.match(s):
             return s
     s = _GESETZ.sub("", segments[0])
@@ -104,7 +112,7 @@ class Speech:
     start: tuple[str, int] = ("", 0)  # (date, position) of the first part
     end: tuple[str, int] = ("", 0)  # … and of the last
     paragraphs: list[tuple[str, str]] = field(default_factory=list)  # (kind, text) incl. interjections and markers
-    linked: dict[str, dict] = field(default_factory=dict)  # marker targets that are too short to be speeches
+    linked: dict[str, dict] = field(default_factory=dict)  # dropped marker targets (never Zwischenfragen)
     zwischenfrage: bool = False  # another person's turn inside someone else's rede, announced (or taken) as a question
     photo: bool = True  # a portrait exists on the cards site (always True while the store has no person_photo table)
     photo_credit: str | None = None
@@ -164,7 +172,9 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     """Speeches of one week with split parts re-joined and short units dropped.
 
     A rede split at Zwischenfragen (`ID…`, `ID…-2`, …) is re-joined per speaker; where another person spoke
-    in between, the main speech gets a ("zwischenfrage"|"kurzintervention", <speech id>) paragraph."""
+    in between, the main speech gets a ("zwischenfrage"|"kurzintervention", <speech id>) paragraph. Zwischenfragen
+    are kept at any length (flag `zwischenfrage`); `linked` holds the marker targets that were dropped (short
+    Kurzinterventionen, a main speech too short to keep), so the page can still show them in place."""
     span = week_range(week)
     speeches: list[Speech] = []
     by_base: dict[tuple[str, str], Speech] = {}  # (rede base id, person) -> first part
@@ -202,8 +212,10 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     if credits is not None:
         for s in speeches:
             s.photo, s.photo_credit = s.person_id in credits, credits.get(s.person_id)
-    kept = [s for s in speeches if len(s.text) >= MIN_CHARS]
-    dropped = {s.id: s for s in speeches if len(s.text) < MIN_CHARS}
+    # every Zwischenfrage is a point whatever its length (hidden on the map by default, decisions.md); the host
+    # speech's page shows it in place from that point. Short Kurzinterventionen are dropped like any short unit.
+    kept = [s for s in speeches if len(s.text) >= MIN_CHARS or s.zwischenfrage]
+    dropped = {s.id: s for s in speeches if len(s.text) < MIN_CHARS and not s.zwischenfrage}
     for s in kept:
         for kind, target in s.paragraphs:
             if kind in MARKERS and target in dropped:
