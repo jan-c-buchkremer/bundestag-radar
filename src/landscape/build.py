@@ -16,6 +16,14 @@ ACRONYMS = {
     "usa", "nato", "eu", "uno", "un", "csd", "ard", "zdf", "kfw", "dfb", "fifa", "ki", "eeg", "geg", "stpo", "bgb",
     "sgb", "bka", "bnd", "öpnv", "lng", "co2", "nis", "tv", "gkv", "pkv", "iwf", "oecd", "wto",
 }  # fmt: skip
+# the index page's list (`ACRONYMS` in index.html), for period theme labels
+THEME_ACRONYMS = {
+    "usa", "nato", "eu", "uno", "un", "kfw", "ki", "eeg", "geg", "bka", "bnd", "öpnv", "lng", "co2", "gkv", "pkv",
+    "iwf", "oecd", "bmz", "kfor", "unifil", "kritis", "spd", "cdu", "csu", "afd", "ard", "zdf",
+}  # fmt: skip
+# e5 similarities are compressed (nearest neighbours at 0.86–0.97 on WP 21); below this the match is mostly style
+# or a short Regierungsbefragung turn, see docs/decisions.md
+MIN_SIMILARITY = 0.88
 
 
 def week_payload(
@@ -107,9 +115,9 @@ def summary(payload: dict) -> dict:
     }  # fmt: skip
 
 
-def topic_label(terms: list[str], n: int = 3) -> str:
+def topic_label(terms: list[str], n: int = 3, acronyms: set[str] = ACRONYMS) -> str:
     """A week topic's label as the week page shows it: "Miete · Wohnen · KFW"."""
-    return " · ".join(t.upper() if t in ACRONYMS else t[:1].upper() + t[1:] for t in terms[:n])
+    return " · ".join(t.upper() if t in acronyms else t[:1].upper() + t[1:] for t in terms[:n])
 
 
 def speech_clusters(payloads: dict[str, dict]) -> dict[str, dict]:
@@ -127,8 +135,81 @@ def speech_clusters(payloads: dict[str, dict]) -> dict[str, dict]:
     return out
 
 
+def _write(path: Path, mapping: dict) -> int:
+    path.write_text(json.dumps(mapping, ensure_ascii=False, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+    return len(mapping)
+
+
 def write_speech_clusters(out: Path) -> int:
     """`speech_clusters.json` from every week payload in `out`; returns the number of speech ids."""
-    mapping = speech_clusters(load_payloads(out))
-    (out / "speech_clusters.json").write_text(json.dumps(mapping, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    return len(mapping)
+    return _write(out / "speech_clusters.json", speech_clusters(load_payloads(out)))
+
+
+def speech_themes(period: dict, payloads: dict[str, dict]) -> dict[str, dict]:
+    """Every speech with a period theme -> theme id and label as the index page shows them. Keyed like
+    `speech_clusters` (continuation parts from the week payloads); speeches outside every theme are left out."""
+    label = {t["id"]: topic_label(t["terms"], acronyms=THEME_ACRONYMS) for t in period.get("themes", [])}
+    parts = {s["id"]: s.get("parts", [s["id"]]) for p in payloads.values() for s in p["speeches"]}
+    out: dict[str, dict] = {}
+    for assign in period.get("assign", {}).values():
+        for sid, theme in assign.items():
+            if theme in label:
+                for part in parts.get(sid, [sid]):
+                    out[part] = {"theme_id": theme, "label": label[theme]}
+    return out
+
+
+def write_speech_themes(out: Path) -> int | None:
+    """`speech_themes.json` from `period.json` and the week payloads in `out`; None when the period is not built."""
+    cache = out / "period.json"
+    if not cache.exists():
+        return None
+    return _write(
+        out / "speech_themes.json", speech_themes(json.loads(cache.read_text(encoding="utf-8")), load_payloads(out))
+    )
+
+
+def speech_neighbours(
+    speeches: list[Speech], vectors: np.ndarray, k: int = 5, min_sim: float = MIN_SIMILARITY
+) -> dict[str, list[str]]:
+    """Every speech -> the ids of up to k most similar speeches from other agenda items, anywhere in the given
+    set (the whole period on `build --all`). Keyed like `speech_clusters`; speeches without a match above
+    `min_sim` are left out."""
+    near = nearest_speeches(vectors, [s.agenda_item_id or None for s in speeches], k, min_sim)
+    return {
+        part: [speeches[j].id for j in js] for s, js in zip(speeches, near, strict=True) if js for part in s.part_ids
+    }
+
+
+def write_speech_neighbours(out: Path, speeches: list[Speech], vectors: np.ndarray) -> int:
+    """`speech_neighbours.json` over `speeches`; returns the number of speech ids."""
+    return _write(out / "speech_neighbours.json", speech_neighbours(speeches, vectors))
+
+
+def nearest_speeches(
+    vectors: np.ndarray, groups: list[str | None], k: int = 5, min_sim: float = 0.0, block: int = 1024
+) -> list[list[int]]:
+    """For each unit vector the indices of its k most similar others (cosine, best first), skipping those of the
+    same group (agenda item; None never matches) and those below `min_sim`. Blockwise, so memory stays at
+    block × n similarities."""
+    n = len(vectors)
+    codes = {g: i for i, g in enumerate(sorted({g for g in groups if g is not None}))}
+    # a None group gets a code of its own per speech, so it only excludes the speech itself
+    group = np.array([codes[g] if g is not None else len(codes) + i for i, g in enumerate(groups)])
+    vectors = np.asarray(vectors, dtype=np.float32)
+    k = min(k, n - 1)
+    out: list[list[int]] = []
+    for lo in range(0, n, block):
+        sims = vectors[lo : lo + block] @ vectors.T
+        rows = np.arange(len(sims))
+        sims[rows, rows + lo] = -np.inf
+        sims[group[lo : lo + block, None] == group[None, :]] = -np.inf
+        if k <= 0:
+            out.extend([] for _ in rows)
+            continue
+        top = np.argpartition(-sims, k - 1, axis=1)[:, :k]
+        top_sims = np.take_along_axis(sims, top, axis=1)
+        order = np.argsort(-top_sims, axis=1, kind="stable")
+        top, top_sims = np.take_along_axis(top, order, axis=1), np.take_along_axis(top_sims, order, axis=1)
+        out.extend(t[s >= min_sim].tolist() for t, s in zip(top, top_sims, strict=True))
+    return out

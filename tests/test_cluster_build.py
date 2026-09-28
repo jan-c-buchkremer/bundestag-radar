@@ -68,6 +68,47 @@ def test_speech_clusters_export(conn, tmp_path):
     assert got == {"ID0": entry, "ID1": entry, "ID1-3": entry, "ID1-2": entry}  # ID2 is unclustered
 
 
+def test_nearest_speeches_skip_same_agenda_item_and_weak_matches():
+    v = np.array([[1, 0, 0], [0.99, 0.1, 0], [0.9, 0.4, 0], [0.8, 0, 0.6], [0, 0, 1]], dtype=np.float32)
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    groups = ["a", "a", "b", None, None]
+    # 0 and 1 share an agenda item; block=2 exercises the blockwise path (diagonal offset per block)
+    got = build.nearest_speeches(v, groups, k=2, min_sim=0.5, block=2)
+    assert got[0] == [2, 3] and got[1] == [2, 3]
+    assert got[2] == [1, 0]
+    assert got[4] == [3]  # None never matches another None, but 0.6 to speech 3 is above the floor
+    assert build.nearest_speeches(v, groups, k=5, block=2) == build.nearest_speeches(v, groups, k=5)
+    assert build.nearest_speeches(v[:1], ["a"]) == [[]]
+
+
+def test_speech_neighbours_export(conn, tmp_path):
+    speeches = corpus.load_week(conn, "2026-W28")  # ID0 (item 1); ID1 (+ part ID1-3), Zwischenfrage ID1-2, ID2 (item 2)
+    v = np.array([[1, 0], [1, 0.05], [0, 1], [0.95, 0.3]], dtype=np.float32)
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    assert build.write_speech_neighbours(tmp_path, speeches, v) == 4
+    got = json.loads((tmp_path / "speech_neighbours.json").read_text())
+    # item 2's speeches only match ID0; ID1-2 is orthogonal to it (below MIN_SIMILARITY), so it is left out
+    assert got == {"ID0": ["ID1", "ID2"], "ID1": ["ID0"], "ID1-3": ["ID0"], "ID2": ["ID0"]}
+
+
+def test_speech_themes_export(conn, tmp_path):
+    assert build.write_speech_themes(tmp_path) is None  # period not built
+    speeches = corpus.load_week(conn, "2026-W28")
+    clustering = Clustering(xy=np.zeros((4, 2)), labels=np.full(4, -1), terms={})
+    payload = build.week_payload("2026-W28", speeches, clustering, np.eye(4), ["2026-W28"])
+    (tmp_path / "2026-W28.json").write_text(json.dumps(payload))
+    model = {
+        "themes": [{"id": 0, "terms": ["kfw", "spd", "miete", "x"], "n": 2}, {"id": 1, "terms": ["rente"], "n": 1}],
+        "assign": {"2026-W28": {"ID0": 0, "ID1": 0, "ID2": -1}, "2026-W30": {"ID9": 1}},
+    }
+    (tmp_path / "period.json").write_text(json.dumps(model))
+    assert build.write_speech_themes(tmp_path) == 4
+    got = json.loads((tmp_path / "speech_themes.json").read_text())
+    kfw = {"theme_id": 0, "label": "KFW · SPD · Miete"}  # the index page's acronyms, not the week page's
+    # ID1's continuation part maps like ID1; ID2 has no theme; ID9 has no week payload, so no parts
+    assert got == {"ID0": kfw, "ID1": kfw, "ID1-3": kfw, "ID9": {"theme_id": 1, "label": "Rente"}}
+
+
 def _synthetic_period(n_per=30):
     """Three well-separated topics over two weeks; texts carry a topic word so the labels are checkable."""
     rng = np.random.default_rng(0)
