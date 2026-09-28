@@ -127,6 +127,21 @@ best first), never from the speech's own agenda item; only matches with a simila
 speech without any is left out. Values are the speeches' first foundation ids. Only `build --all` writes it, so a
 build of single weeks never replaces it with a partial one.
 
+### `topic_origins.json`
+
+„Wer brachte das Thema auf?“ on each theme of the index page, written with every `build overview` / `--all`
+(`origin.py`). Per theme its episodes: runs of sitting weeks in which the theme has at least 4 % of the week's
+words, after at least 4 sitting weeks below that (shorter dips stay inside the episode). Per episode, kept apart:
+
+- `formal`: the first week's agenda items whose speeches mostly belong to the theme, with the initiators of their
+  Drucksachen (via the DIP Vorgang, so a Beschlussempfehlung counts for whoever tabled the Vorlage; the urheber of
+  the Drucksache when the Vorgang names none) and, for an Aktuelle Stunde, the fractions that requested it;
+- `unprompted`: speeches on the theme in the 8 sitting weeks before, held under agenda items with another main
+  theme, per fraction next to the fraction's speeches in those weeks.
+
+Episodes starting in the first 4 sitting weeks are `period_start` and have no `unprompted` part: their lead-up is
+not in the data.
+
 The index takes `index.html#thema=<id>` to pre-select a period theme. Theme ids are by size and change when the
 period is re-clustered; week topic ids change when a week is rebuilt, so only `rede`/`open` links are stable.
 

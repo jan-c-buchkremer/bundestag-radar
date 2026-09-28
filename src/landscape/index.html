@@ -88,6 +88,18 @@ footer a { color: var(--muted); }
 .agenda { margin: 12px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
 .agenda li { margin-bottom: 3px; }
 .pnote { color: var(--faint); font-size: 12px; margin: 10px 0 0; }
+.origin { margin-top: 16px; font-size: 12.5px; }
+.origin .ep { border-top: 1px solid var(--line); padding: 8px 0 4px; }
+.origin .ep > b { font-size: 13px; font-weight: 600; }
+.origin .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 11px; }
+.origin h5 { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 8px 0 3px; }
+.origin ul { margin: 0; padding-left: 16px; color: var(--muted); }
+.origin li { margin-bottom: 3px; }
+.origin a { color: var(--accent); text-decoration: none; }
+.origin .none { color: var(--faint); margin: 0; }
+.origin details { margin-top: 4px; color: var(--muted); }
+.origin summary { cursor: pointer; color: var(--faint); font-size: 12px; }
+.origin .method { color: var(--faint); font-size: 12px; margin-top: 10px; }
 @media (max-width: 760px) {
   #period { padding: 14px 14px 12px; margin: 0 -4px 28px; }
   #stream { height: 300px; margin: 6px -6px 0; }
@@ -331,7 +343,45 @@ if (P && P.themes.length && window.Plotly) (() => {
       <div class="terms">${esc(t.terms.join(' · '))} · ${t.n} Reden in ${weeks.length} Wochen</div>
       ${go != null ? `<a class="go" href="${link(t, go)}"><span>${kw(W[go])} ${W[go].slice(0, 4)} öffnen · ${t.counts[go]} Reden zu diesem Thema</span><b>→</b></a>` : ''}
       <h3>Stärkste Wochen</h3>${weeks.slice(0, 6).map(i => `<a class="wk" href="${link(t, i)}"><span class="d">${kw(W[i])} · ${info[W[i]] ? fmt(info[W[i]].dates[0]) + W[i].slice(2, 4) : W[i].slice(0, 4)}</span><span class="bar"><i style="width:${100 * t.counts[i] / max}%"></i></span><span class="c">${t.counts[i]}</span></a>`).join('')}
-      ${t.agenda.length ? `<h3 style="margin-top:14px">Häufigste Tagesordnungspunkte</h3><ul class="agenda">${t.agenda.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}`;
+      ${t.agenda.length ? `<h3 style="margin-top:14px">Häufigste Tagesordnungspunkte</h3><ul class="agenda">${t.agenda.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+      ${originHtml(t)}`;
+  }
+  // "Wer brachte das Thema auf?" (origin.py): per episode two measures side by side, never combined; names alphabetical
+  const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
+  const CARDS = 'https://jan-c-buchkremer.github.io/bundestag-mdb-cards/';
+  const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
+  const abc = (a, b) => a.localeCompare(b, 'de');
+  const wkName = w => `${kw(w)} ${w.slice(0, 4)}`;
+  function originHtml(t) {
+    const o = byOrigin[t.id];
+    if (!o) return '';
+    const pct = Math.round(100 * O.params.active_share);
+    const eps = o.episodes.map(e => {
+      const f = e.formal.items.length ? `<ul>${e.formal.items.map(it => {
+        const url = sittingUrl(it.agenda_id), names = a => esc([...new Set(a)].sort(abc).join(', '));
+        const ds = it.vorlagen.map(v => v.pdf ? `<a href="${esc(v.pdf)}">${esc(v.number)}</a>` : esc(v.number)).join(', ');
+        const parts = [];
+        if (it.aktuelle_stunde) parts.push(`Aktuelle Stunde auf Verlangen: ${it.aktuelle_stunde.length ? names(it.aktuelle_stunde) : 'nicht angegeben'}`);
+        if (it.vorlagen.length) parts.push(`Vorlagen von: ${names(it.vorlagen.flatMap(v => v.originators)) || 'nicht angegeben'} (Drucksache ${ds})`);
+        return `<li>${url ? `<a href="${url}">${esc(it.title)}</a>` : esc(it.title)}, ${fmt(it.date)}${it.date.slice(2, 4)}: ${parts.join(' · ') || 'keine Vorlage verknüpft'}</li>`;
+      }).join('')}</ul>` : '<p class="none">In dieser Woche hatte kein Tagesordnungspunkt dieses Thema als Hauptthema.</p>';
+      const u = e.unprompted;
+      const m = e.period_start ? '<p class="none">Beginn der Wahlperiode: Was vorher geschah, liegt nicht in den Daten.</p>'
+        : !u.n ? `<p class="none">Keine Reden zu diesem Thema in anderen Debatten (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)}).</p>`
+        : `<ul>${Object.entries(u.by_fraction).sort((a, b) => abc(a[0], b[0])).map(([f, c]) => `<li>${esc(f)}: ${c.n} von ${c.of} Reden</li>`).join('')}</ul>
+          <details><summary>${u.speeches.length < u.n ? `Die ersten ${u.speeches.length} von ${u.n} Reden` : `Die ${u.n} Reden`}</summary><ul>${u.speeches.map(s => `<li><a href="${s.week}.html#rede=${encodeURIComponent(s.id)}">${esc(s.speaker)}</a> (${esc(s.fraction)}), ${fmt(s.date)}${s.date.slice(2, 4)}: ${esc(s.agenda)}</li>`).join('')}</ul></details>`;
+      return `<div class="ep"><b>${wkName(e.start)} bis ${wkName(e.end)}</b>${e.period_start ? '<span class="tag">Beginn der Wahlperiode</span>' : ''}
+        <h5>Formale Initiative: Vorlagen und Aktuelle Stunden der ersten Woche</h5>${f}
+        <h5>Vorher in anderen Debatten angesprochen${e.period_start ? '' : ` (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)})`}</h5>${m}</div>`;
+    }).join('');
+    return `<div class="origin"><h3 style="margin-top:14px">Wer brachte das Thema auf?</h3>
+      ${eps || '<p class="none">Das Thema kam in keiner Woche auf mindestens ' + pct + ' % der Redezeit.</p>'}
+      <details class="method"><summary>Wie das gezählt wird und was es nicht zeigt</summary>
+        <p>Eine Phase beginnt in der ersten Sitzungswoche, in der das Thema mindestens ${pct} % aller Wörter der Woche hat, nachdem es ${O.params.gap} Sitzungswochen oder länger darunter lag. Wochen ohne Sitzung zählen nicht mit.</p>
+        <p><b>Formale Initiative</b>: Tagesordnungspunkte der ersten Woche, deren Reden mehrheitlich zu diesem Thema gehören, mit den Urhebern ihrer Drucksachen (bei Beschlussempfehlungen die Urheber der zugrunde liegenden Vorlage) und bei Aktuellen Stunden der Fraktion, die sie verlangt hat.</p>
+        <p><b>Vorher angesprochen</b>: Reden zu diesem Thema in den ${O.params.lookback} Sitzungswochen davor, gehalten unter Tagesordnungspunkten mit einem anderen Hauptthema, nach Fraktion. Daneben steht, wie viele Reden die Fraktion in diesen Wochen insgesamt gehalten hat: Größere Fraktionen haben mehr Redezeit.</p>
+        <p>Beide Angaben stehen bewusst nebeneinander und ergeben keine Rangfolge. Die Tagesordnung setzt der Ältestenrat gemeinsam fest, zu jedem Punkt sprechen alle Fraktionen, und Themen kommen oft von außen (Ereignisse, Gerichte, die EU). Die Daten umfassen nur diese Wahlperiode, rund 18 Monate; die Themen stammen aus einem automatischen Clustering und sind nicht fehlerfrei.</p>
+      </details></div>`;
   }
   document.querySelectorAll('#scale button').forEach(b => b.onclick = () => {
     scale = b.dataset.v; document.querySelectorAll('#scale button').forEach(x => x.classList.toggle('on', x === b)); draw();
