@@ -23,6 +23,52 @@ N_NEIGHBOURS = 15
 KNN = 15  # HDBSCAN noise joins the majority theme of its KNN nearest clustered speeches …
 KNN_AGREE = 0.5  # … if at least this share of them agree
 
+# policy areas for the overview's colours: a theme goes to the area whose stems match its top terms best (rank-weighted)
+AREAS = {
+    "wirtschaft": (
+        "wirtschaft investi haushalt schulden steuer geld industrie unternehmen automobil einkommen "
+        "erbschaft vermögen preise tankrabatt mineralöl entlastung verbraucher wachstum tourismus "
+        "mittelstand bürokratie"
+    ),
+    "soziales": (
+        "rente altersvorsorge arbeit beschäftigt tarif schwarzarbeit kinder familie eltern kindergeld "
+        "wohn bauen mietpreis miete bürgergeld sozial"
+    ),
+    "sicherheit": (
+        "sicherheit migration polizei bundespolizei grenze dobrindt justiz rechtsstaat täter opfer gewalt "
+        "kritis kritische bevölkerungsschutz asyl abschiebung straf"
+    ),
+    "aussen": (
+        "europa europäisch iran usa ukraine russland putin krieg frieden bundeswehr soldat wehrpflicht "
+        "nato israel libanon sudan hisbollah hamas unifil bosnien kosovo kfor entwicklung humanitär bmz "
+        "welt china"
+    ),
+    "klima": (
+        "strom erneuerbar energie kernkraft klima umwelt natur wärme heiz gas landwirt bauern ländlich ernährung"
+    ),
+    "gesundheit": ("pflege patient gesundheit versorgung kranken krankenhaus"),
+    "digital": (
+        "digital daten verwaltung staatsmodern bahn schiene infrastruktur mobilität deutschlandticket "
+        "verkehr forschung wissenschaft hightech raumfahrt bafög bildung"
+    ),
+    "demokratie": (
+        "demokratie partei linken kultur kunst medien rundfunk plattform queer diskriminierung "
+        "grundgesetz frauen sport athlet spiele"
+    ),
+}
+AREA_STEMS = {area: stems.split() for area, stems in AREAS.items()}
+
+
+def area(terms: list[str]) -> str:
+    """The policy area of a theme from its top terms; "weitere" when no stem matches."""
+    score = dict.fromkeys(AREA_STEMS, 0)
+    for rank, term in enumerate(terms):
+        for a, stems in AREA_STEMS.items():
+            if any(term.startswith(st) for st in stems):
+                score[a] += len(terms) - rank
+    best = max(score, key=lambda a: score[a])
+    return best if score[best] else "weitere"
+
 
 def included(s: Speech) -> bool:
     """Regierungsbefragung and Zwischenfragen are turns, not debates; they would blur the themes."""
@@ -126,6 +172,13 @@ def overview(period: dict, week_payloads: dict[str, dict]) -> dict:
             top = Counter(c for i in ids if (c := cluster_of.get(w, {}).get(i, -1)) >= 0).most_common(1)
             counts.append(len(ids))
             focus.append(top[0][0] if top else None)
-        themes.append({**{k: t[k] for k in ("id", "terms", "n", "agenda")}, "counts": counts, "focus": focus})
+        themes.append(
+            {
+                **{k: t[k] for k in ("id", "terms", "n", "agenda")},
+                "area": area(t["terms"]),
+                "counts": counts,
+                "focus": focus,
+            }
+        )
     unassigned = [sum(v == -1 for v in period["assign"].get(w, {}).values()) for w in weeks]
     return {"weeks": weeks, "themes": themes, "unassigned": unassigned}

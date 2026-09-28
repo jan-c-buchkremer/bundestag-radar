@@ -90,7 +90,7 @@ def test_period_model_and_overview(conn, tmp_path):
     ov = period.overview(model, week_payloads)
     assert ov["weeks"] == ["2026-W28", "2026-W37"] and ov["unassigned"] == [0, 0]
     for t in ov["themes"]:
-        assert t["counts"] == [20, 10] and t["focus"][1] is None
+        assert t["counts"] == [20, 10] and t["focus"][1] is None and t["area"] in {"klima", "soziales", "aussen"}
         topic = int(next(sid for sid, th in theme_of.items() if th == t["id"])[1])
         assert t["focus"][0] == 10 + topic
     index = build.render_index([], ov)
@@ -111,3 +111,10 @@ def test_period_build_is_cached(conn, tmp_path):
     again = period.build(conn, ["2026-W28", "2026-W37"], None, cache, embed_fn=fake_embed)
     assert calls == [3] and first == again and first["themes"] == []  # too few speeches for themes
     assert json.loads(cache.read_text())["assign"]["2026-W37"] == {"ID3": -1}
+
+
+def test_period_area():
+    assert period.area(["bundeswehr", "soldaten", "sicherheit", "nato"]) == "aussen"
+    assert period.area(["infrastruktur", "kritis", "bevölkerungsschutz", "sicherheit"]) == "sicherheit"
+    assert period.area(["pflege", "versorgung", "patienten"]) == "gesundheit"
+    assert period.area(["xylophon", "quark"]) == "weitere"

@@ -54,7 +54,8 @@ read-only connections. The store is still opened with `mode=ro`.
 (without Regierungsbefragung and Zwischenfragen), drawn as a streamgraph over the sitting weeks. Hover shows theme,
 week and count; clicking a band picks the theme (its strongest weeks, agenda items and a link into the week), a
 second click on the chosen band opens that week with the matching week topic in focus. „Anteil“ switches to the
-share of each week. Below, the tours and every sitting week with its main topics, newest first. Each week page:
+share of each week. Bands are coloured by policy area (eight hue families plus „Weitere“, assigned from the theme's
+top terms); a click on an area in the legend fades the others. Below, the tours and every sitting week with its main topics, newest first. Each week page:
 
 - One point per speech; position from UMAP on the speech embedding; topic colour and label from HDBSCAN + c-TF-IDF.
 - Colour by topic, fraction, day, **agenda item** or role. Agenda-item colouring shows where one debate spreads
