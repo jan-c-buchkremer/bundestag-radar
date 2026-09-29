@@ -61,7 +61,7 @@ def weeks(conn: sqlite3.Connection) -> list[dict]:
     out: dict[str, dict] = {}
     for r in conn.execute(
         "SELECT st.date, st.number, COUNT(s.id) n FROM sitting st LEFT JOIN speech s ON s.sitting_id = st.id "
-        "GROUP BY st.id ORDER BY st.date"
+        f"{not_fragestunde(conn)} GROUP BY st.id ORDER BY st.date"
     ):
         wid = week_id(r["date"])
         w = out.setdefault(wid, {"week": wid, "sittings": [], "speeches": 0})
@@ -129,14 +129,14 @@ FROM speech s
 JOIN sitting st ON st.id = s.sitting_id
 JOIN person p ON p.id = s.person_id
 LEFT JOIN agenda_item a ON a.id = s.agenda_item_id
-WHERE st.date BETWEEN ? AND ?
+WHERE st.date BETWEEN ? AND ? {kind}
 ORDER BY st.date, s.position
 """
 
 _SQL_PARAGRAPHS = """
 SELECT sp.speech_id, sp.kind, sp.text
 FROM speech_paragraph sp JOIN speech s ON s.id = sp.speech_id JOIN sitting st ON st.id = s.sitting_id
-WHERE st.date BETWEEN ? AND ?
+WHERE st.date BETWEEN ? AND ? {kind}
 ORDER BY sp.position
 """
 
@@ -179,7 +179,7 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     speeches: list[Speech] = []
     by_base: dict[tuple[str, str], Speech] = {}  # (rede base id, person) -> first part
     rede: dict[str, list[tuple[str, Speech]]] = {}  # rede base id -> its parts in speaking order
-    for r in conn.execute(_SQL, span):
+    for r in conn.execute(_SQL.format(kind=not_fragestunde(conn)), span):
         base = re.sub(r"-\d+$", "", r["id"])
         head = by_base.get((base, r["person_id"]))
         if head is not None:
@@ -203,7 +203,7 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
         speeches.append(sp)
 
     by_part: dict[str, list[tuple[str, str]]] = {pid: [] for s in speeches for pid in s.part_ids}
-    for r in conn.execute(_SQL_PARAGRAPHS, span):
+    for r in conn.execute(_SQL_PARAGRAPHS.format(kind=not_fragestunde(conn)), span):
         by_part[r["speech_id"]].append((r["kind"], r["text"]))
     for parts in rede.values():
         _assemble(parts, by_part)
@@ -228,6 +228,12 @@ def has_table(conn: sqlite3.Connection, table: str, column: str | None = None) -
     """Whether the store has this table (and column): newer foundation tables are optional."""
     cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
     return bool(cols) and (column is None or column in cols)
+
+
+def not_fragestunde(conn: sqlite3.Connection) -> str:
+    """SQL to AND onto a join or WHERE on `speech s`: the Fragestunde's questions and answers (foundation
+    `speech.kind`) are no Reden and stay off the map (docs/decisions.md). Empty for a store without the column."""
+    return "AND s.kind != 'fragestunde'" if has_table(conn, "speech", "kind") else ""
 
 
 def photos(conn: sqlite3.Connection) -> dict[str, str | None] | None:
