@@ -1,4 +1,4 @@
-from conftest import LONG
+from conftest import LONG, PLPR
 
 from landscape import corpus
 
@@ -155,3 +155,12 @@ def test_link_fields_with_new_tables(conn):
         ("abstimmungen/21-88-h2.html", "abgelehnt", "handzeichen"),
         ("abstimmungen/21-88-2.html", "abgelehnt", "namentlich"),  # roll-call vote without a decision row
     ]
+
+
+def test_fragestunde_turns_stay_off_the_map(conn):
+    conn.execute("ALTER TABLE speech ADD COLUMN kind TEXT NOT NULL DEFAULT 'rede'")
+    conn.execute("INSERT INTO speech VALUES ('21/88/3/f1','21/88','21/88/3',9,'9','Stefanie Hubig, Bundesministerin',"
+                 "'Ministerin',NULL,?,?,'fragestunde')", (LONG, PLPR))  # fmt: skip
+    conn.execute("INSERT INTO speech_paragraph VALUES ('21/88/3/f1/1','21/88/3/f1',1,'text',?)", (LONG,))
+    assert "21/88/3/f1" not in {s.id for s in corpus.load_week(conn, "2026-W28")}
+    assert corpus.weeks(conn)[0]["speeches"] == 5
