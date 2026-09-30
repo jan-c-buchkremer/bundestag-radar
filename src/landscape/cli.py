@@ -1,5 +1,5 @@
 """landscape weeks | landscape build 2026-W28 [2026-W26 …] | landscape build overview | landscape build --all |
-landscape serve | landscape mentions"""
+landscape serve"""
 
 from __future__ import annotations
 
@@ -24,10 +24,6 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
     b.add_argument("--min-cluster-size", type=int, default=8)
     b.add_argument("--period-min-cluster-size", type=int, default=None, help="HDBSCAN size for the period themes")
-    m = sub.add_parser("mentions", help="places, countries and organisations named in the speeches -> mentions.json")
-    m.add_argument("--out", type=Path, default=Path("data/out"))
-    m.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="NER cache (with the embeddings)")
-    m.add_argument("--jobs", type=int, default=1, help="spaCy worker processes")
     sv = sub.add_parser("serve", help="dev server: pages are re-rendered from data/out/*.json on every request")
     sv.add_argument("--out", type=Path, default=Path("data/out"))
     sv.add_argument("--port", type=int, default=8000)
@@ -37,18 +33,6 @@ def main(argv: list[str] | None = None) -> None:
         from landscape.serve import serve
 
         serve(args.out, args.port)
-        return
-
-    if args.cmd == "mentions":
-        from landscape import mentions
-
-        args.out.mkdir(parents=True, exist_ok=True)
-        store = mentions.open_store(args.store)
-        payload = mentions.build(corpus.connect(), store, args.out / "mentions.json", args.jobs)
-        n = sum(sum(m.values()) for m in payload["speeches"].values())
-        print(
-            f"mentions.json: {n} mentions of {len(payload['entities'])} entities in {len(payload['speeches'])} speeches"
-        )
         return
 
     conn = corpus.connect()

@@ -127,31 +127,6 @@ best first), never from the speech's own agenda item; only matches with a simila
 speech without any is left out. Values are the speeches' first foundation ids. Only `build --all` writes it, so a
 build of single weeks never replaces it with a partial one.
 
-### `mentions.json`
-
-„Erwähnungen“ for the cards site: which countries, Länder, larger Gemeinden and organisations the speeches name.
-`landscape mentions [--out data/out] [--store data/landscape.sqlite] [--jobs N]` (`mentions.py`, separate from the
-map builds) runs spaCy's German NER (`de_core_news_lg`, local; installed as a dependency) over every speech in the
-store, links the spans it finds to Wikidata QIDs through the gazetteers in `src/landscape/gazetteer/`, and writes
-
-```json
-{"model": "de_core_news_lg",
- "entities": {"Q183": {"label": "Deutschland", "kind": "staat"}, …},
- "speeches": {"ID218816800": {"Q183": 3, "Q64": 1}, …}}
-```
-
-Speeches are the foundation's speech ids, parts of a rede (`ID…-2`) apart, each with its own counts of mentions
-per QID; speeches without a mention are left out. `kind` is `land`, `staat`, `gemeinde` or `organisation`. The NER
-result is cached per text hash in the `ner` table of the store (next to the embeddings), so changing a gazetteer
-re-links in seconds; the first run over the WP 21 dev data (13 k speeches, 37 M characters) took about 3 minutes with
-`--jobs 8`.
-
-The gazetteers are committed. `scripts/fetch_gazetteers.py` refreshes the Wikidata parts (countries, Länder,
-Gemeinden of at least 50 000 inhabitants). By hand and to be reviewed: `organisations.tsv` (QID, label, surface
-forms), `aliases.tsv` (surface form → QID, also settles ambiguous names such as Frankfurt or Bremen) and
-`denylist.txt` (names never linked: Essen, Halle, Hagen …). A Gemeinde only counts where the NER tags a place;
-adjectives ("deutsche", "Berliner") are not mentions.
-
 ### `topic_origins.json`
 
 „Wer brachte das Thema auf?“ on each theme of the index page, written with every `build overview` / `--all`
