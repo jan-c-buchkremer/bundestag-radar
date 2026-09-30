@@ -1,0 +1,195 @@
+qid	label	population
+Q1017	Aachen	263703
+Q1132	Ahlen	52387
+Q3912	Arnsberg	74479
+Q3942	Aschaffenburg	73326
+Q2749	Augsburg	301786
+Q4165	Bad Homburg vor der Höhe	56938
+Q7047	Bad Kreuznach	54347
+Q6858	Bad Oeynhausen	50515
+Q4108	Bad Salzuflen	53807
+Q4100	Baden-Baden	56952
+Q3936	Bamberg	77218
+Q3923	Bayreuth	72919
+Q3989	Bergheim	61976
+Q3117	Bergisch Gladbach	111174
+Q64	Berlin	3700577
+Q2112	Bielefeld	331419
+Q3917	Bocholt	73048
+Q2103	Bochum	358880
+Q586	Bonn	323587
+Q3069	Bottrop	118482
+Q3931	Brandenburg an der Havel	73945
+Q2773	Braunschweig	252811
+Q24879	Bremen	588413
+Q2706	Bremerhaven	118502
+Q6931	Böblingen	51204
+Q3898	Castrop-Rauxel	72353
+Q3933	Celle	66930
+Q2795	Chemnitz	247252
+Q3214	Cottbus	95140
+Q2973	Darmstadt	168253
+Q3907	Delmenhorst	81274
+Q3828	Dessau-Roßlau	75035
+Q3922	Detmold	74438
+Q3939	Dinslaken	66869
+Q3978	Dormagen	63619
+Q3886	Dorsten	74783
+Q1295	Dortmund	600880
+Q1731	Dresden	562764
+Q2100	Duisburg	500810
+Q1884	Düren	94539
+Q1718	Düsseldorf	619444
+Q6845	Elmshorn	51375
+Q1729	Erfurt	217159
+Q3126	Erlangen	116450
+Q4083	Eschweiler	57573
+Q2066	Essen	573618
+Q3786	Esslingen am Neckar	95419
+Q4074	Euskirchen	59977
+Q3798	Flensburg	95568
+Q4024	Frankfurt (Oder)	56586
+Q1794	Frankfurt am Main	760656
+Q6823	Frechen	51927
+Q2833	Freiburg im Breisgau	238299
+Q4051	Friedrichshafen	62781
+Q3963	Fulda	65755
+Q3075	Fürth	131344
+Q4001	Garbsen	60007
+Q2765	Gelsenkirchen	266199
+Q3750	Gera	95162
+Q3874	Gießen	88544
+Q3905	Gladbeck	75647
+Q4098	Greifswald	56154
+Q3973	Grevenbroich	65605
+Q6924	Gronau	50349
+Q4181	Gummersbach	51332
+Q4072	Göppingen	58678
+Q4077	Görlitz	55065
+Q3033	Göttingen	130521
+Q3771	Gütersloh	99854
+Q2871	Hagen	189983
+Q2814	Halle (Saale)	226186
+Q1055	Hamburg	1869473
+Q4062	Hameln	58152
+Q2880	Hamm	179108
+Q3802	Hanau	98582
+Q1715	Hannover	522803
+Q4082	Hattingen	52969
+Q2966	Heidelberg	156092
+Q6869	Heidenheim an der Brenz	50612
+Q715	Heilbronn	132516
+Q3971	Herford	67074
+Q2904	Herne	156266
+Q3985	Herten	60707
+Q4094	Hilden	54859
+Q3185	Hildesheim	98207
+Q4060	Hürth	61732
+Q4175	Ibbenbüren	51596
+Q3004	Ingolstadt	140799
+Q1130	Iserlohn	91317
+Q3150	Jena	109353
+Q3758	Kaiserslautern	100247
+Q1040	Karlsruhe	309247
+Q2865	Kassel	196799
+Q3994	Kempten	67916
+Q3959	Kerpen	66377
+Q1707	Kiel	251842
+Q6842	Kleve	53094
+Q3104	Koblenz	113020
+Q3834	Konstanz	86691
+Q2805	Krefeld	230738
+Q365	Köln	1025523
+Q7039	Lahr/Schwarzwald	51208
+Q3974	Landshut	71922
+Q4048	Langenfeld	59821
+Q4158	Langenhagen	54059
+Q2079	Leipzig	615932
+Q2938	Leverkusen	168299
+Q4185	Lingen	56539
+Q3943	Lippstadt	72804
+Q622	Ludwigsburg	93002
+Q2910	Ludwigshafen am Rhein	177355
+Q6855	Lörrach	51274
+Q2843	Lübeck	217061
+Q3893	Lüdenscheid	70810
+Q3920	Lüneburg	74502
+Q3822	Lünen	85844
+Q1733	Magdeburg	244494
+Q1720	Mainz	223888
+Q2119	Mannheim	319536
+Q3869	Marburg	73571
+Q3813	Marl	86899
+Q4105	Meerbusch	56947
+Q4086	Menden (Sauerland)	52121
+Q3846	Minden	83598
+Q3132	Moers	101298
+Q2758	Mönchengladbach	267176
+Q2899	Mülheim an der Ruhr	171674
+Q1726	München	1505036
+Q2742	Münster	306368
+Q4120	Neu-Ulm	62843
+Q3958	Neubrandenburg	59494
+Q3879	Neumünster	80145
+Q2948	Neuss	153767
+Q4149	Neustadt an der Weinstraße	52882
+Q3967	Neuwied	67201
+Q3928	Norderstedt	83196
+Q4133	Nordhorn	57372
+Q2090	Nürnberg	531159
+Q2838	Oberhausen	213178
+Q3042	Offenbach am Main	133195
+Q4044	Offenburg	63437
+Q2936	Oldenburg	177055
+Q2916	Osnabrück	166257
+Q2971	Paderborn	155906
+Q4190	Passau	53523
+Q6850	Peine	51005
+Q3046	Pforzheim	134422
+Q3952	Plauen	64893
+Q1711	Potsdam	185137
+Q4113	Pulheim	55979
+Q6874	Rastatt	50753
+Q3791	Ratingen	88914
+Q6832	Ravensburg	50549
+Q3050	Recklinghausen	114851
+Q2978	Regensburg	151517
+Q3097	Remscheid	113333
+Q3085	Reutlingen	119040
+Q3890	Rheine	77209
+Q4007	Rosenheim	65808
+Q2861	Rostock	204929
+Q4031	Rüsselsheim am Main	66028
+Q1724	Saarbrücken	182859
+Q3200	Salzgitter	104433
+Q4090	Sankt Augustin	56033
+Q4126	Schweinfurt	54539
+Q1709	Schwerin	97922
+Q4037	Schwäbisch Gmünd	63930
+Q3167	Siegen	102450
+Q4019	Sindelfingen	61428
+Q2942	Solingen	164621
+Q4068	Stolberg	57678
+Q4065	Stralsund	55481
+Q1022	Stuttgart	609365
+Q3138	Trier	105054
+Q3900	Troisdorf	75742
+Q3806	Tübingen	92607
+Q3012	Ulm	130288
+Q3949	Unna	57961
+Q3840	Velbert	82166
+Q3902	Viersen	78227
+Q3865	Villingen-Schwenningen	89766
+Q4140	Waiblingen	57186
+Q3955	Weimar	65566
+Q4011	Wesel	60717
+Q4178	Wetzlar	54865
+Q1721	Wiesbaden	288584
+Q3857	Wilhelmshaven	75324
+Q3764	Witten	91474
+Q4122	Wolfenbüttel	52511
+Q3014	Wolfsburg	129813
+Q3852	Worms	86921
+Q2107	Wuppertal	357243
+Q2999	Würzburg	133753
+Q3778	Zwickau	86405

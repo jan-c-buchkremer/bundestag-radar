@@ -1,0 +1,7 @@
+# Names that are also common words, first or family names, or another place: never linked, whatever the NER says.
+# One per line; the place stays out of the gazetteer even if it passes the population threshold.
+Essen
+Halle
+Hof
+Hagen
+Hamm

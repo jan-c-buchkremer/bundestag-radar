@@ -10,6 +10,8 @@ dependencies = [
     "umap-learn>=0.5.7",
     "sentence-transformers>=3",
     "torch>=2.4",
+    "spacy>=3.8",
+    "de-core-news-lg",
 ]
 
 [project.scripts]
@@ -27,6 +29,7 @@ packages = ["src/landscape"]
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
+de-core-news-lg = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.8.0/de_core_news_lg-3.8.0-py3-none-any.whl" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
