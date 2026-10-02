@@ -348,7 +348,7 @@ if (P && P.themes.length && window.Plotly) (() => {
   }
   // "Wer brachte das Thema auf?" (origin.py): per episode two measures side by side, never combined; names alphabetical
   const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
-  const CARDS = 'https://jan-c-buchkremer.github.io/bundestag-mdb-cards/';
+  const CARDS = __CARDS__;
   const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
   const abc = (a, b) => a.localeCompare(b, 'de');
   const wkName = w => `${kw(w)} ${w.slice(0, 4)}`;
