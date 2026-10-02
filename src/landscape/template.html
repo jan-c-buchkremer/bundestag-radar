@@ -336,7 +336,7 @@ const resolveSpeech = id => {
   return byId[base] ? base : '';
 };
 // links out to the MdB cards site: speaker cards, portraits, sitting pages, vote pages
-const CARDS = 'https://jan-c-buchkremer.github.io/bundestag-mdb-cards/';
+const CARDS = __CARDS__;
 const cardUrl = pid => `${CARDS}${encodeURIComponent(pid)}.html`;
 const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);

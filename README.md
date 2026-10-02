@@ -77,9 +77,10 @@ top terms); a click on an area in the legend fades the others. Below, the tours 
   where it was asked in the speech it interrupted, and is also a point of its own that is hidden the same way
   („Zwischenfragen zeigen“, off by default); an explicit speaker filter shows them, and opening one (by link or from
   the speech) switches the toggle on.
-- Links out to the [MdB cards](https://jan-c-buchkremer.github.io/bundestag-mdb-cards/): the speaker's name (and
-  portrait, hidden when there is none) opens their card, the agenda item its sitting page (`sitzungen/21-88.html#top-6`),
-  and every announced result of the agenda item its vote page, with „angenommen“/„abgelehnt“ as a badge.
+- Links out to the [MdB cards](https://jan-c-buchkremer.github.io/bundestag-mdb-cards/) (`CARDS_URL` sets where;
+  default that GitHub Pages address): the speaker's name (and portrait, hidden when there is none) opens their card,
+  the agenda item its sitting page (`sitzungen/21-88.html#top-6`), and every announced result of the agenda item its
+  vote page, with „angenommen“/„abgelehnt“ as a badge.
 
 ## Deep links
 

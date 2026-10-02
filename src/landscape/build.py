@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,8 @@ from landscape.cluster import Clustering, majority, neighbours
 from landscape.corpus import Speech
 
 HERE = Path(__file__).parent
+# where the MdB cards are published; speaker names and agenda items link there
+CARDS = os.environ.get("CARDS_URL", "https://jan-c-buchkremer.github.io/bundestag-mdb-cards/").rstrip("/") + "/"
 # upper-cased in topic labels; the same set as `ACRONYMS` in template.html, so exported labels match the week page
 ACRONYMS = {
     "usa", "nato", "eu", "uno", "un", "csd", "ard", "zdf", "kfw", "dfb", "fifa", "ki", "eeg", "geg", "stpo", "bgb",
@@ -79,7 +82,8 @@ def week_payload(
 
 def _inline(template: str, payload: dict) -> str:
     data = json.dumps(payload, ensure_ascii=False).replace("</", r"<\/")
-    return (HERE / template).read_text(encoding="utf-8").replace("__DATA__", data)
+    page = (HERE / template).read_text(encoding="utf-8").replace("__CARDS__", json.dumps(CARDS))
+    return page.replace("__DATA__", data)
 
 
 def render(payload: dict) -> str:
