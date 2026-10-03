@@ -55,6 +55,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit("give at least one week, `overview` or --all; see `landscape weeks`")
     store = embed.open_store(args.store)
     args.out.mkdir(parents=True, exist_ok=True)
+    build.write_assets(args.out)
     summaries = []
     period_speeches, period_vectors = [], []  # for speech_neighbours.json on --all
     for week in targets:
