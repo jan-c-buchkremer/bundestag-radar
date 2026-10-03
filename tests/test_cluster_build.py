@@ -44,6 +44,15 @@ def test_render_embeds_payload(conn):
     assert json.loads(html[start : html.index(";\n", start)].replace("<\\/", "</")) == json.loads(json.dumps(payload))
     index = build.render_index([build.summary(payload)])
     assert '"speeches": 4' in index and '"2026-07-08"' in index and "#tour=" in index
+    assert f'href="{build.CARDS}impressum.html"' in index and "__CARDS_URL__" not in index
+    for page in (html, index):  # Plotly and the font come from assets/, not from a CDN
+        assert 'src="assets/plotly-2.35.2.min.js"' in page and "cdn.plot.ly" not in page and "googleapis" not in page
+
+
+def test_write_assets(tmp_path):
+    build.write_assets(tmp_path)
+    for name in ("plotly-2.35.2.min.js", "inter-latin.woff2", "inter-latin-ext.woff2"):
+        assert (tmp_path / "assets" / name).read_bytes() == (build.HERE / "assets" / name).read_bytes()
 
 
 def test_payload_link_fields(conn):

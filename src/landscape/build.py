@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import html
 import json
 import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -83,7 +85,13 @@ def week_payload(
 def _inline(template: str, payload: dict) -> str:
     data = json.dumps(payload, ensure_ascii=False).replace("</", r"<\/")
     page = (HERE / template).read_text(encoding="utf-8").replace("__CARDS__", json.dumps(CARDS))
+    page = page.replace("__CARDS_URL__", html.escape(CARDS))  # in attributes: the footer's Impressum/Datenschutz
     return page.replace("__DATA__", data)
+
+
+def write_assets(out: Path) -> None:
+    """Copy assets/ (Plotly, the Inter font) next to the pages, which load them from there instead of a CDN."""
+    shutil.copytree(HERE / "assets", out / "assets", dirs_exist_ok=True)
 
 
 def render(payload: dict) -> str:
