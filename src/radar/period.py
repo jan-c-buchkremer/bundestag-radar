@@ -17,7 +17,6 @@ from radar import corpus
 from radar.cluster import cluster_terms
 from radar.corpus import Speech
 
-BEFRAGUNG = "Befragung der Bundesregierung"
 MIN_CLUSTER_SIZE = 60  # WP 21 (8.7 k speeches): 32 themes, see docs/decisions.md
 N_NEIGHBOURS = 15
 KNN = 15  # HDBSCAN noise joins the majority theme of its KNN nearest clustered speeches …
@@ -72,7 +71,7 @@ def area(terms: list[str]) -> str:
 
 def included(s: Speech) -> bool:
     """Regierungsbefragung and Zwischenfragen are turns, not debates; they would blur the themes."""
-    return s.agenda_title != BEFRAGUNG and not s.zwischenfrage
+    return s.agenda_kind != "befragung" and not s.zwischenfrage
 
 
 def load(conn, week_ids: list[str]) -> list[tuple[str, Speech]]:

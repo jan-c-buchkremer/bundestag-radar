@@ -58,6 +58,7 @@ def week_payload(
             "photo": s.photo,
             **({"photo_credit": s.photo_credit} if s.photo_credit else {}),
             "fraction": s.fraction,
+            **({"member_fraction": s.member_fraction} if s.member_fraction and s.member_fraction != s.fraction else {}),
             "role": s.role,
             "date": s.date,
             "agenda_id": s.agenda_item_id,
@@ -73,6 +74,7 @@ def week_payload(
             "paragraphs": s.paragraphs,
             **({"parts": s.part_ids} if len(s.part_ids) > 1 else {}),  # foundation ids re-joined into this speech
             **({"zwischenfrage": True} if s.zwischenfrage else {}),
+            **({"befragung": True} if s.agenda_kind == "befragung" else {}),
         }  # fmt: skip
         for s, (x, y), label, near in zip(speeches, clustering.xy, clustering.labels, neighbours(vectors), strict=True)
     ]

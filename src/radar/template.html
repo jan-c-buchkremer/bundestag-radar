@@ -161,6 +161,7 @@ select:focus, input:focus { outline: 2px solid var(--accent-soft); border-color:
 .toggle input:checked::after { left: 14px; }
 
 #panel .hint { color: var(--muted); }
+.fnote { margin: 6px 0 0; color: var(--faint); font-size: 11.5px; line-height: 1.4; }
 #panel .hint kbd { font: inherit; font-size: 11.5px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
 #panel h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; letter-spacing: -.01em; line-height: 1.35; }
 #panel .meta { color: var(--muted); font-size: 12.5px; line-height: 1.65; margin-bottom: 16px; }
@@ -298,7 +299,7 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
       <div class="searchrow"><input type="text" id="search" placeholder="Text, Name, Tagesordnungspunkt…"><button id="addSearch" title="Suchbegriff als Filter speichern (Enter)">+</button></div>
       <div class="list" id="searchList"></div>
     </div></div>
-    <div class="group collapsed" id="g-fraction"><div class="title">Fraktion<span class="arrow"></span></div><div class="content"><div class="list" data-key="fraction"></div></div></div>
+    <div class="group collapsed" id="g-fraction"><div class="title">Fraktion<span class="arrow"></span></div><div class="content"><div class="list" data-key="fraction"></div><p class="fnote">Reden in einem Regierungsamt zählen für die Bundesregierung, nicht für die Fraktion der Rednerin oder des Redners.</p></div></div>
     <div class="group collapsed" id="g-agenda"><div class="title">Tagesordnung<span class="reload" data-key="agenda" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="agenda"></div></div></div>
     <div class="group collapsed" id="g-cluster"><div class="title">Thema<span class="reload" data-key="cluster" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="cluster"></div></div></div>
     <div class="group collapsed" id="g-speaker"><div class="title">Redner:in<span class="reload" data-key="speaker" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="speaker"></div></div></div>
@@ -324,7 +325,7 @@ const S = DATA.speeches;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const mq = matchMedia('(max-width: 900px), (pointer: coarse) and (max-width: 1100px)');  // the phone layout, as in the CSS
 let mobile = mq.matches;
-const FRACTION_COLORS = { 'CDU/CSU': css('--cdu'), 'SPD': css('--spd'), 'AfD': css('--afd'), 'BÜNDNIS 90/DIE GRÜNEN': css('--gru'), 'Die Linke': css('--lin'), 'fraktionslos': css('--frl'), 'ohne Fraktion': css('--reg') };
+const FRACTION_COLORS = { 'CDU/CSU': css('--cdu'), 'SPD': css('--spd'), 'AfD': css('--afd'), 'BÜNDNIS 90/DIE GRÜNEN': css('--gru'), 'Die Linke': css('--lin'), 'fraktionslos': css('--frl'), 'Bundesregierung': css('--reg'), 'Sonstige': css('--frl') };
 const ROLE_COLORS = ['#2a78d6', '#eb6834'];  // Abgeordnete, Regierung
 const NOISE = '#d4d4d0';
 const FRACTION_ORDER = Object.keys(FRACTION_COLORS);
@@ -360,7 +361,7 @@ const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return 
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);
 S.forEach(s => {
   s.weekday = weekdayOf(s.date);
-  s.befragung = s.agenda === 'Befragung der Bundesregierung';
+  s.befragung = !!s.befragung;  // the foundation's agenda_item.kind
   s.zwischenfrage = !!s.zwischenfrage;  // another person's question inside a speech; readable from that speech's card
   s.text = s.paragraphs.filter(p => p[0] === 'text').map(p => p[1]).join('\n');
   s.haystack = `${s.speaker}\n${s.role || ''}\n${s.agenda}\n${s.text}`.toLowerCase();

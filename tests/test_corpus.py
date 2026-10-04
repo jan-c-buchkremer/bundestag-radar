@@ -1,4 +1,4 @@
-from conftest import LONG, PLPR
+from conftest import LONG, PLPR, SPEECH, derive
 
 from radar import corpus
 
@@ -28,8 +28,9 @@ def test_load_week_rejoins_splits_and_fills_fraction(conn):
     assert berg.linked == {}
     assert berg.start == ("2026-07-08", 2) and berg.end == ("2026-07-08", 4)
     assert berg.speaker == "Bernd Berg"
-    assert by_id["ID2"].fraction == "SPD" and by_id["ID2"].role == "Ministerin"  # from person.party
-    assert by_id["ID0"].fraction == corpus.NO_FRACTION
+    # a speech in a government office counts for the Bundesregierung (foundation speaker_group); her fraction stays
+    assert by_id["ID2"].fraction == "Bundesregierung" and by_id["ID2"].member_fraction == "SPD"
+    assert by_id["ID0"].fraction == "Bundesregierung" and by_id["ID0"].member_fraction is None
     assert by_id["ID1"].agenda_title == "Mietpreisbremse verlängern" and by_id["ID1"].drucksachen == ["21/100"]
 
 
@@ -79,7 +80,7 @@ def test_short_title_takes_the_first_sub_item():
 def _interrupted_rede(conn, base, chair, asker_text):
     """Adler speaks, Cohn interrupts after the chair's remark, Adler answers (sitting 21/91, week 2026-W37)."""
     conn.executemany(
-        "INSERT INTO speech VALUES (?,?,?,?,?,?,?,?,?,?)",
+        SPEECH,
         [
             (base, "21/91", "21/91/1", 10, "1", "Anna Adler (SPD)", None, "SPD", LONG, "BT-PlPr. 21/91"),
             (f"{base}-2", "21/91", "21/91/1", 11, "3", "Clara Cohn (Die Linke)", None, "Die Linke", asker_text, "x"),
@@ -95,6 +96,7 @@ def _interrupted_rede(conn, base, chair, asker_text):
             (f"{base}-3/1", f"{base}-3", 1, "text", "Antwort."),
         ],
     )
+    derive(conn)
 
 
 def test_zwischenfrage_flag(conn):
@@ -159,8 +161,10 @@ def test_link_fields_with_new_tables(conn):
 
 def test_fragestunde_turns_stay_off_the_map(conn):
     conn.execute("ALTER TABLE speech ADD COLUMN kind TEXT NOT NULL DEFAULT 'rede'")
-    conn.execute("INSERT INTO speech VALUES ('21/88/3/f1','21/88','21/88/3',9,'9','Stefanie Hubig, Bundesministerin',"
-                 "'Ministerin',NULL,?,?,'fragestunde')", (LONG, PLPR))  # fmt: skip
+    conn.execute("INSERT INTO speech (id, sitting_id, agenda_item_id, position, person_id, speaker_name, speaker_role, "
+                 "fraction, text, source_document_id, kind) VALUES ('21/88/3/f1','21/88','21/88/3',9,'9',"
+                 "'Stefanie Hubig, Bundesministerin','Bundesministerin der Justiz',NULL,?,?,'fragestunde')",
+                 (LONG, PLPR))  # fmt: skip
     conn.execute("INSERT INTO speech_paragraph VALUES ('21/88/3/f1/1','21/88/3/f1',1,'text',?)", (LONG,))
     assert "21/88/3/f1" not in {s.id for s in corpus.load_week(conn, "2026-W28")}
     assert corpus.weeks(conn)[0]["speeches"] == 5
