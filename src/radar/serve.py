@@ -6,7 +6,7 @@ import json
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
-from landscape import build
+from radar import build
 
 
 def serve(out: Path, port: int) -> None:

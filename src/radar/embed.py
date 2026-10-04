@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from landscape.corpus import Speech
+from radar.corpus import Speech
 
 MODEL = "intfloat/multilingual-e5-base"
 MAX_TOKENS = 500  # model window is 512; leave room for the "passage: " prefix and special tokens

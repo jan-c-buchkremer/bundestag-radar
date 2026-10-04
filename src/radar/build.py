@@ -10,12 +10,12 @@ from pathlib import Path
 
 import numpy as np
 
-from landscape.cluster import Clustering, majority, neighbours
-from landscape.corpus import Speech
+from radar.cluster import Clustering, majority, neighbours
+from radar.corpus import Speech
 
 HERE = Path(__file__).parent
 # where the MdB cards are published; speaker names and agenda items link there
-CARDS = os.environ.get("CARDS_URL", "https://jan-c-buchkremer.github.io/bundestag-mdb-cards/").rstrip("/") + "/"
+RESEARCH = os.environ.get("RESEARCH_URL", "https://plenar-radar.de/").rstrip("/") + "/"
 # upper-cased in topic labels; the same set as `ACRONYMS` in template.html, so exported labels match the week page
 ACRONYMS = {
     "usa", "nato", "eu", "uno", "un", "csd", "ard", "zdf", "kfw", "dfb", "fifa", "ki", "eeg", "geg", "stpo", "bgb",
@@ -84,8 +84,8 @@ def week_payload(
 
 def _inline(template: str, payload: dict) -> str:
     data = json.dumps(payload, ensure_ascii=False).replace("</", r"<\/")
-    page = (HERE / template).read_text(encoding="utf-8").replace("__CARDS__", json.dumps(CARDS))
-    page = page.replace("__CARDS_URL__", html.escape(CARDS))  # in attributes: the footer's Impressum/Datenschutz
+    page = (HERE / template).read_text(encoding="utf-8").replace("__RESEARCH__", json.dumps(RESEARCH))
+    page = page.replace("__RESEARCH_URL__", html.escape(RESEARCH))  # in attributes: the footer's Impressum/Datenschutz
     return page.replace("__DATA__", data)
 
 
@@ -111,7 +111,7 @@ def load_payloads(out: Path) -> dict[str, dict]:
 
 def index_page(out: Path) -> str:
     """The index from what is in `out`: the week payloads and, if built, the period model (`period.json`)."""
-    from landscape import period
+    from radar import period
 
     payloads = load_payloads(out)
     cache = out / "period.json"

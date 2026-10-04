@@ -1,4 +1,9 @@
-# bundestag-topic-landscape
+# bundestag-radar
+
+The Radar layer of [plenar-radar.de](https://plenar-radar.de/): what is going on and what it means, where
+interpretation is central (topic models, selections, the Kompass). One of three layers behind the site; the
+architecture is described in bundestag-research-platform `docs/architecture.md`. Formerly bundestag-topic-landscape.
+Its first part:
 
 A topic landscape of one sitting week of the Bundestag: every speech of the week as a point on a
 map, positioned by what it is about, coloured and filterable by fraction, speaker, agenda item and day.
@@ -17,11 +22,11 @@ Python 3.12+, [uv](https://docs.astral.sh/uv/). CPU only; no GPU, no Docker.
 ```sh
 uv sync
 export BDF_DB=/path/to/bundestag-data-foundation/data/bundestag.sqlite   # default: ../bundestag-data-foundation/data/bundestag.sqlite
-uv run landscape weeks                 # sitting weeks in the store, with sitting numbers and speech counts
-uv run landscape build 2026-W28        # → data/out/2026-W28.html
-uv run landscape build overview        # period themes (data/out/period.json) + data/out/index.html from the built weeks
-uv run landscape build --all           # every week, the period overview and data/out/index.html
-uv run landscape serve                 # http://127.0.0.1:8000/ — re-renders pages from data/out/*.json on every request
+uv run radar weeks                 # sitting weeks in the store, with sitting numbers and speech counts
+uv run radar build 2026-W28        # → data/out/2026-W28.html
+uv run radar build overview        # period themes (data/out/period.json) + data/out/index.html from the built weeks
+uv run radar build --all           # every week, the period overview and data/out/index.html
+uv run radar serve                 # http://127.0.0.1:8000/ — re-renders pages from data/out/*.json on every request
 ```
 
 The first build downloads the embedding model (~1.1 GB) into the Hugging Face cache and embeds the week
@@ -29,20 +34,20 @@ The first build downloads the embedding model (~1.1 GB) into the Hugging Face ca
 `data/landscape.sqlite` by model and text hash, so rebuilding a week takes seconds and a model swap is a new
 cache key. The whole Wahlperiode (31 weeks) took about three hours on that machine.
 
-Open `data/out/index.html` in a browser, or run `landscape serve` while editing the template (Plotly.js and the
+Open `data/out/index.html` in a browser, or run `radar serve` while editing the template (Plotly.js and the
 Inter font come from CDNs). Windows: `py -3.12 -m uv …`
 works the same.
 
 ## Container
 
-CI tests every push; pushes to `main` and `deploy` also publish `ghcr.io/jan-c-buchkremer/bundestag-topic-landscape`
-(tags: branch name, short sha). The entrypoint is `landscape`, the working directory `/work`, so the defaults
+CI tests every push; pushes to `main` and `deploy` also publish `ghcr.io/jan-c-buchkremer/bundestag-radar`
+(tags: branch name, short sha). The entrypoint is `radar`, the working directory `/work`, so the defaults
 write to `/work/data/out` and `/work/data/landscape.sqlite`. The foundation store is expected at
 `/foundation/bundestag.sqlite` and the model cache at `/cache`:
 
 ```sh
 docker run --rm -v "$BDF_DATA:/foundation" -v "$PWD/data:/work/data" -v "$PWD/hf-cache:/cache" \
-  ghcr.io/jan-c-buchkremer/bundestag-topic-landscape:main build --all
+  ghcr.io/jan-c-buchkremer/bundestag-radar:main build --all
 ```
 
 Mount the foundation directory writable: the store is in WAL mode and SQLite creates a `-shm` file even for
@@ -77,7 +82,7 @@ top terms); a click on an area in the legend fades the others. Below, the tours 
   where it was asked in the speech it interrupted, and is also a point of its own that is hidden the same way
   („Zwischenfragen zeigen“, off by default); an explicit speaker filter shows them, and opening one (by link or from
   the speech) switches the toggle on.
-- Links out to the [MdB cards](https://jan-c-buchkremer.github.io/bundestag-mdb-cards/) (`CARDS_URL` sets where;
+- Links out to the [research platform](https://plenar-radar.de/) (`RESEARCH_URL` sets where;
   default that GitHub Pages address): the speaker's name (and portrait, hidden when there is none) opens their card,
   the agenda item its sitting page (`sitzungen/21-88.html#top-6`), and every announced result of the agenda item its
   vote page, with „angenommen“/„abgelehnt“ as a badge.
@@ -99,7 +104,7 @@ Everything in the view is in the URL hash of a week page (`<week>.html#…`), so
 ### `speech_clusters.json`
 
 Every build writes `data/out/speech_clusters.json` from all week payloads in `data/out`, for sites that link a
-speech to its week topic (the MdB cards site shows the topics of an agenda item with it):
+speech to its week topic (the research platform shows the topics of an agenda item with it):
 
 ```json
 {"ID218816800": {"week": "2026-W28", "cluster_id": 4, "label": "Miete · Wohnen · Mietpreisbremse"}, …}
@@ -112,7 +117,7 @@ rebuilt, so read the file of the same build as the pages.
 
 ### `speech_themes.json` and `speech_neighbours.json`
 
-Also for the cards site, next to `speech_clusters.json` and keyed the same way (not published with the pages):
+Also for the research platform, next to `speech_clusters.json` and keyed the same way (not published with the pages):
 
 ```json
 {"ID218816800": {"theme_id": 3, "label": "Miete · Wohnen · Mietpreisbremse"}, …}

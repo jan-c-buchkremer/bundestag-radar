@@ -139,7 +139,7 @@ footer a { color: var(--muted); }
   <div class="year">Touren zum Einstieg</div>
   <div class="tours" id="tours"></div>
   <div id="years"></div>
-  <footer>Reden aus den Plenarprotokollen des Deutschen Bundestages (<a href="https://www.bundestag.de/services/opendata">Open Data</a>), aufbereitet mit <a href="https://github.com/jan-c-buchkremer/bundestag-data-foundation">bundestag-data-foundation</a>. Jede Rede verlinkt auf ihr Protokoll. <a href="__CARDS_URL__impressum.html">Impressum</a> · <a href="__CARDS_URL__datenschutz.html">Datenschutz</a></footer>
+  <footer>Reden aus den Plenarprotokollen des Deutschen Bundestages (<a href="https://www.bundestag.de/services/opendata">Open Data</a>), aufbereitet mit <a href="https://github.com/jan-c-buchkremer/bundestag-data-foundation">bundestag-data-foundation</a>. Jede Rede verlinkt auf ihr Protokoll. <a href="__RESEARCH_URL__impressum.html">Impressum</a> · <a href="__RESEARCH_URL__datenschutz.html">Datenschutz</a></footer>
 </main>
 <script>
 const DATA = __DATA__;
@@ -357,8 +357,8 @@ if (P && P.themes.length && window.Plotly) (() => {
   }
   // "Wer brachte das Thema auf?" (origin.py): per episode two measures side by side, never combined; names alphabetical
   const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
-  const CARDS = __CARDS__;
-  const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
+  const RESEARCH = __RESEARCH__;
+  const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
   const abc = (a, b) => a.localeCompare(b, 'de');
   const wkName = w => `${kw(w)} ${w.slice(0, 4)}`;
   function originHtml(t) {

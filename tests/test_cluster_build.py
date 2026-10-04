@@ -2,8 +2,8 @@ import json
 
 import numpy as np
 
-from landscape import build, corpus, period
-from landscape.cluster import Clustering, cluster, cluster_terms, majority, neighbours
+from radar import build, corpus, period
+from radar.cluster import Clustering, cluster, cluster_terms, majority, neighbours
 
 
 def test_cluster_terms_pick_distinctive_words():
@@ -44,7 +44,7 @@ def test_render_embeds_payload(conn):
     assert json.loads(html[start : html.index(";\n", start)].replace("<\\/", "</")) == json.loads(json.dumps(payload))
     index = build.render_index([build.summary(payload)])
     assert '"speeches": 4' in index and '"2026-07-08"' in index and "#tour=" in index
-    assert f'href="{build.CARDS}impressum.html"' in index and "__CARDS_URL__" not in index
+    assert f'href="{build.RESEARCH}impressum.html"' in index and "__RESEARCH_URL__" not in index
     for page in (html, index):  # Plotly and the font come from assets/, not from a CDN
         assert 'src="assets/plotly-2.35.2.min.js"' in page and "cdn.plot.ly" not in page and "googleapis" not in page
 

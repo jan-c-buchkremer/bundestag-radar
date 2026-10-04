@@ -1,6 +1,6 @@
 import numpy as np
 
-from landscape import corpus, embed
+from radar import corpus, embed
 
 
 def fake_loader(_model):
