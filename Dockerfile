@@ -12,16 +12,16 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-edi
 
 FROM python:3.12-slim-bookworm
 # uid 1000 matches the host user, so bind-mounted directories stay writable on both sides
-RUN useradd --create-home --uid 1000 landscape
+RUN useradd --create-home --uid 1000 radar
 COPY --from=build /app/.venv /app/.venv
 # /work/data holds out/ and the embedding cache (the CLI defaults are relative to the working directory);
 # the model lands in /cache; the foundation store is mounted at /foundation
 ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1 \
     HF_HOME=/cache/huggingface \
     BDF_DB=/foundation/bundestag.sqlite
-RUN mkdir -p /work/data /cache && chown landscape:landscape /work /work/data /cache
-USER landscape
+RUN mkdir -p /work/data /cache && chown radar:radar /work /work/data /cache
+USER radar
 WORKDIR /work
 VOLUME ["/work/data", "/cache"]
-ENTRYPOINT ["landscape"]
+ENTRYPOINT ["radar"]
 CMD ["--help"]

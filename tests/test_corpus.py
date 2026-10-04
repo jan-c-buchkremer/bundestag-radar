@@ -1,6 +1,6 @@
 from conftest import LONG, PLPR
 
-from landscape import corpus
+from radar import corpus
 
 
 def test_weeks_are_iso_weeks(conn):

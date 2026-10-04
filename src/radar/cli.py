@@ -1,5 +1,5 @@
-"""landscape weeks | landscape build 2026-W28 [2026-W26 …] | landscape build overview | landscape build --all |
-landscape serve"""
+"""radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build --all |
+radar serve"""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from pathlib import Path
 
 import numpy as np
 
-from landscape import build, corpus, embed
+from radar import build, corpus, embed
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(prog="landscape")
+    p = argparse.ArgumentParser(prog="radar")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("weeks", help="list sitting weeks in the foundation store")
     b = sub.add_parser("build", help="build the map for one or more weeks")
@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> None:
     args = p.parse_args(argv)
 
     if args.cmd == "serve":
-        from landscape.serve import serve
+        from radar.serve import serve
 
         serve(args.out, args.port)
         return
@@ -45,14 +45,14 @@ def main(argv: list[str] | None = None) -> None:
 
     import time
 
-    from landscape import origin, period
-    from landscape.cluster import cluster
+    from radar import origin, period
+    from radar.cluster import cluster
 
     week_ids = [w["week"] for w in all_weeks]
     with_overview = args.all or "overview" in args.weeks
     targets = week_ids if args.all else [w for w in args.weeks if w != "overview"]
     if not targets and not with_overview:
-        sys.exit("give at least one week, `overview` or --all; see `landscape weeks`")
+        sys.exit("give at least one week, `overview` or --all; see `radar weeks`")
     store = embed.open_store(args.store)
     args.out.mkdir(parents=True, exist_ok=True)
     build.write_assets(args.out)

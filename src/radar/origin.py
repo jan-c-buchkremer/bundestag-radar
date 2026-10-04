@@ -17,8 +17,8 @@ import json
 import re
 from collections import Counter, defaultdict
 
-from landscape import period
-from landscape.corpus import Speech
+from radar import period
+from radar.corpus import Speech
 
 ACTIVE_SHARE = 0.04  # a theme is active in a week when it has ≥ 4 % of the week's words, see docs/decisions.md
 GAP = 4  # inactive sitting weeks before a new episode

@@ -40,7 +40,7 @@ class Clustering:
 
 
 def cluster(vectors: np.ndarray, texts: list[str], min_cluster_size: int = 8, seed: int = 42) -> Clustering:
-    import umap  # slow imports (numba, sklearn); keep `landscape weeks` fast
+    import umap  # slow imports (numba, sklearn); keep `radar weeks` fast
     from sklearn.cluster import HDBSCAN
 
     if len(vectors) < 2 * min_cluster_size:  # ceremonial single sittings: no clusters, plain SVD layout

@@ -10,4 +10,4 @@ git tag -a v0.X.0 -m "v0.X.0" && git push origin v0.X.0   # CI publishes :0.X.0 
 ```
 
 It goes live with the next nightly run on server-jan. The whole procedure, rollback included, is in
-bundestag-mdb-cards `docs/release.md`.
+bundestag-research-platform `docs/release.md`.

@@ -345,9 +345,9 @@ const resolveSpeech = id => {
   return byId[base] ? base : '';
 };
 // links out to the MdB cards site: speaker cards, portraits, sitting pages, vote pages
-const CARDS = __CARDS__;
-const cardUrl = pid => `${CARDS}${encodeURIComponent(pid)}.html`;
-const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
+const RESEARCH = __RESEARCH__;
+const cardUrl = pid => `${RESEARCH}${encodeURIComponent(pid)}.html`;
+const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);
 S.forEach(s => {
   s.weekday = weekdayOf(s.date);
@@ -739,13 +739,13 @@ const breakdown = (g, skip) => DIMS.filter(([k]) => k !== skip).map(([k, title])
 const speechCard = (o, what, head = '') => `<div class="similar" data-open="${o.id}">${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}${o.weekday ? ' · ' + o.weekday : ''}</span></div><div class="what">${what}</div></div>`;
 const firstText = o => (o.paragraphs.find(p => p[0] === 'text') || ['', ''])[1];
 const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
-const avatar = (pid, credit) => `<img class="avatar" src="${CARDS}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
+const avatar = (pid, credit) => `<img class="avatar" src="${RESEARCH}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
 const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Karte mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
 const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
 const RESULT_TEXT = { angenommen: 'angenommen', abgelehnt: 'abgelehnt' };
 const decisionsHtml = aid => {  // announced results of the agenda item, each linking to its vote page
   const ds = (DATA.decisions || {})[aid] || [];
-  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${CARDS}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
+  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${RESEARCH}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
 };
 
 // another person taking the floor inside a speech. A Zwischenfrage is always shown in place, in full (every one is

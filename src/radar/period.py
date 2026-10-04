@@ -13,9 +13,9 @@ from pathlib import Path
 
 import numpy as np
 
-from landscape import corpus
-from landscape.cluster import cluster_terms
-from landscape.corpus import Speech
+from radar import corpus
+from radar.cluster import cluster_terms
+from radar.corpus import Speech
 
 BEFRAGUNG = "Befragung der Bundesregierung"
 MIN_CLUSTER_SIZE = 60  # WP 21 (8.7 k speeches): 32 themes, see docs/decisions.md
@@ -142,7 +142,7 @@ def build(
     conn, week_ids: list[str], store, cache: Path, min_cluster_size: int = MIN_CLUSTER_SIZE, embed_fn=None
 ) -> dict:
     """The period model, from `cache` if the speeches and parameters are unchanged, else computed and cached."""
-    from landscape import embed
+    from radar import embed
 
     rows = load(conn, week_ids)
     speeches = [s for _, s in rows]

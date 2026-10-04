@@ -1,6 +1,6 @@
 import json
 
-from landscape import corpus, origin
+from radar import corpus, origin
 
 
 def test_episodes_need_a_gap_before_they_start():
@@ -108,7 +108,7 @@ def test_main_theme_ties_and_missing_dip_tables(conn):
 
 
 def test_index_page_carries_origins(tmp_path):
-    from landscape import build
+    from radar import build
 
     period = {"themes": [{"id": 0, "terms": ["miete"], "n": 1, "agenda": []}], "assign": {"2026-W28": {"S": 0}}}
     (tmp_path / "period.json").write_text(json.dumps(period))
