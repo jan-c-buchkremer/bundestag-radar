@@ -131,7 +131,7 @@ __SITE_HEADER__
 <main>
   <span class="eyebrow">Radar</span>
   <h1>Themenlandschaft des Bundestages</h1>
-  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte: eine Rede ist ein Punkt, Nähe bedeutet ähnliche Inhalte, die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
+  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte. Eine Rede ist ein Punkt, nahe Punkte haben ähnliche Inhalte, und die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
   <section id="period" hidden>
     <div class="phead"><h2>Themen der Wahlperiode</h2><span class="sub" id="psub"></span>
       <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
@@ -153,8 +153,8 @@ __SITE_HEADER__
 const DATA = __DATA__;
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
 const TOURS = [  // ids and titles as in template.html
-  ['woche', 'Was war diese Woche los?', 'Karte lesen, ein Thema öffnen, eine Rede bis zur Quelle verfolgen.'],
-  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Ein Tagesordnungspunkt ist kein Thema: sehen, wohin er sich verteilt und wer wo spricht.'],
+  ['woche', 'Überblick über die Woche', 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.'],
+  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.'],
   ['person', 'Einer Person folgen', 'Alle Reden einer Person, ihre Themen und ähnliche Reden anderer.'],
 ];
 const latest = DATA.weeks.filter(w => w.speeches >= 30).at(-1).week;
@@ -363,7 +363,7 @@ if (P && P.themes.length && window.Plotly) (() => {
       ${t.agenda.length ? `<h3 style="margin-top:14px">Häufigste Tagesordnungspunkte</h3><ul class="agenda">${t.agenda.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
       ${originHtml(t)}`;
   }
-  // "Wer brachte das Thema auf?" (origin.py): per episode two measures side by side, never combined; names alphabetical
+  // "Ursprung des Themas" (origin.py): per episode two measures side by side, never combined; names alphabetical
   const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
   const RESEARCH = __RESEARCH__;
   const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
@@ -383,7 +383,7 @@ if (P && P.themes.length && window.Plotly) (() => {
         return `<li>${url ? `<a class="ev" href="${url}">${esc(it.title)}</a>` : esc(it.title)}, ${fmt(it.date)}${it.date.slice(2, 4)}: ${parts.join(' · ') || 'keine Vorlage verknüpft'}</li>`;
       }).join('')}</ul>` : '<p class="none">In dieser Woche hatte kein Tagesordnungspunkt dieses Thema als Hauptthema.</p>';
       const u = e.unprompted;
-      const m = e.period_start ? '<p class="none">Beginn der Wahlperiode: Was vorher geschah, liegt nicht in den Daten.</p>'
+      const m = e.period_start ? '<p class="none">Beginn der Wahlperiode. Frühere Ereignisse sind nicht in den Daten.</p>'
         : !u.n ? `<p class="none">Keine Reden zu diesem Thema in anderen Debatten (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)}).</p>`
         : `<ul>${Object.entries(u.by_fraction).sort((a, b) => abc(a[0], b[0])).map(([f, c]) => `<li>${esc(f)}: ${c.n} von ${c.of} Reden</li>`).join('')}</ul>
           <details><summary>${u.speeches.length < u.n ? `Die ersten ${u.speeches.length} von ${u.n} Reden` : `Die ${u.n} Reden`}</summary><ul>${u.speeches.map(s => `<li><a href="${s.week}.html#rede=${encodeURIComponent(s.id)}">${esc(s.speaker)}</a> (${esc(s.fraction)}), ${fmt(s.date)}${s.date.slice(2, 4)}: ${esc(s.agenda)}</li>`).join('')}</ul></details>`;
@@ -391,7 +391,7 @@ if (P && P.themes.length && window.Plotly) (() => {
         <h5>Formale Initiative: Vorlagen und Aktuelle Stunden der ersten Woche</h5>${f}
         <h5>Vorher in anderen Debatten angesprochen${e.period_start ? '' : ` (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)})`}</h5>${m}</div>`;
     }).join('');
-    return `<div class="origin"><h3 style="margin-top:14px">Wer brachte das Thema auf?</h3>
+    return `<div class="origin"><h3 style="margin-top:14px">Ursprung des Themas</h3>
       ${eps || '<p class="none">Das Thema kam in keiner Woche auf mindestens ' + pct + ' % der Redezeit.</p>'}
       <details class="method"><summary>Wie das gezählt wird und was es nicht zeigt</summary>
         <p>Eine Phase beginnt in der ersten Sitzungswoche, in der das Thema mindestens ${pct} % aller Wörter der Woche hat, nachdem es ${O.params.gap} Sitzungswochen oder länger darunter lag. Wochen ohne Sitzung zählen nicht mit.</p>

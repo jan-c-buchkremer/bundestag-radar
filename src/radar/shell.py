@@ -86,6 +86,7 @@ def method_note(text: str) -> str:
 # The Themenlandschaft's method (docs/architecture.md gives it as the example)
 METHOD = (
     "Jede Rede als Embedding (multilingual-e5-base), angeordnet mit UMAP, gruppiert mit HDBSCAN und benannt nach "
-    "typischen Wörtern (c-TF-IDF). Themen zeigen Ähnlichkeit der Wortwahl, nicht Positionen; sie können sich mit neuen "
+    "typischen Wörtern (c-TF-IDF). Themen zeigen Ähnlichkeit der Wortwahl. Über Positionen sagen sie nichts, und "
+    "sie können sich mit neuen "
     "Sitzungswochen ändern. Jede Rede führt zu ihrer Sitzung und ihrem Protokoll in der Recherche."
 )

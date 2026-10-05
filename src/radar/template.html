@@ -633,20 +633,20 @@ const pick = (() => {
 const expand = id => document.getElementById(id).classList.remove('collapsed');
 const listRow = (k, v) => document.querySelector(`.item[data-key=${k}][data-i="${listOrder[k].indexOf(v)}"]`);
 const TOURS = {
-  woche: { title: 'Was war diese Woche los?', blurb: 'Karte lesen, ein Thema öffnen, eine Rede bis zur Quelle verfolgen.', steps: [
+  woche: { title: 'Überblick über die Woche', blurb: 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.', steps: [
     { target: '#map', title: 'Die Landschaft', text: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen, die sich aus den Reden ergeben.',
       mText: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen. Ein Finger verschiebt die Karte, zwei Finger zoomen.' },
     { target: '#map', title: 'Punkte erkunden', text: '<b>Fahre mit der Maus über einen Punkt.</b> Die Karte zeigt, wer wann wozu gesprochen hat, und den Anfang der Rede.', done: () => flags.hovered,
       mText: '<b>Tippe einen Punkt an.</b> Unten erscheint eine Vorschau: wer wann wozu gesprochen hat, und der Anfang der Rede.' },
     { target: () => document.querySelector(`.lbl[data-c="${pick.cluster}"]`) || document.getElementById('map'), title: 'Das größte Thema', text: '<b>Klicke das Label „{cluster}“</b> – das größte Thema der Woche.', done: () => panelKind === 'cluster' },
-    { target: '#panel', title: 'Wer besetzt das Thema', text: 'Die Balken zeigen, welche Fraktion wie oft zu diesem Thema gesprochen hat, darunter die Tagesordnungspunkte und die Redner:innen (anklickbar).' },
+    { target: '#panel', title: 'Fraktionen im Thema', text: 'Die Balken zeigen, welche Fraktion wie oft zu diesem Thema gesprochen hat, darunter die Tagesordnungspunkte und die Redner:innen (anklickbar).' },
     { target: '#map', title: 'Eine Rede öffnen', text: '<b>Klicke einen Punkt.</b>', done: () => state.open !== '', mText: '<b>Tippe einen Punkt zweimal an</b> oder tippe auf die Vorschau.' },
     { target: '#panel', title: 'Die Rede', text: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. Der Link führt zum Plenarprotokoll als PDF, ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.',
       mText: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. <b>Zieh das Blatt am Griff nach oben</b>, um die Rede bildschirmfüllend zu lesen. Ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.' },
     { target: '#map', title: 'Schließen', text: '<b>Klicke den Punkt noch einmal</b> oder drücke <b>Esc</b>.', done: () => state.open === '', mText: '<b>Tippe den Punkt noch einmal an</b> oder oben in der Rede auf <b>×</b>.' },
   ] },
-  debatte: { title: 'Eine Debatte über die Landschaft verfolgen', blurb: 'Ein Tagesordnungspunkt ist kein Thema: sehen, wohin er sich verteilt und wer wo spricht.', steps: [
-    { intro: true, title: 'Debatte ≠ Thema', text: 'Ein Tagesordnungspunkt ist eine Debatte. Die Karte ordnet Reden nach Inhalt – eine Debatte verteilt sich deshalb oft über mehrere Themen. In dieser Tour färbst du die Karte nach Debatten und siehst, wer wo spricht.' },
+  debatte: { title: 'Eine Debatte über die Landschaft verfolgen', blurb: 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.', steps: [
+    { intro: true, title: 'Debatte ≠ Thema', text: 'Ein Tagesordnungspunkt ist eine Debatte. Die Karte ordnet Reden nach Inhalt, daher verteilt sich eine Debatte oft über mehrere Themen. In dieser Tour färbst du die Karte nach Debatten und siehst, wer wo spricht.' },
     { target: () => document.getElementById('dim').closest('.toggle'), prepare: () => { expand('g-view'); if (!state.dim) { state.dim = true; draw(); } }, keepMap: true, title: 'Kontext behalten', text: '„Gefilterte abdunkeln“ ist eingeschaltet: gefilterte Reden bleiben blass sichtbar, statt zu verschwinden. So bleibt der Rest der Woche als Kontext stehen.' },
     { target: '#color button[data-mode=agenda]', keepMap: true, title: 'Farbe nach Tagesordnungspunkt', text: '<b>Wähle die Farbe „TOP“.</b> Jede Debatte bekommt eine eigene Farbe.', done: () => state.mode === 'agenda' },
     { target: '#map', title: 'Verteilung', text: '„{agenda}“ verteilt sich auf <b>{agendaClusters} Themen</b>. Die Farbe dieser Debatte taucht an mehreren Stellen der Karte auf.' },
@@ -660,7 +660,7 @@ const TOURS = {
     { target: () => listEls.speaker.querySelector('.item'), keepMap: true, title: 'Eine Person wählen', text: '<b>Klicke auf einen Namen</b>, zum Beispiel {speaker}. Der Name öffnet das Profil, das Häkchen davor würde die Karte filtern.', done: () => panelKind === 'group' && flags.card.k === 'speaker' },
     { target: '#panel', title: 'Das Profil der Woche', text: 'Fraktion, Tage, Themen und Tagesordnungspunkte dieser Person als Balken, darunter alle ihre Reden – auch Antworten aus der Regierungsbefragung.' },
     { target: '#panel', keepMap: true, title: 'Eine Rede öffnen', text: '<b>Öffne eine Rede aus der Liste.</b>', done: () => state.open !== '' },
-    { target: '#panel', keepMap: true, title: 'Über Fraktionsgrenzen', text: '<b>Klicke unter „Ähnliche Reden“ eine Rede einer anderen Person.</b> So springst du von Argument zu Gegenargument.', done: () => state.open !== '' && byId[state.open].speaker !== flags.card.v },
+    { target: '#panel', keepMap: true, title: 'Über Fraktionsgrenzen', text: '<b>Klicke unter „Ähnliche Reden“ eine Rede einer anderen Person.</b> So kommst du zu Reden anderer Personen mit ähnlichem Inhalt.', done: () => state.open !== '' && byId[state.open].speaker !== flags.card.v },
     { target: '#meta', title: 'Teilen', text: 'Alles, was du eingestellt hast, steckt in der Adresszeile. Kopiere die URL, um genau diese Ansicht zu teilen.' },
   ] },
 };
