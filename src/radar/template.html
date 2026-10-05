@@ -749,7 +749,7 @@ const speechCard = (o, what, head = '') => `<div class="similar" data-open="${o.
 const firstText = o => (o.paragraphs.find(p => p[0] === 'text') || ['', ''])[1];
 const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
 const avatar = (pid, credit) => `<img class="avatar" src="${RESEARCH}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
-const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a class="ev" href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Karte mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
+const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a class="ev" href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Steckbrief mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
 const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a class="ev" href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
 const RESULT_TEXT = { angenommen: 'angenommen', abgelehnt: 'abgelehnt' };
 const decisionsHtml = aid => {  // announced results of the agenda item, each linking to its vote page
