@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+from radar import shell
 from radar.cluster import Clustering, majority, neighbours
 from radar.corpus import Speech
 
@@ -86,6 +87,13 @@ def _inline(template: str, payload: dict) -> str:
     data = json.dumps(payload, ensure_ascii=False).replace("</", r"<\/")
     page = (HERE / template).read_text(encoding="utf-8").replace("__RESEARCH__", json.dumps(RESEARCH))
     page = page.replace("__RESEARCH_URL__", html.escape(RESEARCH))  # in attributes: the footer's Impressum/Datenschutz
+    for key, value in (
+        ("__SHELL__", shell.head(RESEARCH)),
+        ("__SITE_HEADER__", shell.site_header(RESEARCH)),
+        ("__BRAND__", shell.brand(RESEARCH)),
+        ("__METHOD__", shell.method_note(shell.METHOD)),
+    ):
+        page = page.replace(key, value)  # the shell (shell.py)
     return page.replace("__DATA__", data)
 
 
