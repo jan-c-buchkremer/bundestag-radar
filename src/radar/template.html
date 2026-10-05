@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Themenlandschaft</title>
+__SHELL__
 <script src="assets/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
 /* Inter (SIL OFL 1.1) and Plotly are served from assets/ (build.write_assets): no request to a CDN */
@@ -18,7 +19,9 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 :root {
-  --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3; --accent: #2563eb; --accent-soft: #e8efff;
+  --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3;
+  /* the Radar colour as this page's accent (shell.css); links to the evidence in Research stay blue (a.ev) */
+  --accent: var(--radar, #7c3aed); --accent-soft: var(--radar-soft, #f1ebff); --research: #2563eb;
   --cdu: #2f2f2f; --spd: #d7263d; --afd: #1f8fd6; --gru: #3f9a3f; --lin: #c0397d; --frl: #8a8a8a; --reg: #a08a2e;
 }
 * { box-sizing: border-box; }
@@ -28,13 +31,16 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { font-family: inherit; }
 
-header { height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 22px; background: var(--card); border-bottom: 1px solid var(--line); }
+header { height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 22px; background: var(--card); border-top: 3px solid var(--accent); border-bottom: 1px solid var(--line); }
+header .brand + h1 { padding-left: 16px; border-left: 1px solid var(--line); }
+a.ev { color: var(--research); }
+.whohead h2 a.ev { color: inherit; } .whohead h2 a.ev:hover { color: var(--research); }
 header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
 header h1 a { color: inherit; }
 header .meta { color: var(--muted); font-size: 13px; }
 header .spacer { flex: 1; }
 .weekwrap { position: relative; }
-.weekbtn { font-size: 12.5px; font-weight: 500; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.weekbtn { white-space: nowrap; font-size: 12.5px; font-weight: 500; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
 .weekbtn:hover { border-color: #cdcdc8; background: var(--bg); }
 .weekbtn::before { content: ''; width: 11px; height: 11px; border: 1.5px solid var(--muted); border-top-width: 4px; border-radius: 2px; }
 #weekCal { position: absolute; left: 0; top: 36px; z-index: 30; display: none; gap: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 12px 14px 10px; }
@@ -193,8 +199,8 @@ select:focus, input:focus { outline: 2px solid var(--accent-soft); border-color:
 .whohead .ext { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
 .avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; flex: none; background: var(--line); }
 .votes { display: flex; flex-direction: column; gap: 5px; margin: -6px 0 16px; }
-.vote { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--text); line-height: 1.4; }
-.vote:hover { text-decoration: none; } .vote:hover .subj { color: var(--accent); }
+.vote, a.vote.ev { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.vote:hover { text-decoration: none; } .vote:hover .subj { color: var(--research); }
 .res { flex: none; font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 7px; background: var(--bg); color: var(--muted); }
 .res.angenommen { background: #e3f3e3; color: #2f6f2f; } .res.abgelehnt { background: #fde8e8; color: #a8231a; }
 .vote .how { color: var(--faint); font-size: 11.5px; white-space: nowrap; }
@@ -213,7 +219,8 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
 @media (max-width: 900px), (pointer: coarse) and (max-width: 1100px) {
   html, body { overflow: hidden; overscroll-behavior: none; }
   header { height: 48px; padding: 0 12px; gap: 10px; position: relative; z-index: 12; }
-  header .meta, header .help { display: none; }
+  header .meta, header .help, header .brand .logo, header .brand .wm { display: none; }
+  header .brand + h1 { padding-left: 10px; }
   header h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #weekCal { position: fixed; left: 8px; right: 8px; top: 52px; flex-direction: column; max-height: calc(100dvh - 70px); overflow-y: auto; }
   #weekCal .wk { width: 32px; height: 32px; line-height: 32px; font-size: 12px; }
@@ -269,8 +276,9 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
 }
 </style>
 </head>
-<body>
-<header>
+<body class="mode-radar">
+<header class="m-radar">
+  __BRAND__
   <h1><a href="index.html">Themenlandschaft</a></h1>
   <span class="weekwrap"><button class="weekbtn" id="weekBtn" title="Sitzungswoche wählen"></button><div id="weekCal"></div></span>
   <span class="meta" id="meta"></span>
@@ -304,6 +312,7 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
       <label class="toggle">Größe nach Redelänge <input type="checkbox" id="size"></label>
       <label class="toggle">Themen-Labels <input type="checkbox" id="showLabels"></label>
     </div></div>
+    __METHOD__
   </aside>
   <div id="panel"></div>
   </div>
@@ -624,20 +633,20 @@ const pick = (() => {
 const expand = id => document.getElementById(id).classList.remove('collapsed');
 const listRow = (k, v) => document.querySelector(`.item[data-key=${k}][data-i="${listOrder[k].indexOf(v)}"]`);
 const TOURS = {
-  woche: { title: 'Was war diese Woche los?', blurb: 'Karte lesen, ein Thema öffnen, eine Rede bis zur Quelle verfolgen.', steps: [
+  woche: { title: 'Überblick über die Woche', blurb: 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.', steps: [
     { target: '#map', title: 'Die Landschaft', text: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen, die sich aus den Reden ergeben.',
       mText: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen. Ein Finger verschiebt die Karte, zwei Finger zoomen.' },
     { target: '#map', title: 'Punkte erkunden', text: '<b>Fahre mit der Maus über einen Punkt.</b> Die Karte zeigt, wer wann wozu gesprochen hat, und den Anfang der Rede.', done: () => flags.hovered,
       mText: '<b>Tippe einen Punkt an.</b> Unten erscheint eine Vorschau: wer wann wozu gesprochen hat, und der Anfang der Rede.' },
     { target: () => document.querySelector(`.lbl[data-c="${pick.cluster}"]`) || document.getElementById('map'), title: 'Das größte Thema', text: '<b>Klicke das Label „{cluster}“</b> – das größte Thema der Woche.', done: () => panelKind === 'cluster' },
-    { target: '#panel', title: 'Wer besetzt das Thema', text: 'Die Balken zeigen, welche Fraktion wie oft zu diesem Thema gesprochen hat, darunter die Tagesordnungspunkte und die Redner:innen (anklickbar).' },
+    { target: '#panel', title: 'Fraktionen im Thema', text: 'Die Balken zeigen, welche Fraktion wie oft zu diesem Thema gesprochen hat, darunter die Tagesordnungspunkte und die Redner:innen (anklickbar).' },
     { target: '#map', title: 'Eine Rede öffnen', text: '<b>Klicke einen Punkt.</b>', done: () => state.open !== '', mText: '<b>Tippe einen Punkt zweimal an</b> oder tippe auf die Vorschau.' },
     { target: '#panel', title: 'Die Rede', text: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. Der Link führt zum Plenarprotokoll als PDF, ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.',
       mText: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. <b>Zieh das Blatt am Griff nach oben</b>, um die Rede bildschirmfüllend zu lesen. Ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.' },
     { target: '#map', title: 'Schließen', text: '<b>Klicke den Punkt noch einmal</b> oder drücke <b>Esc</b>.', done: () => state.open === '', mText: '<b>Tippe den Punkt noch einmal an</b> oder oben in der Rede auf <b>×</b>.' },
   ] },
-  debatte: { title: 'Eine Debatte über die Landschaft verfolgen', blurb: 'Ein Tagesordnungspunkt ist kein Thema: sehen, wohin er sich verteilt und wer wo spricht.', steps: [
-    { intro: true, title: 'Debatte ≠ Thema', text: 'Ein Tagesordnungspunkt ist eine Debatte. Die Karte ordnet Reden nach Inhalt – eine Debatte verteilt sich deshalb oft über mehrere Themen. In dieser Tour färbst du die Karte nach Debatten und siehst, wer wo spricht.' },
+  debatte: { title: 'Eine Debatte über die Landschaft verfolgen', blurb: 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.', steps: [
+    { intro: true, title: 'Debatte ≠ Thema', text: 'Ein Tagesordnungspunkt ist eine Debatte. Die Karte ordnet Reden nach Inhalt, daher verteilt sich eine Debatte oft über mehrere Themen. In dieser Tour färbst du die Karte nach Debatten und siehst, wer wo spricht.' },
     { target: () => document.getElementById('dim').closest('.toggle'), prepare: () => { expand('g-view'); if (!state.dim) { state.dim = true; draw(); } }, keepMap: true, title: 'Kontext behalten', text: '„Gefilterte abdunkeln“ ist eingeschaltet: gefilterte Reden bleiben blass sichtbar, statt zu verschwinden. So bleibt der Rest der Woche als Kontext stehen.' },
     { target: '#color button[data-mode=agenda]', keepMap: true, title: 'Farbe nach Tagesordnungspunkt', text: '<b>Wähle die Farbe „TOP“.</b> Jede Debatte bekommt eine eigene Farbe.', done: () => state.mode === 'agenda' },
     { target: '#map', title: 'Verteilung', text: '„{agenda}“ verteilt sich auf <b>{agendaClusters} Themen</b>. Die Farbe dieser Debatte taucht an mehreren Stellen der Karte auf.' },
@@ -651,7 +660,7 @@ const TOURS = {
     { target: () => listEls.speaker.querySelector('.item'), keepMap: true, title: 'Eine Person wählen', text: '<b>Klicke auf einen Namen</b>, zum Beispiel {speaker}. Der Name öffnet das Profil, das Häkchen davor würde die Karte filtern.', done: () => panelKind === 'group' && flags.card.k === 'speaker' },
     { target: '#panel', title: 'Das Profil der Woche', text: 'Fraktion, Tage, Themen und Tagesordnungspunkte dieser Person als Balken, darunter alle ihre Reden – auch Antworten aus der Regierungsbefragung.' },
     { target: '#panel', keepMap: true, title: 'Eine Rede öffnen', text: '<b>Öffne eine Rede aus der Liste.</b>', done: () => state.open !== '' },
-    { target: '#panel', keepMap: true, title: 'Über Fraktionsgrenzen', text: '<b>Klicke unter „Ähnliche Reden“ eine Rede einer anderen Person.</b> So springst du von Argument zu Gegenargument.', done: () => state.open !== '' && byId[state.open].speaker !== flags.card.v },
+    { target: '#panel', keepMap: true, title: 'Über Fraktionsgrenzen', text: '<b>Klicke unter „Ähnliche Reden“ eine Rede einer anderen Person.</b> So kommst du zu Reden anderer Personen mit ähnlichem Inhalt.', done: () => state.open !== '' && byId[state.open].speaker !== flags.card.v },
     { target: '#meta', title: 'Teilen', text: 'Alles, was du eingestellt hast, steckt in der Adresszeile. Kopiere die URL, um genau diese Ansicht zu teilen.' },
   ] },
 };
@@ -740,12 +749,12 @@ const speechCard = (o, what, head = '') => `<div class="similar" data-open="${o.
 const firstText = o => (o.paragraphs.find(p => p[0] === 'text') || ['', ''])[1];
 const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
 const avatar = (pid, credit) => `<img class="avatar" src="${RESEARCH}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
-const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Karte mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
-const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
+const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a class="ev" href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Steckbrief mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
+const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a class="ev" href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
 const RESULT_TEXT = { angenommen: 'angenommen', abgelehnt: 'abgelehnt' };
 const decisionsHtml = aid => {  // announced results of the agenda item, each linking to its vote page
   const ds = (DATA.decisions || {})[aid] || [];
-  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${RESEARCH}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
+  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote ev" href="${RESEARCH}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
 };
 
 // another person taking the floor inside a speech. A Zwischenfrage is always shown in place, in full (every one is

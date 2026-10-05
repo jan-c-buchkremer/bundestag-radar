@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Themenlandschaft des Bundestages</title>
+__SHELL__
 <script src="assets/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
 /* Inter (SIL OFL 1.1) and Plotly are served from assets/ (build.write_assets): no request to a CDN */
@@ -17,10 +18,14 @@
   src: url(assets/inter-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-:root { --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3; --accent: #2563eb; --accent-soft: #e8efff; }
+:root { --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3;
+  /* the Radar colour as this page's accent (shell.css); links to the evidence in Research stay blue (a.ev) */
+  --accent: var(--radar, #7c3aed); --accent-soft: var(--radar-soft, #f1ebff); --research: #2563eb; }
+a.ev { color: var(--research); }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, -apple-system, sans-serif; }
-main { max-width: 1100px; margin: 0 auto; padding: 48px 24px 64px; }
+main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 64px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
 h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 6px; }
 .lead { color: var(--muted); max-width: 640px; margin: 0 0 36px; }
 .year { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 28px 0 12px; }
@@ -121,10 +126,12 @@ footer a { color: var(--muted); }
 }
 </style>
 </head>
-<body>
+<body class="mode-radar">
+__SITE_HEADER__
 <main>
+  <span class="eyebrow">Radar</span>
   <h1>Themenlandschaft des Bundestages</h1>
-  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte: eine Rede ist ein Punkt, Nähe bedeutet ähnliche Inhalte, die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
+  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte. Eine Rede ist ein Punkt, nahe Punkte haben ähnliche Inhalte, und die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
   <section id="period" hidden>
     <div class="phead"><h2>Themen der Wahlperiode</h2><span class="sub" id="psub"></span>
       <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
@@ -139,14 +146,15 @@ footer a { color: var(--muted); }
   <div class="year">Touren zum Einstieg</div>
   <div class="tours" id="tours"></div>
   <div id="years"></div>
+  __METHOD__
   <footer>Reden aus den Plenarprotokollen des Deutschen Bundestages (<a href="https://www.bundestag.de/services/opendata">Open Data</a>), aufbereitet mit <a href="https://github.com/jan-c-buchkremer/bundestag-data-foundation">bundestag-data-foundation</a>. Jede Rede verlinkt auf ihr Protokoll. <a href="__RESEARCH_URL__impressum.html">Impressum</a> · <a href="__RESEARCH_URL__datenschutz.html">Datenschutz</a></footer>
 </main>
 <script>
 const DATA = __DATA__;
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
 const TOURS = [  // ids and titles as in template.html
-  ['woche', 'Was war diese Woche los?', 'Karte lesen, ein Thema öffnen, eine Rede bis zur Quelle verfolgen.'],
-  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Ein Tagesordnungspunkt ist kein Thema: sehen, wohin er sich verteilt und wer wo spricht.'],
+  ['woche', 'Überblick über die Woche', 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.'],
+  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.'],
   ['person', 'Einer Person folgen', 'Alle Reden einer Person, ihre Themen und ähnliche Reden anderer.'],
 ];
 const latest = DATA.weeks.filter(w => w.speeches >= 30).at(-1).week;
@@ -355,7 +363,7 @@ if (P && P.themes.length && window.Plotly) (() => {
       ${t.agenda.length ? `<h3 style="margin-top:14px">Häufigste Tagesordnungspunkte</h3><ul class="agenda">${t.agenda.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
       ${originHtml(t)}`;
   }
-  // "Wer brachte das Thema auf?" (origin.py): per episode two measures side by side, never combined; names alphabetical
+  // "Ursprung des Themas" (origin.py): per episode two measures side by side, never combined; names alphabetical
   const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
   const RESEARCH = __RESEARCH__;
   const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
@@ -372,10 +380,10 @@ if (P && P.themes.length && window.Plotly) (() => {
         const parts = [];
         if (it.aktuelle_stunde) parts.push(`Aktuelle Stunde auf Verlangen: ${it.aktuelle_stunde.length ? names(it.aktuelle_stunde) : 'nicht angegeben'}`);
         if (it.vorlagen.length) parts.push(`Vorlagen von: ${names(it.vorlagen.flatMap(v => v.originators)) || 'nicht angegeben'} (Drucksache ${ds})`);
-        return `<li>${url ? `<a href="${url}">${esc(it.title)}</a>` : esc(it.title)}, ${fmt(it.date)}${it.date.slice(2, 4)}: ${parts.join(' · ') || 'keine Vorlage verknüpft'}</li>`;
+        return `<li>${url ? `<a class="ev" href="${url}">${esc(it.title)}</a>` : esc(it.title)}, ${fmt(it.date)}${it.date.slice(2, 4)}: ${parts.join(' · ') || 'keine Vorlage verknüpft'}</li>`;
       }).join('')}</ul>` : '<p class="none">In dieser Woche hatte kein Tagesordnungspunkt dieses Thema als Hauptthema.</p>';
       const u = e.unprompted;
-      const m = e.period_start ? '<p class="none">Beginn der Wahlperiode: Was vorher geschah, liegt nicht in den Daten.</p>'
+      const m = e.period_start ? '<p class="none">Beginn der Wahlperiode. Frühere Ereignisse sind nicht in den Daten.</p>'
         : !u.n ? `<p class="none">Keine Reden zu diesem Thema in anderen Debatten (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)}).</p>`
         : `<ul>${Object.entries(u.by_fraction).sort((a, b) => abc(a[0], b[0])).map(([f, c]) => `<li>${esc(f)}: ${c.n} von ${c.of} Reden</li>`).join('')}</ul>
           <details><summary>${u.speeches.length < u.n ? `Die ersten ${u.speeches.length} von ${u.n} Reden` : `Die ${u.n} Reden`}</summary><ul>${u.speeches.map(s => `<li><a href="${s.week}.html#rede=${encodeURIComponent(s.id)}">${esc(s.speaker)}</a> (${esc(s.fraction)}), ${fmt(s.date)}${s.date.slice(2, 4)}: ${esc(s.agenda)}</li>`).join('')}</ul></details>`;
@@ -383,7 +391,7 @@ if (P && P.themes.length && window.Plotly) (() => {
         <h5>Formale Initiative: Vorlagen und Aktuelle Stunden der ersten Woche</h5>${f}
         <h5>Vorher in anderen Debatten angesprochen${e.period_start ? '' : ` (${wkName(u.weeks[0] || e.start)} bis ${wkName(u.weeks[1] || e.start)})`}</h5>${m}</div>`;
     }).join('');
-    return `<div class="origin"><h3 style="margin-top:14px">Wer brachte das Thema auf?</h3>
+    return `<div class="origin"><h3 style="margin-top:14px">Ursprung des Themas</h3>
       ${eps || '<p class="none">Das Thema kam in keiner Woche auf mindestens ' + pct + ' % der Redezeit.</p>'}
       <details class="method"><summary>Wie das gezählt wird und was es nicht zeigt</summary>
         <p>Eine Phase beginnt in der ersten Sitzungswoche, in der das Thema mindestens ${pct} % aller Wörter der Woche hat, nachdem es ${O.params.gap} Sitzungswochen oder länger darunter lag. Wochen ohne Sitzung zählen nicht mit.</p>
