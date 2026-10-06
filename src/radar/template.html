@@ -65,7 +65,7 @@ aside { border-right: 1px solid var(--line); padding: 14px 16px 24px; }
 #map { min-width: 0; position: relative; }
 #tip { position: absolute; z-index: 5; width: 300px; pointer-events: none; display: none; transform: translate(-50%, -100%);
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 9px; box-shadow: 0 6px 20px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05); font-size: 12.5px; line-height: 1.45; }
-#tip::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: translateX(-50%) rotate(45deg); }
+#tip::after { content: ''; position: absolute; left: var(--ax, 50%); bottom: -6px; width: 10px; height: 10px; background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: translateX(-50%) rotate(45deg); }
 #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
 .lbl { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px;
@@ -1073,10 +1073,16 @@ map.on('plotly_hover', e => {
   tip.innerHTML = tipHtml(s);
   tip.style.display = 'block';
   flags.hovered = true; tourCheck();
-  const x = Math.min(Math.max(ev.clientX - r.left, 160), r.width - 160), cy = ev.clientY - r.top;
-  const below = cy - 16 < tip.offsetHeight + 8;
+  // at the speech's point, not at the mouse: the point's data coordinates in pixels of the map (Plotly's axes);
+  // the mouse position only where the axes are missing
+  const p = e.points[0], xa = p.xaxis, ya = p.yaxis;
+  const px = xa && ya ? xa.l2p(p.x) + xa._offset : ev.clientX - r.left;
+  const py = xa && ya ? ya.l2p(p.y) + ya._offset : ev.clientY - r.top;
+  const x = Math.min(Math.max(px, 160), r.width - 160);  // kept inside the map; the arrow still points at the speech
+  const below = py - 12 < tip.offsetHeight + 8;
   tip.classList.toggle('below', below);
-  tip.style.left = x + 'px'; tip.style.top = (below ? cy + 16 : cy - 16) + 'px';
+  tip.style.setProperty('--ax', `${150 + px - x}px`);
+  tip.style.left = x + 'px'; tip.style.top = (below ? py + 12 : py - 12) + 'px';
 });
 map.on('plotly_unhover', () => tip.style.display = 'none');
 map.addEventListener('mouseleave', () => tip.style.display = 'none');
