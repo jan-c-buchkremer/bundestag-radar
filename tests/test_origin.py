@@ -51,8 +51,9 @@ def test_origins_measures(conn):
         INSERT INTO vorgang VALUES ('v1', '["Fraktion DIE LINKE"]');
         INSERT INTO vorgang VALUES ('v2', '[]');
         INSERT INTO vorgang_drucksache VALUES ('v1', 'd1'), ('v2', 'd2');
-        INSERT INTO agenda_item VALUES ('A', 's', 'TOP 1', 'Beratung | Mieten', '["21/100", "21/200"]');
-        INSERT INTO agenda_item VALUES ('S', 's', 'ZP 1',
+        INSERT INTO agenda_item (id, sitting_id, top_id, title, drucksache_numbers)
+            VALUES ('A', 's', 'TOP 1', 'Beratung | Mieten', '["21/100", "21/200"]');
+        INSERT INTO agenda_item (id, sitting_id, top_id, title, drucksache_numbers) VALUES ('S', 's', 'ZP 1',
             'Aktuelle Stunde | auf Verlangen der Fraktion der AfD | Mieten', '[]');
         """
     )

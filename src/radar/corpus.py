@@ -12,9 +12,9 @@ from pathlib import Path
 
 MIN_CHARS = 500  # shorter units are procedural remarks and single questions, see docs/decisions.md
 
-# speech.fraction is NULL for ministers; person.party fills the gap
-PARTY_TO_FRACTION = {"CDU": "CDU/CSU", "CSU": "CDU/CSU", "DIE LINKE.": "Die Linke"}
-NO_FRACTION = "ohne Fraktion"  # non-MdB ministers, Länder ministers
+# who a speech counts for: the foundation's speech.speaker_group, a fraction or the Bundesregierung (a speech in a
+# government office, whatever the speaker's fraction); the Bundesrat's few speeches count with the Wehrbeauftragte
+OTHER = "Sonstige"
 MARKERS = {"zwischenfrage", "kurzintervention", "antwort"}  # paragraph kinds whose text is a speech id
 
 EINZELPLAN = {
@@ -99,7 +99,7 @@ class Speech:
     date: str
     person_id: str
     speaker: str
-    fraction: str
+    fraction: str  # speech.speaker_group: who the speech counts for
     role: str | None
     top_id: str
     agenda_item_id: str
@@ -116,6 +116,8 @@ class Speech:
     zwischenfrage: bool = False  # another person's turn inside someone else's rede, announced (or taken) as a question
     photo: bool = True  # a portrait exists on the cards site (always True while the store has no person_photo table)
     photo_credit: str | None = None
+    member_fraction: str | None = None  # the speaker's fraction, also when the speech counts for the government
+    agenda_kind: str | None = None  # foundation agenda_item.kind: befragung | fragestunde | aktuelle_stunde
 
     @property
     def n_comments(self) -> int:
@@ -123,11 +125,11 @@ class Speech:
 
 
 _SQL = """
-SELECT s.id, st.date, s.position, s.person_id, s.speaker_name, s.fraction, s.speaker_role, s.text, s.source_document_id,
-       st.pdf_url, p.party, a.id AS agenda_item_id, a.top_id, a.title AS agenda_title, a.drucksache_numbers
+SELECT s.id, st.date, s.position, s.person_id, s.speaker_name, s.speaker_group, s.member_fraction, s.speaker_role,
+       s.text, s.source_document_id, s.rede_id, s.interruption, s.interruption_start, st.pdf_url,
+       a.id AS agenda_item_id, a.top_id, a.title AS agenda_title, a.drucksache_numbers, a.kind AS agenda_kind
 FROM speech s
 JOIN sitting st ON st.id = s.sitting_id
-JOIN person p ON p.id = s.person_id
 LEFT JOIN agenda_item a ON a.id = s.agenda_item_id
 WHERE st.date BETWEEN ? AND ? {kind}
 ORDER BY st.date, s.position
@@ -141,31 +143,24 @@ ORDER BY sp.position
 """
 
 
-_KURZINTERVENTION = re.compile(r"Kurzintervention|Zwischenbemerkung")
-
-
-def _marker(main: Speech, other: Speech) -> tuple[str, str]:
-    """Another person speaking inside a rede: a Kurzintervention if the chair announced one, else a Zwischenfrage."""
-    chair = " ".join(t for k, t in main.paragraphs[-6:] if k == "chair")
-    return ("kurzintervention" if _KURZINTERVENTION.search(chair) else "zwischenfrage", other.id)
-
-
-def _assemble(parts: list[tuple[str, Speech]], by_part: dict[str, list[tuple[str, str]]]) -> None:
-    """Paragraphs of one rede's parts, with a marker in the main speech where someone else took the floor
-    and a closing marker in that person's speech pointing back to the main one."""
+def _assemble(
+    parts: list[tuple[str, Speech]],
+    by_part: dict[str, list[tuple[str, str]]],
+    interruption: dict[str, tuple[str | None, str | None]],
+) -> None:
+    """Paragraphs of one rede's parts, with a marker in the main speech where someone else took the floor and a
+    closing marker in that person's speech pointing back to the main one. Which part starts an interruption and of
+    which kind is the foundation's (`speech.interruption`, `interruption_start`; docs/decisions.md)."""
     main = parts[0][1]
     for i, (pid, sp) in enumerate(parts):
-        if sp is not main and parts[i - 1][1] is main:
-            marks = [j for j, (k, target) in enumerate(main.paragraphs) if k in MARKERS and target == sp.id]
-            # "Gestatten Sie …? – Bitte." between two parts of one question is not a second marker
-            if not marks or sum(len(t) for k, t in main.paragraphs[marks[-1] + 1 :] if k == "text") >= 200:
-                main.paragraphs.append(_marker(main, sp))
+        kind, start = interruption.get(pid, (None, None))
+        # no marker when two interrupters follow each other
+        if sp is not main and parts[i - 1][1] is main and kind and start == pid:
+            main.paragraphs.append((kind, sp.id))
         sp.paragraphs.extend(by_part[pid])
     for other in {id(sp): sp for _, sp in parts if sp is not main}.values():
         other.paragraphs.append(("antwort", main.id))
-        # no marker when two interrupters follow each other; unannounced turns count as questions (decisions.md)
-        kind = next((k for k, target in main.paragraphs if k in MARKERS and target == other.id), "zwischenfrage")
-        other.zwischenfrage = kind == "zwischenfrage"
+        other.zwischenfrage = interruption.get(other.id, (None, None))[0] == "zwischenfrage"
 
 
 def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
@@ -179,8 +174,10 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     speeches: list[Speech] = []
     by_base: dict[tuple[str, str], Speech] = {}  # (rede base id, person) -> first part
     rede: dict[str, list[tuple[str, Speech]]] = {}  # rede base id -> its parts in speaking order
+    interruption: dict[str, tuple[str | None, str | None]] = {}  # part id -> (kind, first part of it)
     for r in conn.execute(_SQL.format(kind=not_fragestunde(conn)), span):
-        base = re.sub(r"-\d+$", "", r["id"])
+        base = r["rede_id"]
+        interruption[r["id"]] = (r["interruption"], r["interruption_start"])
         head = by_base.get((base, r["person_id"]))
         if head is not None:
             head.text += "\n\n" + r["text"]
@@ -191,7 +188,8 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
         sp = Speech(
             id=r["id"], date=r["date"], person_id=r["person_id"],
             speaker=r["speaker_name"].split(",")[0].split(" (")[0],
-            fraction=r["fraction"] or PARTY_TO_FRACTION.get(r["party"], r["party"] or NO_FRACTION),
+            fraction=OTHER if r["speaker_group"] == "Bundesrat" else r["speaker_group"],
+            member_fraction=r["member_fraction"], agenda_kind=r["agenda_kind"],
             role=r["speaker_role"], top_id=r["top_id"], agenda_item_id=r["agenda_item_id"],
             agenda_title=short_title(r["agenda_title"], r["top_id"]),
             drucksachen=json.loads(r["drucksache_numbers"]), text=r["text"], pdf_url=r["pdf_url"],
@@ -206,7 +204,7 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     for r in conn.execute(_SQL_PARAGRAPHS.format(kind=not_fragestunde(conn)), span):
         by_part[r["speech_id"]].append((r["kind"], r["text"]))
     for parts in rede.values():
-        _assemble(parts, by_part)
+        _assemble(parts, by_part, interruption)
 
     credits = photos(conn)
     if credits is not None:
