@@ -5,6 +5,12 @@ not before? If that sentence is hard to write, the release is not a finished ver
 
 ## Unreleased
 
+## v0.2.1 (2026-10-06)
+
+Readers see a speech's tooltip on the map directly above the speech, not wherever the mouse happens to be.
+
+- The tooltip takes the point's position from the map's axes; near the edges its arrow moves along (#17).
+
 ## v0.2.0 (2026-10-06)
 
 Readers can tell at a glance that the Themenlandschaft is the Radar: it has the site's header, the Radar colour and a
