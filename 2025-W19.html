@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Themenlandschaft</title>
+<script src="assets/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+/* Inter (SIL OFL 1.1) and Plotly are served from assets/ (build.write_assets): no request to a CDN */
+@font-face {
+  font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(assets/inter-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(assets/inter-latin.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+:root {
+  --bg: #f6f6f4; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --faint: #a1a1aa; --line: #e7e7e3; --accent: #2563eb; --accent-soft: #e8efff;
+  --cdu: #2f2f2f; --spd: #d7263d; --afd: #1f8fd6; --gru: #3f9a3f; --lin: #c0397d; --frl: #8a8a8a; --reg: #a08a2e;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 13.5px/1.5 Inter, system-ui, -apple-system, sans-serif; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font-family: inherit; }
+
+header { height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 22px; background: var(--card); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+header h1 a { color: inherit; }
+header .meta { color: var(--muted); font-size: 13px; }
+header .spacer { flex: 1; }
+.weekwrap { position: relative; }
+.weekbtn { font-size: 12.5px; font-weight: 500; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 4px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.weekbtn:hover { border-color: #cdcdc8; background: var(--bg); }
+.weekbtn::before { content: ''; width: 11px; height: 11px; border: 1.5px solid var(--muted); border-top-width: 4px; border-radius: 2px; }
+#weekCal { position: absolute; left: 0; top: 36px; z-index: 30; display: none; gap: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 12px 14px 10px; }
+#weekCal.open { display: flex; }
+#weekCal b { display: block; font-size: 12px; margin-bottom: 6px; }
+#weekCal .mo { display: flex; gap: 3px; align-items: center; margin-bottom: 3px; }
+#weekCal .mo span { width: 30px; font-size: 11px; color: var(--faint); }
+#weekCal .wk { width: 26px; height: 22px; line-height: 22px; text-align: center; border-radius: 6px; font-size: 11px; color: #cfcfca; font-variant-numeric: tabular-nums; }
+#weekCal .wk.has { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+#weekCal .wk.has:hover { background: var(--accent); color: #fff; text-decoration: none; }
+#weekCal .wk.cur { background: var(--accent); color: #fff; }
+#dayScale { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4; display: none; align-items: center; gap: 14px; pointer-events: none;
+  background: rgba(255,255,255,.8); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+#dayScale i { display: inline-block; width: 44px; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+#dayScale .hint { color: var(--faint); }
+header .help { color: var(--faint); font-size: 12.5px; }
+
+#layout { display: grid; grid-template-columns: 270px 1fr 390px; height: calc(100% - 52px); }
+aside, #panel { background: var(--card); overflow-y: auto; }
+aside { border-right: 1px solid var(--line); padding: 14px 16px 24px; }
+#panel { border-left: 1px solid var(--line); padding: 22px 24px 32px; }
+#map { min-width: 0; position: relative; }
+#tip { position: absolute; z-index: 5; width: 300px; pointer-events: none; display: none; transform: translate(-50%, -100%);
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 9px; box-shadow: 0 6px 20px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05); font-size: 12.5px; line-height: 1.45; }
+#tip::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: translateX(-50%) rotate(45deg); }
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+.lbl { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px;
+  background: rgba(255,255,255,.72); border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  font-size: 11.5px; font-weight: 500; color: #374151; letter-spacing: -.005em; transition: transform .15s, box-shadow .15s; }
+.lbl .dot { width: 7px; height: 7px; }
+.lbl .n { color: var(--faint); font-weight: 400; font-size: 10.5px; }
+.lbl:hover { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,.12); border-color: currentColor; z-index: 4; }
+.lbl.zoomed { font-size: 12.5px; padding: 4px 11px 4px 8px; }
+#tip.below { transform: translate(-50%, 0); }
+
+/* tours */
+.tourbtn { font-size: 12.5px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+.tourbtn:hover { border-color: #cdcdc8; background: var(--bg); }
+#tourMenu { position: absolute; right: 22px; top: 46px; z-index: 30; width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 6px; display: none; }
+#tourMenu.open { display: block; }
+#tourMenu .t { display: block; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: inherit; }
+#tourMenu .t:hover { background: var(--bg); text-decoration: none; }
+#tourMenu .t b { display: block; font-weight: 600; font-size: 13px; }
+#tourMenu .t span { color: var(--muted); font-size: 12px; }
+#tourDim { position: fixed; inset: 0; z-index: 20; background: rgba(15,23,42,.32); pointer-events: none; display: none; }
+#tourDim.show { display: block; }
+.tour-target { position: relative; z-index: 21; border-radius: 8px; box-shadow: 0 0 0 3px var(--accent), 0 0 0 7px var(--accent-soft); background: var(--card); }
+#map.tour-target { border-radius: 0; box-shadow: inset 0 0 0 3px var(--accent); background: transparent; }
+#map.tour-keep { position: relative; z-index: 21; }
+#tourCard { position: fixed; z-index: 22; width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.14); padding: 14px 16px 12px; display: none; font-size: 13px; line-height: 1.5; }
+#tourCard.show { display: block; }
+#tourCard .bar { height: 3px; margin: 0 0 10px; background: var(--line); }
+#tourCard .bar i { background: var(--accent); }
+#tourCard .step { color: var(--faint); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+#tourCard h4 { margin: 2px 0 6px; font-size: 14px; font-weight: 600; }
+#tourCard p { margin: 0 0 10px; color: var(--muted); }
+#tourCard p b { color: var(--text); font-weight: 500; }
+#tourCard .row { display: flex; gap: 12px; align-items: center; }
+#tourCard .row .spacer { flex: 1; }
+#tourCard .next { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; }
+#tourCard .wait { color: var(--accent); font-size: 12.5px; }
+#tourCard.done { border-color: #3f9a3f; box-shadow: 0 0 0 3px #e3f3e3, 0 10px 30px rgba(0,0,0,.14); }
+#tourCard.done .wait { color: #3f9a3f; }
+#tip.below::after { bottom: auto; top: -6px; transform: translateX(-50%) rotate(-135deg); }
+.tipbox .who { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.tipbox .who span { font-weight: 400; color: var(--muted); }
+.tipbox .when { color: var(--faint); font-size: 11.5px; margin-bottom: 5px; }
+.tipbox .top { color: var(--text); margin-bottom: 1px; }
+.tipbox .topic { color: var(--accent); font-size: 11.5px; margin-bottom: 6px; }
+.tipbox .excerpt { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; mask-image: linear-gradient(#000 45%, transparent 100%); -webkit-mask-image: linear-gradient(#000 45%, transparent 100%); }
+#map .cursor-move { cursor: default !important; }  /* Plotly's four-arrow pan cursor */
+
+.sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sidebar-head b { font-size: 13px; font-weight: 600; }
+#count { color: var(--muted); font-size: 12px; }
+.linkbtn { font-size: 12.5px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
+.linkbtn:hover { text-decoration: underline; }
+
+.group { border-top: 1px solid var(--line); padding: 8px 0; }
+.group .title { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 3px 0; }
+.group .title .arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--faint); transition: transform .2s; margin-left: auto; }
+.group.collapsed .title .arrow { transform: rotate(-90deg); }
+.group .title .badge { font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 6px; }
+.group .title .reload { font-size: 13px; color: var(--faint); cursor: pointer; padding: 0 2px; }
+.group .title .reload:hover { color: var(--text); }
+.group .content { padding-top: 4px; }
+.group.collapsed .content { display: none; }
+.list { max-height: 264px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.item { display: flex; align-items: center; gap: 7px; padding: 3px 4px; border-radius: 6px; cursor: pointer; font-size: 12.5px; line-height: 1.35; }
+.item:hover { background: var(--bg); }
+.item:hover .name { color: var(--accent); }
+.item input { margin: 0; accent-color: var(--accent); flex: none; cursor: pointer; }
+.item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .n { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.item.zero { opacity: .45; }
+.item.day { font-weight: 600; margin-top: 6px; }
+.item.day:first-child { margin-top: 0; }
+.item.day .dot { width: 22px; border-radius: 4px; }
+.item:not(.day)[data-key=agenda] { padding-left: 14px; }
+.item .x { color: var(--faint); font-size: 14px; line-height: 1; padding: 0 2px; }
+.item .x:hover { color: var(--text); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; display: inline-block; }
+
+.searchrow { display: flex; gap: 0; margin-bottom: 6px; }
+.searchrow input { flex: 1; min-width: 0; border-radius: 8px 0 0 8px; }
+.searchrow button { border: 1px solid var(--line); border-left: 0; background: var(--bg); color: var(--text); border-radius: 0 8px 8px 0; padding: 0 10px; font-size: 12.5px; cursor: pointer; }
+.searchrow button:hover { background: #ecece8; }
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 6px; }
+.segmented button { border: 0; background: transparent; border-radius: 6px; padding: 5px 2px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.segmented button.on { background: var(--card); color: var(--text); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+select, input[type=text] { width: 100%; font: inherit; font-size: 12.5px; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+select:focus, input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.toggle { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; cursor: pointer; font-size: 12.5px; }
+.toggle input { appearance: none; width: 30px; height: 18px; border-radius: 999px; background: #d9d9d4; position: relative; cursor: pointer; margin: 0; transition: background .15s; flex: none; }
+.toggle input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.toggle input:checked { background: var(--accent); }
+.toggle input:checked::after { left: 14px; }
+
+#panel .hint { color: var(--muted); }
+#panel .hint kbd { font: inherit; font-size: 11.5px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
+#panel h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; letter-spacing: -.01em; line-height: 1.35; }
+#panel .meta { color: var(--muted); font-size: 12.5px; line-height: 1.65; margin-bottom: 16px; }
+#panel .meta b { color: var(--text); font-weight: 500; }
+#panel p { margin: 0 0 10px; }
+#panel p.comment { color: var(--faint); font-style: italic; font-size: 12.5px; padding-left: 12px; border-left: 2px solid var(--line); }
+#panel p.chair { color: var(--muted); font-size: 12.5px; padding-left: 12px; border-left: 2px solid #cfd8ea; }
+#panel mark { background: #fff3a8; color: inherit; border-radius: 2px; }
+#panel h3 { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 20px 0 8px; }
+#panel table { border-collapse: collapse; width: 100%; font-size: 13px; }
+#panel td { padding: 4px 0; vertical-align: top; }
+#panel td:last-child { text-align: right; color: var(--muted); white-space: nowrap; padding-left: 10px; }
+#panel ul { padding-left: 0; margin: 0; list-style: none; }
+#panel li { margin-bottom: 6px; }
+#panel li .sub { color: var(--faint); font-size: 12px; }
+.bar { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 5px; }
+.bar i { display: block; height: 100%; }
+.similar { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; margin-bottom: 6px; transition: border-color .12s, background .12s; }
+.similar:hover { border-color: #cdcdc8; background: var(--bg); }
+.similar .who { font-weight: 500; }
+.similar .who span { color: var(--faint); font-weight: 400; }
+.similar .what { color: var(--muted); font-size: 12px; }
+.similar .kind { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.similar.marker { margin: 4px 0 12px; }
+.similar .full { display: none; margin-top: 6px; }
+.similar.open .full { display: block; }
+.similar.open .what { display: none; }
+#panel .similar .full p { font-size: 12.5px; margin: 0 0 6px; }
+#panel table.dist tr { cursor: pointer; }
+#panel table.dist tr:hover td:first-child { color: var(--accent); }
+#panel details summary { color: var(--muted); font-size: 12px; cursor: pointer; margin: 2px 0 4px; }
+.whohead { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.whohead h2 { margin: 0 !important; }
+.whohead h2 a { color: inherit; }
+.whohead h2 a:hover { color: var(--accent); text-decoration: none; }
+.whohead .ext { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; flex: none; background: var(--line); }
+.votes { display: flex; flex-direction: column; gap: 5px; margin: -6px 0 16px; }
+.vote { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.vote:hover { text-decoration: none; } .vote:hover .subj { color: var(--accent); }
+.res { flex: none; font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 7px; background: var(--bg); color: var(--muted); }
+.res.angenommen { background: #e3f3e3; color: #2f6f2f; } .res.abgelehnt { background: #fde8e8; color: #a8231a; }
+.vote .how { color: var(--faint); font-size: 11.5px; white-space: nowrap; }
+.close { float: right; color: var(--faint); background: none; border: 0; font-size: 18px; line-height: 1; cursor: pointer; margin: -4px -6px 0 0; }
+.close:hover { color: var(--text); }
+
+/* desktop: the sheet is only a wrapper, its children sit in the three grid columns */
+#sheet { display: contents; }
+#sheetHead { display: none; }
+aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3; }
+@media (hover: none) {
+  .item:hover, .similar:hover { background: none; } .item:hover .name { color: inherit; } .lbl:hover { transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+}
+
+/* phones: map on top, a bottom sheet with the tabs Filter | Details; heights are set in JS (layoutSheet) */
+@media (max-width: 900px), (pointer: coarse) and (max-width: 1100px) {
+  html, body { overflow: hidden; overscroll-behavior: none; }
+  header { height: 48px; padding: 0 12px; gap: 10px; position: relative; z-index: 12; }
+  header .meta, header .help { display: none; }
+  header h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #weekCal { position: fixed; left: 8px; right: 8px; top: 52px; flex-direction: column; max-height: calc(100dvh - 70px); overflow-y: auto; }
+  #weekCal .wk { width: 32px; height: 32px; line-height: 32px; font-size: 12px; }
+  #weekCal .mo span { width: 34px; }
+  #tourMenu { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
+  #tourMenu .t { padding: 12px; }
+  #layout { display: block; height: auto; }
+  #map, #map.tour-target, #map.tour-keep { position: fixed; top: 48px; left: 0; right: 0; height: 50dvh; touch-action: none; }
+  #dayScale { flex-wrap: wrap; justify-content: center; gap: 4px 12px; max-width: calc(100% - 16px); border-radius: 12px; bottom: 8px; }
+  .lbl { padding: 5px 11px 5px 9px; }
+  #sheet { display: flex; flex-direction: column; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; height: 50dvh;
+    background: var(--card); border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.08), 0 -1px 0 var(--line); transition: height .25s ease; }
+  #sheet.dragging { transition: none; }
+  body.tour-sheet #sheet { z-index: 21; }
+  #sheetHead { display: block; flex: none; touch-action: none; }
+  .grip { height: 22px; display: flex; align-items: center; justify-content: center; }
+  .grip::before { content: ''; width: 38px; height: 4px; border-radius: 2px; background: #d4d4d0; }
+  #peek { margin: 0 12px 8px; padding: 9px 12px 8px; border: 1px solid var(--line); border-radius: 12px; font-size: 13px; line-height: 1.4; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  #peek[hidden] { display: none; }
+  #peek .who .go { margin-left: auto; color: var(--accent); font-weight: 500; white-space: nowrap; }
+  #peek .excerpt { -webkit-line-clamp: 2; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 0 12px 8px; background: var(--bg); border-radius: 10px; padding: 3px; }
+  .tabs button { border: 0; background: transparent; border-radius: 8px; padding: 7px; font-size: 14px; color: var(--muted); }
+  body[data-tab=filter] .tabs [data-tab=filter], body[data-tab=detail] .tabs [data-tab=detail] { background: var(--card); color: var(--text); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  #filterBadge:not(:empty) { font-size: 11px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+  aside, #panel { flex: 1; min-height: 0; border: 0 !important; overscroll-behavior: contain; padding-bottom: calc(24px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line) !important; }
+  aside { padding-top: 10px; }
+  #panel { padding-top: 16px; font-size: 14.5px; }
+  body[data-tab=filter] #panel, body[data-tab=detail] aside { display: none; }
+  .list { max-height: none; }
+  .item { min-height: 40px; font-size: 14px; }
+  .item input { width: 18px; height: 18px; }
+  .item .n { font-size: 12px; }
+  .group .title { padding: 9px 0; font-size: 12px; }
+  .group .title .reload { font-size: 18px; padding: 0 12px; margin: -6px 0; }
+  .segmented button { padding: 9px 2px; font-size: 13px; }
+  .toggle { padding: 9px 0; font-size: 14px; }
+  .toggle input { width: 38px; height: 22px; } .toggle input::after { width: 18px; height: 18px; } .toggle input:checked::after { left: 18px; }
+  select, input[type=text] { font-size: 16px; padding: 8px 10px; }  /* under 16px iOS zooms into the field */
+  .searchrow button { padding: 0 16px; font-size: 18px; }
+  .similar { padding: 10px 12px; }
+  #panel table.dist td { padding: 7px 0; }
+  #panel details summary { padding: 8px 0; font-size: 13px; }
+  .close { font-size: 26px; padding: 4px 10px; margin: -10px -14px 0 0; }
+  #tourCard { width: auto; right: 8px; }
+  /* landscape phones: the sheet is a fixed right-hand column, no dragging */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #map, #map.tour-target, #map.tour-keep { right: 42%; height: auto !important; bottom: 0; }
+    #sheet { top: 48px; left: auto; width: 42%; height: auto !important; border-radius: 0; box-shadow: -1px 0 0 var(--line); }
+    .grip { display: none; }
+    #sheetHead { padding-top: 8px; }
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="index.html">Themenlandschaft</a></h1>
+  <span class="weekwrap"><button class="weekbtn" id="weekBtn" title="Sitzungswoche wählen"></button><div id="weekCal"></div></span>
+  <span class="meta" id="meta"></span>
+  <span class="spacer"></span>
+  <span class="help">Scrollen: Zoom · Ziehen: Verschieben · Doppelklick: Zurücksetzen</span>
+  <button class="tourbtn" id="tourBtn">Tour</button>
+  <div id="tourMenu"></div>
+</header>
+<div id="tourDim"></div><div id="tourCard"></div>
+<div id="layout">
+  <div id="sheet">
+  <div id="sheetHead"><div class="grip" title="Größe ändern"></div><div id="peek" class="tipbox" hidden></div>
+    <div class="tabs"><button data-tab="filter">Filter <span id="filterBadge"></span></button><button data-tab="detail">Details</button></div></div>
+  <aside>
+    <div class="sidebar-head"><b>Filter</b><span><span id="count"></span> · <button class="linkbtn" id="reset">zurücksetzen</button></span></div>
+    <div class="group" id="g-search"><div class="title">Suche<span class="arrow"></span></div><div class="content">
+      <div class="searchrow"><input type="text" id="search" placeholder="Text, Name, Tagesordnungspunkt…"><button id="addSearch" title="Suchbegriff als Filter speichern (Enter)">+</button></div>
+      <div class="list" id="searchList"></div>
+    </div></div>
+    <div class="group collapsed" id="g-fraction"><div class="title">Fraktion<span class="arrow"></span></div><div class="content"><div class="list" data-key="fraction"></div></div></div>
+    <div class="group collapsed" id="g-agenda"><div class="title">Tagesordnung<span class="reload" data-key="agenda" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="agenda"></div></div></div>
+    <div class="group collapsed" id="g-cluster"><div class="title">Thema<span class="reload" data-key="cluster" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="cluster"></div></div></div>
+    <div class="group collapsed" id="g-speaker"><div class="title">Redner:in<span class="reload" data-key="speaker" title="Nach Häufigkeit in der aktuellen Ansicht sortieren">↻</span><span class="arrow"></span></div><div class="content"><div class="list" data-key="speaker"></div></div></div>
+    <div class="group" id="g-view"><div class="title">Anzeige<span class="arrow"></span></div><div class="content">
+      <div class="segmented" id="color">
+        <button data-mode="cluster" class="on">Thema</button><button data-mode="fraction">Fraktion</button><button data-mode="weekday">Tag</button><button data-mode="agenda">TOP</button><button data-mode="mdb">Rolle</button>
+      </div>
+      <label class="toggle">Gefilterte abdunkeln statt ausblenden <input type="checkbox" id="dim"></label>
+      <label class="toggle">Regierungsbefragung zeigen <input type="checkbox" id="befragung"></label>
+      <label class="toggle">Zwischenfragen zeigen <input type="checkbox" id="zwischenfragen"></label>
+      <label class="toggle">Größe nach Redelänge <input type="checkbox" id="size"></label>
+      <label class="toggle">Themen-Labels <input type="checkbox" id="showLabels"></label>
+    </div></div>
+  </aside>
+  <div id="panel"></div>
+  </div>
+  <div id="map"><div id="labels"></div><div id="tip" class="tipbox"></div><div id="dayScale"></div></div>
+</div>
+<script>
+const DATA = {"week": "2025-W19", "weeks": ["2025-W13", "2025-W19", "2025-W20", "2025-W21", "2025-W23", "2025-W26", "2025-W28", "2025-W37", "2025-W38", "2025-W39", "2025-W41", "2025-W42", "2025-W45", "2025-W46", "2025-W48", "2025-W49", "2025-W51", "2026-W03", "2026-W05", "2026-W09", "2026-W10", "2026-W12", "2026-W13", "2026-W16", "2026-W17", "2026-W19", "2026-W21", "2026-W24", "2026-W26", "2026-W28", "2026-W37", "2026-W39"], "clusters": [], "speeches": [{"id": "ID21200100", "x": -0.411, "y": -0.168, "cluster": -1, "speaker": "Steffen Bilger", "person_id": "11004011", "photo": true, "photo_credit": "Steffen Bilger/ Tobias Koch", "fraction": "CDU/CSU", "role": null, "date": "2025-05-06", "agenda_id": "21/2/2", "agenda": "Zur Geschäftsordnung", "top": "Zur Geschäftsordnung", "drucksachen": [], "chars": 1938, "comments": 6, "pdf": "https://dserver.bundestag.de/btp/21/21002.pdf", "cite": "BT-PlPr. 21/2", "similar": ["ID21200300", "ID21200400", "ID21200200", "ID21200500"], "next": "ID21200200", "paragraphs": [["text", "Frau Präsidentin! Liebe Kolleginnen und Kollegen! Die Lage ist, wie sie ist. Die Lage ist ernst. Die Wahl des Bundeskanzlers ist die wichtigste politische Wahl, die dem Deutschen Bundestag obliegt. Und deshalb geht es heute um viel. Es geht um die Handlungsfähigkeit des Staates und das Funktionieren unserer Demokratie. Deutschland braucht eine Regierung."], ["comment", "(Beifall bei der CDU/CSU und der SPD)"], ["text", "Es geht aber auch um die Umsetzung des Wählerwillens und die Lösung der drängenden Probleme, vor denen unser Land steht und die die Menschen in Deutschland gelöst haben wollen. Deshalb ist ein weiterer zeitlicher Verzug bei der Bildung einer neuen Bundesregierung nicht akzeptabel. Wir, die Fraktionen von CDU/CSU und SPD, sind deshalb gemeinsam der Auffassung, dass wir bereits heute einen zweiten Wahlgang für die Wahl des Bundeskanzlers vornehmen sollten."], ["comment", "(Beifall bei der CDU/CSU und der SPD)"], ["text", "Und hierfür schlagen wir, die Fraktionen der CDU/CSU und der SPD, Friedrich Merz als Kandidaten vor."], ["comment", "(Beifall bei der CDU/CSU sowie bei Abgeordneten der SPD)"], ["text", "Die Sachlage ist klar: Der Name des Kandidaten ist hier jedem bekannt. Und daher ist es aus unserer Sicht nicht nur zumutbar, sondern auch angemessen, am heutigen Tage in einen zweiten Wahlgang einzutreten. Daher beantragen wir gemäß § 126 der Geschäftsordnung des Deutschen Bundestages, von der Frist für die Beratung des Wahlvorschlages abzuweichen, und bitten hierfür um Ihre Zustimmung."], ["text", "Ich danke allen Beteiligten an den Gesprächen der vergangenen Stunden, namentlich SPD, Grünen und Linken. Es ist ein gutes Zeichen, wenn heute ein zweiter Wahlgang möglich ist."], ["text", "Liebe Kolleginnen und Kollegen, diese Koalition hat sich ein sehr gutes, ambitioniertes Programm vorgenommen,"], ["comment", "(Lachen bei Abgeordneten der AfD)"], ["text", "das von allen drei in ihr vertretenen Parteien mit großer Mehrheit getragen wird. Die neue Regierung, die Verantwortung für Deutschland in schwierigen Zeiten übernehmen will, steht in den Startlöchern. Es ist höchste Zeit, vom Reden ins Handeln zu kommen: mit der Wahl von Friedrich Merz zum Bundeskanzler der Bundesrepublik Deutschland."], ["comment", "(Beifall bei der CDU/CSU und der SPD)"], ["chair", "Präsidentin Julia Klöckner:"], ["chair", "Danke schön. – Das Wort hat für die AfD-Fraktion Herr Dr. Baumann. Bitte sehr."], ["comment", "(Beifall bei der AfD)"]]}, {"id": "ID21200200", "x": 0.418, "y": -0.584, "cluster": -1, "speaker": "Dr. Bernd Baumann", "person_id": "11004662", "photo": true, "photo_credit": "Dr. Bernd Baumann", "fraction": "AfD", "role": null, "date": "2025-05-06", "agenda_id": "21/2/2", "agenda": "Zur Geschäftsordnung", "top": "Zur Geschäftsordnung", "drucksachen": [], "chars": 2059, "comments": 8, "pdf": "https://dserver.bundestag.de/btp/21/21002.pdf", "cite": "BT-PlPr. 21/2", "similar": ["ID21200400", "ID21200500", "ID21200100", "ID21200300"], "next": "ID21200300", "paragraphs": [["text", "Frau Präsidentin! Meine Damen und Herren! Herr Merz, Sie sind gescheitert. Das ist eine historische Niederlage, wie es sie in diesem Bundestag noch nie gegeben hat."], ["comment", "(Beifall bei der AfD)"], ["text", "Die eigenen Abgeordneten verweigern Ihnen die Gefolgschaft. Und das ist ja auch kein Wunder bei diesem Ausmaß an Wahlbetrug, an Wahlversprechen, die Sie gebrochen haben."], ["comment", "(Zuruf von der CDU/CSU: Na, na, na!)"], ["text", "Ich hoffe, es sind kluge Leute in der CDU, die jetzt bewirkt haben, dass Sie die Stimmen nicht gekriegt haben, die wollen, dass die CDU wieder auf einen vernünftigen Weg zurückkommt. Und das ist ja noch möglich, meine Damen und Herren."], ["comment", "(Beifall bei der AfD)"], ["text", "Es gibt nun einen zweiten Wahlgang. Wir verweigern uns dem nicht; denn die Karten müssen auf den Tisch. Deutschland braucht jetzt eine Regierung. Wir verhindern das nicht, wir unterstützen das."], ["comment", "(Beifall bei der AfD)"], ["text", "Aber auch wenn Sie, Herr Merz, jetzt eine Zustimmung erhalten – Sie haben ja mit allen hier gesprochen: mit Grünen, mit Linken, mit der SPD –, ändert das nichts. Diese Regierung beginnt in äußerster Instabilität, und sie wird instabil bleiben. Das ist das Gegenteil von dem, was Deutschland braucht, meine Damen und Herren."], ["comment", "(Beifall bei der AfD – Dr. Alice Weidel [AfD]: So ist es!)"], ["text", "Denn es ist klar – das Wahlergebnis zeigt –: Es gibt eine Mehrheit, Herr Merz. Für alle Punkte, die Sie im Wahlkampf versprochen haben, gibt es hier eine Mehrheit. Jeder Abgeordnete ist vom Volk gewählt, vom Souverän. Jeder, der hier ist, die Mehrheiten, die hier sind, sind Volkes Wille. Und nach Volkes Wille können alle Forderungen, die Sie erhoben haben, die Sie von uns übernommen haben, umgesetzt werden. Sie verhindern das. Das ist die Instabilität im Bundestag, das ist die Instabilität in Deutschland."], ["comment", "(Beifall bei der AfD)"], ["text", "Wir von der AfD stimmen nicht nur der Durchführung dieses zweiten Wahlgangs zu, weil die Karten jetzt auf den Tisch müssen, wir stehen auch jederzeit für vernünftige Lösungen für Deutschland bereit, wie sie in unserer Programmatik aufscheinen, wie wir sie im Wahlkampf vertreten haben und wie auch Sie sie im Wahlkampf vertreten haben. Wir stehen für vernünftige Lösungen für Deutschland jederzeit zur Verfügung. Dabei bleibt es, meine Damen und Herren."], ["comment", "(Beifall bei der AfD)"], ["chair", "Präsidentin Julia Klöckner:"], ["chair", "Für die SPD-Fraktion hat Frau Katja Mast das Wort. Bitte."], ["comment", "(Beifall bei der SPD sowie bei Abgeordneten der CDU/CSU)"]]}, {"id": "ID21200300", "x": -0.587, "y": 0.332, "cluster": -1, "speaker": "Katja Mast", "person_id": "11003804", "photo": true, "photo_credit": "Katja Mast/ Photothek Media Lab", "fraction": "SPD", "role": null, "date": "2025-05-06", "agenda_id": "21/2/2", "agenda": "Zur Geschäftsordnung", "top": "Zur Geschäftsordnung", "drucksachen": [], "chars": 2160, "comments": 10, "pdf": "https://dserver.bundestag.de/btp/21/21002.pdf", "cite": "BT-PlPr. 21/2", "similar": ["ID21200100", "ID21200400", "ID21200500", "ID21200200"], "next": "ID21200400", "paragraphs": [["text", "Frau Präsidentin! Meine sehr verehrten Kolleginnen und Kollegen! Meine sehr verehrten Damen und Herren! Deutschland steht vor großen Herausforderungen. Wir, CDU/CSU und SPD, haben gemeinsam schnell und zügig einen tragfähigen Koalitionsvertrag vereinbart. Wir geben Antworten auf die Zukunftsherausforderungen:"], ["comment", "(Zurufe von der AfD)"], ["text", "Wo entstehen die Jobs der Zukunft? Wie kriegen Arbeitnehmerinnen und Arbeitnehmer mehr vom Kuchen ab? Wie sieht es aus mit Wachstum? Und: Wie gestalten wir unsere Handlungsfähigkeit in der internationalen Politik? Mit Verlaub: In Zeiten, wo wir jeden Tag Schlagzeilen aus den USA und aus Russland bekommen, ist Deutschland der wichtigste Player in Europa und in der Welt für Frieden und Demokratie."], ["comment", "(Beifall bei der SPD und der CDU/CSU)"], ["text", "Es geht für uns darum, dieser Verantwortung gerecht zu werden. Und diese Verantwortung ist groß. Sie ist größer als jeder einzelne Abgeordnete, der hier im Haus sitzt. Deshalb wollen wir zügig und schnell einen neuen Bundeskanzler und eine neue Regierung: damit wir diese Handlungsfähigkeit dokumentieren und damit wir gemeinsam gute Politik nach vorne machen können. „Gute Politik nach vorne“ heißt nicht etwa, Geschäftsordnungsdebatten zu machen, wenn man dem Antrag sowieso zustimmt,"], ["comment", "(Zuruf des Abg. Tino Chrupalla [AfD])"], ["text", "sondern gute Politik heißt, den Alltag der Menschen in diesem Land besser zu machen. Darum geht es heute, hier und jetzt."], ["comment", "(Beifall bei der SPD und der CDU/CSU)"], ["text", "Deshalb bin ich allen demokratischen Fraktionen,"], ["comment", "(Dr. Bernd Baumann [AfD]: Sind ja nicht so viele!)"], ["text", "CDU/CSU, SPD, den Grünen und der Linken,"], ["comment", "(Lachen bei der AfD)"], ["text", "dankbar, dass wir gemeinsam diesen Fristverzicht beantragen; denn ansonsten – für die Bürgerinnen und Bürger ist das vielleicht nicht klar – hätten wir drei Tage warten müssen, bis wir einen zweiten Wahlgang machen können. Es ist richtig, dass wir heute entscheiden, dass wir heute einen neuen Bundeskanzler haben, dass wir heute die Ministerinnen und Minister vereidigen. Denn es geht darum, zu zeigen: Wir tragen Verantwortung für die Zukunft unseres Landes"], ["comment", "(Dr. Bernd Baumann [AfD]: Jaja!)"], ["text", "und machen nicht Politikklamauk à la AfD. Keine Antworten, und dann stellen Sie sich hierhin und tun so, als hätten Sie die Weisheit mit Löffeln gefressen!"], ["comment", "(Lachen bei Abgeordneten der AfD – Dr. Alice Weidel [AfD]: Haben wir ja auch! Genau richtig!)"], ["text", "Nein, wir haben Antworten, wir geben die Antworten für die Zukunft. Deshalb: Stimmen Sie gerne unserem Antrag zu!"], ["text", "Vielen Dank."], ["comment", "(Beifall bei der SPD und der CDU/CSU)"], ["chair", "Präsidentin Julia Klöckner:"], ["chair", "Für die Fraktion Bündnis 90/Die Grünen hat Dr. Irene Mihalic das Wort. Bitte sehr."], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der SPD)"]]}, {"id": "ID21200400", "x": 0.022, "y": -0.255, "cluster": -1, "speaker": "Dr. Irene Mihalic", "person_id": "11004353", "photo": true, "photo_credit": "Irene Mihalic/ Annette Koroll", "fraction": "BÜNDNIS 90/DIE GRÜNEN", "role": null, "date": "2025-05-06", "agenda_id": "21/2/2", "agenda": "Zur Geschäftsordnung", "top": "Zur Geschäftsordnung", "drucksachen": [], "chars": 2404, "comments": 7, "pdf": "https://dserver.bundestag.de/btp/21/21002.pdf", "cite": "BT-PlPr. 21/2", "similar": ["ID21200100", "ID21200200", "ID21200300", "ID21200500"], "next": "ID21200500", "paragraphs": [["text", "Sehr geehrte Frau Präsidentin! Liebe Kolleginnen! Liebe Kollegen! Um es einmal vorweg zu sagen: Die Demokratie und ihre demokratischen Prozesse, sie funktionieren. Das, was wir hier heute erleben, ist ein ordentliches demokratisches Verfahren. Das sind Prozesse im Rahmen unserer Verfassung, unserer Geschäftsordnung, die alle genau so abgebildet sind, und zwar exakt für den Fall, mit dem wir es hier zu tun haben, meine Damen und Herren."], ["text", "Trotzdem ist es ein historischer Moment, weil Sie als CDU/CSU und SPD, die miteinander einen Koalitionsvertrag vereinbart haben, nicht in der Lage waren, die notwendige Mehrheit für Ihren Kanzlerkandidaten hier im Parlament zu bekommen."], ["comment", "(Zuruf von der AfD: Hört! Hört!)"], ["text", "Das heißt, die Abgeordneten, die in Zukunft für diese Koalition über Gesetze abstimmen sollen, vertrauen Ihnen, Herr Merz und Herr Klingbeil, und Ihrem Verhandlungsergebnis nicht in ausreichendem Maße,"], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der Linken)"], ["text", "sodass Sie – Stand jetzt – keine stabile Mehrheit für Ihre Regierung hier im Deutschen Bundestag haben. Und das ist einschneidend. Das ist einschneidend für unser Land. Das erzeugt Verunsicherung und Instabilität, für die Sie, und zwar nur Sie, die Verantwortung tragen."], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN)"], ["text", "Das heißt aber auch: Nicht die Demokratie ist in Gefahr, sondern das Vertrauen Ihrer Abgeordneten in Sie ist gefährdet. Aber das Problem müssen Sie ganz alleine lösen."], ["text", "Wobei wir Ihnen allerdings helfen werden, sind die parlamentarischen Prozesse. Denn wir als Bündnis 90/Die Grünen sind davon überzeugt: Wenn Sie schnell über Ihren Kanzlerkandidaten entscheiden möchten, dann sollten Sie das auch schnell tun können."], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN)"], ["text", "Denn wir wollen, dass die Zeit der Unsicherheit und der Unklarheit, die Sie in unserem Land erzeugen, die Sie unserem Land zumuten, so kurz wie möglich bleibt. Deshalb bringen wir gemeinsam mit allen demokratischen Fraktionen des Hauses – mit CDU/CSU, mit SPD, mit der Linken und mit Bündnis 90/Die Grünen – diesen Geschäftsordnungsantrag ein, der es ermöglicht, einen zweiten Wahlgang durchzuführen."], ["text", "Das sollten Sie, meine Damen und Herren von der Koalition, aber nicht mit einer Zustimmung zu Ihrer Politik verwechseln."], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der Linken)"], ["text", "Die Politik, die Sie als Union und SPD in Ihrem Koalitionsvertrag verabredet haben, ist nicht die richtige für unser Land. Deshalb werden wir Sie, Herr Merz, auch nicht zum Bundeskanzler wählen. Die erforderliche Mehrheit für Ihren politischen Kurs müssen Sie ganz alleine herstellen."], ["text", "Ganz herzlichen Dank."], ["comment", "(Beifall beim BÜNDNIS 90/DIE GRÜNEN sowie bei Abgeordneten der Linken)"], ["chair", "Präsidentin Julia Klöckner:"], ["chair", "Das Wort für Die Linke hat Kollege Christian Görke."], ["comment", "(Beifall bei der Linken)"]]}, {"id": "ID21200500", "x": 0.558, "y": 0.675, "cluster": -1, "speaker": "Christian Görke", "person_id": "11005067", "photo": true, "photo_credit": "DiG/ Thomas Kläber", "fraction": "Die Linke", "role": null, "date": "2025-05-06", "agenda_id": "21/2/2", "agenda": "Zur Geschäftsordnung", "top": "Zur Geschäftsordnung", "drucksachen": [], "chars": 1957, "comments": 11, "pdf": "https://dserver.bundestag.de/btp/21/21002.pdf", "cite": "BT-PlPr. 21/2", "similar": ["ID21200400", "ID21200200", "ID21200100", "ID21200300"], "next": null, "paragraphs": [["text", "Frau Präsidentin! Sehr geehrter Herr Merz, 18 Stimmen haben Ihnen in Ihrer „Blackroten“ Koalition im ersten Wahlgang gefehlt."], ["comment", "(Zuruf von der AfD: Tolles Wortspiel!)"], ["text", "Und ich kann Ihnen aus Sicht der Linken Folgendes nicht ersparen: Das ist schon eine krachende Niederlage. Aber nicht nur für Sie, sondern auch für Ihren möglichen Co-Vizechef und SPD-Vorsitzenden Lars Klingbeil."], ["text", "Das ist sicherlich auch eine Quittung für den Versuch des Durchregierens, aber vor allen Dingen die Quittung für einen aus unserer Sicht wirklich schlechten Koalitionsvertrag,"], ["comment", "(Beifall bei der Linken)"], ["text", "der die großen Probleme dieses Landes nicht angeht bzw. nicht den Versuch unternimmt, sie wirklich zu lösen. Er enthält nichts, wirklich nichts gegen Kinderarmut und gegen Altersarmut. Der Geldadel in Deutschland wird weiter gepampert,"], ["comment", "(Dr. Alice Weidel [AfD]: So ist es!)"], ["text", "während der Mietenwahn weitergeht."], ["text", "Klar ist: Wir als Linke werden Sie genau deshalb weder heute noch morgen, noch übermorgen wählen oder irgendwie unterstützen. Wir wollen heute nur Klarheit – Klarheit in der Sache, wie es mit diesem Land weitergeht. Deshalb bringen wir gemeinsam mit allen demokratischen Fraktionen diesen Antrag zur Geschäftsordnung ein."], ["comment", "(Zuruf des Abg. Stephan Brandner [AfD])"], ["text", "Das ist keine Zustimmung zu Ihrer Politik."], ["comment", "(Beifall bei der Linken)"], ["text", "Da die AfD schon wieder dazwischengerufen hat:"], ["comment", "(Tino Chrupalla [AfD]: Was denn?)"], ["text", "Sie sind eigentlich an einer Chaotisierung interessiert."], ["comment", "(Zuruf des Abg. Dr. Bernd Baumann [AfD])"], ["text", "Das ist nämlich das Lebenselixier Ihrer Partei. Ziel bisher – und ich bin schon etwas länger in diesem Parlament – ist es immer gewesen, dieses Parlament zu diskreditieren, Ihre Ämter und Mandate zu missbrauchen, um Ihre menschenverachtende Politik zu leben, und vor allen Dingen den Diskurs in diesem Land nach rechts zu verschieben. Das will ich Ihnen hier auch noch mal sagen."], ["comment", "(Beifall bei der Linken sowie bei Abgeordneten der SPD und des BÜNDNISSES 90/DIE GRÜNEN)"], ["text", "Ich nenne noch mal das Zitat von Ihnen: Wenn es Deutschland schlecht geht, geht es der AfD gut. – Das ist Ihr Zitat."], ["comment", "(Dr. Bernd Baumann [AfD]: Blödsinn!)"], ["text", "Deshalb stimmen wir heute für diesen Geschäftsordnungsantrag, der den Weg für einen zweiten Wahlgang frei macht. Denn wir sind die Brandmauer gegen die gesichert rechtsextreme AfD."], ["comment", "(Lachen bei der AfD)"], ["text", "Vielen Dank."], ["comment", "(Beifall bei der Linken sowie bei Abgeordneten der SPD)"]]}], "linked": {}, "decisions": {}};
+const S = DATA.speeches;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const mq = matchMedia('(max-width: 900px), (pointer: coarse) and (max-width: 1100px)');  // the phone layout, as in the CSS
+let mobile = mq.matches;
+const FRACTION_COLORS = { 'CDU/CSU': css('--cdu'), 'SPD': css('--spd'), 'AfD': css('--afd'), 'BÜNDNIS 90/DIE GRÜNEN': css('--gru'), 'Die Linke': css('--lin'), 'fraktionslos': css('--frl'), 'ohne Fraktion': css('--reg') };
+const ROLE_COLORS = ['#2a78d6', '#eb6834'];  // Abgeordnete, Regierung
+const NOISE = '#d4d4d0';
+const FRACTION_ORDER = Object.keys(FRACTION_COLORS);
+const DAY_ORDER = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const weekdayOf = d => DAY_ORDER[(new Date(d).getUTCDay() + 6) % 7];
+const clusterById = Object.fromEntries(DATA.clusters.map(c => [c.id, c]));
+const median = a => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+const hsv = (h, s, v) => { const f = n => { const k = (n + h * 6) % 6; return Math.round(255 * v * (1 - s * Math.max(0, Math.min(k, 4 - k, 1)))); }; return `rgb(${f(5)},${f(3)},${f(1)})`; };
+const CLUSTER_COLOR = (() => {  // evenly spaced vivid hues, ordered by each cluster's angle around the map centre so the map reads like a colour wheel
+  const cx = median(S.map(s => s.x)), cy = median(S.map(s => s.y));
+  const angle = c => { const g = S.filter(s => s.cluster === c.id); return Math.atan2(median(g.map(s => s.y)) - cy, median(g.map(s => s.x)) - cx); };
+  const ordered = DATA.clusters.map(c => [c.id, angle(c)]).sort((a, b) => a[1] - b[1]);
+  return Object.fromEntries(ordered.map(([id], i) => [id, hsv(i / ordered.length, .75, .92)]));
+})();
+const ACRONYMS = new Set(['usa', 'nato', 'eu', 'uno', 'un', 'csd', 'ard', 'zdf', 'kfw', 'dfb', 'fifa', 'ki', 'eeg', 'geg', 'stpo', 'bgb', 'sgb', 'bka', 'bnd', 'öpnv', 'lng', 'co2', 'nis', 'tv', 'gkv', 'pkv', 'iwf', 'oecd', 'wto']);
+const cap = w => ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1);
+const clusterLabel = (c, n = 3) => c < 0 ? 'ohne Thema' : clusterById[c].terms.slice(0, n).map(cap).join(' · ');
+const excerpt = s => { const t = s.paragraphs.find(p => p[0] === 'text'); return t ? t[1].slice(0, 140) + '…' : ''; };
+const byId = Object.fromEntries(S.map(s => [s.id, s]));
+// a speech id from a link: a point, a Kurzintervention too short to be one (→ the speech it interrupted),
+// or a continuation part of a split speech (ID…-3 → ID…)
+const resolveSpeech = id => {
+  if (!id || byId[id]) return id;
+  const host = S.find(s => s.paragraphs.some(([k, t]) => (k === 'zwischenfrage' || k === 'kurzintervention') && t === id));
+  if (host) return host.id;
+  const base = id.replace(/-\d+$/, '');
+  return byId[base] ? base : '';
+};
+// links out to the MdB cards site: speaker cards, portraits, sitting pages, vote pages
+const CARDS = "https://plenar-radar.de/";
+const cardUrl = pid => `${CARDS}${encodeURIComponent(pid)}.html`;
+const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${CARDS}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
+const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);
+S.forEach(s => {
+  s.weekday = weekdayOf(s.date);
+  s.befragung = s.agenda === 'Befragung der Bundesregierung';
+  s.zwischenfrage = !!s.zwischenfrage;  // another person's question inside a speech; readable from that speech's card
+  s.text = s.paragraphs.filter(p => p[0] === 'text').map(p => p[1]).join('\n');
+  s.haystack = `${s.speaker}\n${s.role || ''}\n${s.agenda}\n${s.text}`.toLowerCase();
+});
+const AGENDA = [...Map.groupBy(S, s => s.agenda_id).values()].map(v => v[0]).sort((a, b) => a.agenda_id.localeCompare(b.agenda_id, 'de', {numeric: true}));
+const AGENDA_BY = Object.fromEntries(AGENDA.map(a => [a.agenda_id, a]));
+const dates = [...new Set(S.map(s => s.date))].sort();
+const DAY_HUES = [.585, .07, .36, .74];  // blue, orange, green, purple: the hues of the day scales below
+const AGENDA_COLOR = Object.fromEntries([...Map.groupBy(AGENDA, a => a.date)].flatMap(([d, items]) => {
+  const h = DAY_HUES[dates.indexOf(d) % DAY_HUES.length];  // AGENDA holds each item's first speech, so S order = speaking order
+  return items.sort((a, b) => S.indexOf(a) - S.indexOf(b)).map((a, j) => {
+    const t = items.length > 1 ? j / (items.length - 1) : .5;
+    return [a.agenda_id, hsv((h + (t - .5) * .12 + 1) % 1, .4 + .5 * t, .95 - .27 * t)];
+  });
+}));
+const DAY_DATE = Object.fromEntries(dates.map(d => [weekdayOf(d), d]));
+document.getElementById('meta').textContent = `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])} · ${S.length} Reden · ${DATA.clusters.length} Themen`;
+document.title = `Themenlandschaft ${DATA.week}`;
+
+// day colouring: one sequential scale per sitting day (blue, orange, green, purple), light = early, dark = late
+const SCALES = [['#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'], ['#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#a63603', '#7f2704'],
+  ['#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#006d2c', '#00441b'], ['#dadaeb', '#bcbddc', '#9e9ac8', '#807dba', '#6a51a3', '#54278f', '#3f007d']];
+const heat = (day, t) => {
+  const sc = SCALES[day % SCALES.length], p = Math.min(Math.max(t, 0), 1) * (sc.length - 1), i = Math.floor(p), f = p - i;
+  const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)), a = rgb(sc[i]), b = rgb(sc[Math.min(i + 1, sc.length - 1)]);
+  return `rgb(${a.map((c, k) => Math.round(c + (b[k] - c) * f)).join(',')})`;
+};
+Map.groupBy(S, s => s.date).forEach((g, d) => g.forEach((s, r) => s.dayColor = heat(dates.indexOf(d), (r + .5) / g.length)));  // payload order = speaking order
+const dayGradient = v => `linear-gradient(90deg, ${heat(dates.indexOf(DAY_DATE[v]), 0)}, ${heat(dates.indexOf(DAY_DATE[v]), 1)})`;
+
+// week picker: a calendar of both years, sitting weeks as links
+const weekBtn = document.getElementById('weekBtn'), weekCal = document.getElementById('weekCal'), weekSet = new Set(DATA.weeks);
+const [YEAR, KW] = DATA.week.split('-W').map(Number);
+weekBtn.textContent = `KW ${KW} · ${YEAR}`;
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const shift = (d, n) => { const r = new Date(d); r.setUTCDate(d.getUTCDate() + n); return r; };
+const dm = d => `${d.getUTCDate()}.${d.getUTCMonth() + 1}.`;
+weekCal.innerHTML = [...new Set(DATA.weeks.map(w => w.slice(0, 4)))].map(y => {
+  const rows = MONTHS.map(() => []), jan4 = new Date(Date.UTC(y, 0, 4)), week1 = shift(jan4, -(jan4.getUTCDay() + 6) % 7);
+  for (let w = 1; w <= 53; w++) {
+    const mon = shift(week1, 7 * (w - 1)), thu = shift(mon, 3);  // an ISO week belongs to the year and month of its Thursday
+    if (thu.getUTCFullYear() !== +y) continue;
+    const id = `${y}-W${String(w).padStart(2, '0')}`, has = weekSet.has(id);
+    rows[thu.getUTCMonth()].push(`<a class="wk${has ? ' has' : ''}${id === DATA.week ? ' cur' : ''}"${has ? ` href="${id}.html"` : ''} title="KW ${w} · ${dm(mon)} – ${dm(shift(mon, 6))}">${w}</a>`);
+  }
+  return `<div><b>${y}</b>${rows.map((r, i) => `<div class="mo"><span>${MONTHS[i]}</span>${r.join('')}</div>`).join('')}</div>`;
+}).join('');
+weekBtn.onclick = e => { e.stopPropagation(); weekCal.classList.toggle('open'); };
+
+// --- filter groups: value of a speech, display name, colour ---------------------------
+const GROUPS = {
+  fraction: { of: s => s.fraction, name: v => v, color: v => FRACTION_COLORS[v] || NOISE, order: (a, b) => (FRACTION_ORDER.indexOf(a) + 1 || 99) - (FRACTION_ORDER.indexOf(b) + 1 || 99) },
+  weekday: { of: s => s.weekday, name: v => `${v} ${fmt(DAY_DATE[v]).slice(0, 6)}`, color: v => heat(dates.indexOf(DAY_DATE[v]), .6), swatch: dayGradient, order: (a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b) },
+  agenda: { of: s => s.agenda_id, name: v => AGENDA_BY[v].agenda, color: v => AGENDA_COLOR[v], order: (a, b) => a.localeCompare(b, 'de', {numeric: true}) },
+  cluster: { of: s => s.cluster, name: v => v < 0 ? 'ohne Thema' : clusterById[v].terms.join(' · '), color: v => v < 0 ? NOISE : CLUSTER_COLOR[v], order: (a, b) => (a < 0) - (b < 0) || a - b },
+  speaker: { of: s => s.speaker, name: v => v, color: v => FRACTION_COLORS[S.find(s => s.speaker === v).fraction] || NOISE, order: null },
+};
+document.getElementById('dayScale').innerHTML = dates.map(d => `<span><i style="background:${dayGradient(weekdayOf(d))}"></i>${GROUPS.weekday.name(weekdayOf(d))}</span>`).join('') + '<span class="hint">früh → spät</span>';
+const DEFAULTS = { mode: 'cluster', terms: [], live: '', dim: true, befragung: false, zwischenfragen: false, size: true, showLabels: true, open: '', peek: '' };
+const TOGGLES = ['dim', 'befragung', 'zwischenfragen', 'size', 'showLabels'];
+const state = { ...DEFAULTS, checked: Object.fromEntries(Object.keys(GROUPS).map(k => [k, new Set()])) };
+const totals = Object.fromEntries(Object.keys(GROUPS).map(k => [k, Map.groupBy(S, GROUPS[k].of)]));
+const initialOrder = k => {
+  const g = GROUPS[k], vals = [...totals[k].keys()];
+  return g.order ? vals.sort(g.order) : vals.sort((a, b) => totals[k].get(b).length - totals[k].get(a).length);
+};
+const listOrder = Object.fromEntries(Object.keys(GROUPS).map(k => [k, initialOrder(k)]));
+
+// --- URL hash keeps the view shareable ----------------------------------------------
+const encodeState = () => {
+  const h = new URLSearchParams();
+  if (state.mode !== 'cluster') h.set('farbe', state.mode);
+  for (const k in GROUPS) if (state.checked[k].size) h.set(k, [...state.checked[k]].join('|'));
+  if (state.terms.length) h.set('suche', state.terms.filter(t => t.on).map(t => t.term).join('|'));
+  for (const k of TOGGLES) if (state[k] !== DEFAULTS[k]) h.set(k, state[k] ? '1' : '0');
+  if (state.open) h.set('rede', state.open);
+  history.replaceState(history.state, '', h.size ? '#' + h : location.pathname);  // keeps the sheet's back-button entries
+};
+let startTourId = '';
+const decodeState = () => {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('farbe')) state.mode = h.get('farbe');
+  for (const k in GROUPS) (h.get(k) || '').split('|').filter(Boolean).forEach(v => state.checked[k].add(k === 'cluster' ? +v : v));
+  state.terms = (h.get('suche') || '').split('|').filter(Boolean).map(term => ({ term, on: true }));
+  for (const k of TOGGLES) if (h.has(k)) state[k] = h.get(k) === '1';
+  state.open = resolveSpeech(h.get('rede') || h.get('open') || '');  // #open= is the key the cards site links with
+  startTourId = h.get('tour') || '';
+};
+decodeState();
+
+// --- sidebar --------------------------------------------------------------------------
+const listEls = Object.fromEntries([...document.querySelectorAll('.list[data-key]')].map(el => [el.dataset.key, el]));
+const items = k => document.querySelectorAll(`.item[data-key=${k}]`);
+const row = (k, v, cls = '') => { const g = GROUPS[k]; return `<div class="item${cls}" data-key="${k}" data-i="${listOrder[k].indexOf(v)}" title="${esc(g.name(v))} – Häkchen filtert, Klick zeigt die Übersicht"><input type="checkbox"${state.checked[k].has(v) ? ' checked' : ''}><span class="dot" style="background:${(g.swatch || g.color)(v)}"></span><span class="name">${esc(g.name(v))}</span><span class="n"></span></div>`; };
+function renderList(k) {
+  if (k === 'weekday') k = 'agenda';  // days and their agenda items share one list
+  listEls[k].innerHTML = k === 'agenda'
+    ? listOrder.weekday.map(d => row('weekday', d, ' day') + listOrder.agenda.filter(a => AGENDA_BY[a].weekday === d).map(a => row('agenda', a)).join('')).join('')
+    : listOrder[k].map(v => row(k, v)).join('');
+  listEls[k].querySelectorAll('.item').forEach(it => {
+    const k = it.dataset.key, v = listOrder[k][+it.dataset.i], input = it.querySelector('input');
+    input.onchange = () => { input.checked ? state.checked[k].add(v) : state.checked[k].delete(v); draw(); };
+    it.onclick = e => { if (e.target === input) return; if (nearBox(e, it)) input.click(); else showCard(k, v); };
+  });
+}
+const nearBox = (e, it) => mobile && e.clientX - it.getBoundingClientRect().left < 40;
+Object.keys(listEls).forEach(renderList);
+function renderSearchList() {
+  const el = document.getElementById('searchList');
+  el.innerHTML = state.terms.map((t, i) =>
+    `<div class="item" data-i="${i}"><input type="checkbox"${t.on ? ' checked' : ''}><span class="name">„${esc(t.term)}“</span><span class="n"></span><span class="x" title="Entfernen">×</span></div>`).join('');
+  el.querySelectorAll('.item').forEach(it => {
+    const i = +it.dataset.i, input = it.querySelector('input');
+    input.onchange = () => { state.terms[i].on = input.checked; draw(); };
+    it.querySelector('.x').onclick = () => { state.terms.splice(i, 1); renderSearchList(); draw(); };
+    it.onclick = e => { if (e.target !== input && nearBox(e, it)) return input.click(); if (e.target !== input && !e.target.classList.contains('x')) { const term = state.terms[i].term; showGroup(S.filter(s => s.haystack.includes(term.toLowerCase())), `„${term}“`, 'Suchbegriff'); } };
+  });
+}
+renderSearchList();
+const searchInput = document.getElementById('search');
+let typing;
+searchInput.oninput = () => { state.live = searchInput.value.trim().toLowerCase(); clearTimeout(typing); typing = setTimeout(draw, 120); };
+const addSearch = () => {
+  const term = searchInput.value.trim();
+  if (term.length > 1 && !state.terms.some(t => t.term.toLowerCase() === term.toLowerCase())) state.terms.push({ term, on: true });
+  searchInput.value = ''; state.live = ''; renderSearchList(); draw();
+};
+searchInput.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addSearch(); } };
+document.getElementById('addSearch').onclick = addSearch;
+document.querySelectorAll('.group .title').forEach(t => t.onclick = e => { if (!e.target.classList.contains('reload')) t.parentElement.classList.toggle('collapsed'); });
+document.querySelectorAll('.reload').forEach(r => r.onclick = () => {
+  const k = r.dataset.key, counts = Map.groupBy(S.filter(matches), GROUPS[k].of);
+  listOrder[k].sort((a, b) => (counts.get(b) || []).length - (counts.get(a) || []).length);
+  flags.reloaded[k] = true;
+  renderList(k); draw();
+});
+document.querySelectorAll('#color button').forEach(b => b.onclick = () => { state.mode = b.dataset.mode; draw(); });
+TOGGLES.forEach(id => document.getElementById(id).onchange = e => { state[id] = e.target.checked; draw(); });
+// reset: every filter, toggle, list order and the zoom back to how the page opens
+let view = 0;  // Plotly keeps zoom/pan while uirevision stays the same; a new value re-fits the map
+document.getElementById('reset').onclick = () => {
+  for (const k in GROUPS) { state.checked[k].clear(); listOrder[k] = initialOrder(k); }
+  Object.assign(state, DEFAULTS, { terms: [] });
+  flags.reloaded = {}; clearTimeout(typing); searchInput.value = ''; view++; mapRange = null;
+  Object.keys(listEls).forEach(renderList); renderSearchList(); if (state.open) closeSpeech(); showHint(); renderPeek(); draw();
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement !== searchInput && state.open) closeSpeech(); });
+const setOnly = (k, v) => { state.checked[k] = new Set([v]); renderList(k); draw(); };  // filter to one value
+const setSpeaker = name => { setOnly('speaker', name); showCard('speaker', name); };
+const setCluster = id => { setOnly('cluster', id); if (id >= 0) showCluster(id); };
+
+function syncControls() {
+  document.querySelectorAll('#color button').forEach(x => x.classList.toggle('on', x.dataset.mode === state.mode));
+  TOGGLES.forEach(id => document.getElementById(id).checked = state[id]);
+  document.querySelectorAll('.group .badge').forEach(b => b.remove());
+  for (const k in GROUPS) {
+    const n = state.checked[k].size, title = document.querySelector(`#g-${k === 'weekday' ? 'agenda' : k} .title`), badge = title.querySelector('.badge');
+    if (!n) continue;
+    if (badge) badge.textContent = +badge.textContent + n; else title.querySelector('.arrow').insertAdjacentHTML('beforebegin', `<span class="badge">${n}</span>`);
+  }
+  const active = Object.values(state.checked).reduce((a, c) => a + c.size, 0) + state.terms.filter(x => x.on).length;
+  document.getElementById('filterBadge').textContent = active || '';
+}
+
+// empty group = no filter; OR within a group, AND across groups; every active search term has to match
+// days and agenda items form one group in the sidebar, so a ticked day and a ticked item of another day are OR-ed too
+const dayOrItem = s => !(state.checked.weekday.size || state.checked.agenda.size) || state.checked.weekday.has(s.weekday) || state.checked.agenda.has(s.agenda_id);
+const matches = s => ['fraction', 'cluster', 'speaker'].every(k => !state.checked[k].size || state.checked[k].has(GROUPS[k].of(s))) && dayOrItem(s)
+  && state.terms.every(t => !t.on || s.haystack.includes(t.term.toLowerCase()))
+  && (state.befragung || state.checked.speaker.size || state.checked.agenda.size || !s.befragung)  // an explicit speaker/TOP filter overrides the Befragung hide
+  && (state.zwischenfragen || state.checked.speaker.size || !s.zwischenfrage);  // … and an explicit speaker filter the Zwischenfragen hide
+
+// --- drawing --------------------------------------------------------------------------
+const keyOf = { cluster: s => s.cluster, fraction: s => s.fraction, weekday: s => s.weekday, agenda: s => s.agenda_id, mdb: s => s.role ? 'Regierung' : 'Abgeordnete' };
+const colorOf = { cluster: GROUPS.cluster.color, fraction: GROUPS.fraction.color, weekday: GROUPS.weekday.color, agenda: GROUPS.agenda.color, mdb: k => ROLE_COLORS[+(k !== 'Abgeordnete')] };
+const nameOf = { cluster: clusterLabel, fraction: k => k, weekday: k => k, agenda: k => GROUPS.agenda.name(k).slice(0, 40), mdb: k => k };
+const order = { cluster: GROUPS.cluster.order, fraction: GROUPS.fraction.order, weekday: GROUPS.weekday.order, agenda: GROUPS.agenda.order, mdb: (a, b) => a < b ? -1 : 1 };
+const FONT = 'Inter, system-ui, sans-serif';
+let lastShown = S, mapRange = null;  // mapRange: the zoomed view, passed to every redraw; a programmatic (touch) relayout is not kept by uirevision
+
+function draw() {
+  syncControls(); encodeState();
+  const mode = state.mode, sizeBy = state.size;
+  const shown = S.filter(matches), shownIds = new Set(shown.map(s => s.id));
+  lastShown = shown;
+  document.getElementById('count').textContent = `${shown.length} von ${S.length}`;
+  for (const k in GROUPS) {
+    const counts = Map.groupBy(shown, GROUPS[k].of);
+    items(k).forEach(el => { const n = (counts.get(listOrder[k][+el.dataset.i]) || []).length; el.querySelector('.n').textContent = n; el.classList.toggle('zero', !n); });
+  }
+  document.querySelectorAll('#searchList .item').forEach((el, i) => el.querySelector('.n').textContent = S.filter(s => s.haystack.includes(state.terms[i].term.toLowerCase())).length);
+  const size = s => sizeBy ? 5 + 11 * Math.sqrt(s.chars / 8000) : 8;
+  const drawn = state.dim ? S : shown;
+  const groups = Map.groupBy(drawn, keyOf[mode]);
+  const traces = [...groups.keys()].sort(order[mode]).map(k => {
+    const g = groups.get(k);
+    return {
+      type: 'scattergl', mode: 'markers', name: nameOf[mode](k),
+      x: g.map(s => s.x), y: g.map(s => s.y), customdata: g.map(s => s.id), hoverinfo: 'none',
+      marker: { color: mode === 'weekday' ? g.map(s => s.dayColor) : colorOf[mode](k), size: g.map(size), opacity: g.map(s => shownIds.has(s.id) ? .9 : .1), line: { width: 1, color: '#ffffff' } },
+    };
+  });
+  const live = state.live.length > 1 ? drawn.filter(s => s.haystack.includes(state.live)) : [];
+  if (live.length) traces.push({ type: 'scattergl', mode: 'markers', name: `Treffer „${state.live}“ (${live.length})`, hoverinfo: 'skip',
+    x: live.map(s => s.x), y: live.map(s => s.y), customdata: live.map(s => s.id), marker: { color: 'rgba(0,0,0,0)', size: live.map(s => size(s) + 6), line: { width: 2, color: '#1f2328' } } });
+  const open = byId[state.open];
+  if (open) traces.push({ type: 'scattergl', mode: 'markers', name: 'geöffnet', showlegend: false, hoverinfo: 'skip',
+    x: [open.x], y: [open.y], customdata: [open.id], marker: { color: 'rgba(0,0,0,0)', size: size(open) + 10, line: { width: 2, color: '#1f2328' } } });
+  const peek = byId[state.peek];
+  if (peek) traces.push({ type: 'scattergl', mode: 'markers', name: 'Vorschau', showlegend: false, hoverinfo: 'skip',
+    x: [peek.x], y: [peek.y], customdata: [peek.id], marker: { color: 'rgba(0,0,0,0)', size: size(peek) + 12, line: { width: 3, color: css('--accent') } } });
+  labelAnchors = DATA.clusters.map(c => {
+    const g = shown.filter(s => s.cluster === c.id);
+    return g.length < 3 ? null : { id: c.id, n: g.length, x: median(g.map(s => s.x)), y: median(g.map(s => s.y)) };
+  }).filter(Boolean);
+  Plotly.react('map', traces, {
+    paper_bgcolor: css('--bg'), plot_bgcolor: css('--bg'), font: { color: css('--muted'), family: FONT, size: 12 },
+    margin: { l: 16, r: 16, t: 16, b: 16 }, hovermode: 'closest',
+    dragmode: 'pan',
+    xaxis: { visible: false, ...mapRange && { range: mapRange.x } }, yaxis: { visible: false, scaleanchor: 'x', ...mapRange && { range: mapRange.y } },
+    showlegend: mode === 'fraction' || mode === 'mdb', legend: { orientation: 'h', y: 0, x: 0.5, xanchor: 'center', yanchor: 'bottom', bgcolor: 'rgba(255,255,255,.7)' },
+    uirevision: view,
+  }, { responsive: true, scrollZoom: true, displayModeBar: false, doubleClick: 'reset' }).then(placeLabels);
+  document.getElementById('dayScale').style.display = mode === 'weekday' ? 'flex' : 'none';
+  tourCheck();
+}
+
+// --- topic labels: HTML pills over the plot, re-placed on every zoom/pan -------------------
+const map = document.getElementById('map');
+const SPAN = Math.max(...S.map(s => s.x)) - Math.min(...S.map(s => s.x));
+let labelAnchors = [];
+const labelLayer = document.getElementById('labels');
+function placeLabels() {
+  const fl = map._fullLayout;
+  if (!fl || !state.showLabels) { labelLayer.innerHTML = ''; return; }
+  const xa = fl.xaxis, ya = fl.yaxis, W = map.clientWidth, H = map.clientHeight;
+  const zoom = SPAN / (xa.range[1] - xa.range[0]);  // 1 ≈ the whole week in view
+  const terms = zoom > 2 ? 4 : 3, zoomed = zoom > 1.6;
+  const px = a => ({ x: xa.l2p(a.x) + fl._size.l, y: ya.l2p(a.y) + fl._size.t });
+  const items = labelAnchors.map(a => ({ ...a, ...px(a) })).filter(a => a.x > 0 && a.x < W && a.y > 0 && a.y < H).sort((a, b) => b.n - a.n);
+  const colour = id => state.mode === 'cluster' ? GROUPS.cluster.color(id) : '#b4b4b0';  // labels carry the topic colour only when points do
+  labelLayer.innerHTML = items.map(a => `<div class="lbl${zoomed ? ' zoomed' : ''}" data-c="${a.id}" style="left:${a.x}px;top:${a.y}px;color:${colour(a.id)}">${dot(colour(a.id))}<span style="color:#374151">${esc(clusterLabel(a.id, terms))}</span><span class="n">${a.n}</span></div>`).join('');
+  // greedy overlap resolution: bigger clusters first; a colliding label slides up or down, else hides
+  const placed = [];
+  labelLayer.querySelectorAll('.lbl').forEach((el, i) => {
+    const w = el.offsetWidth + 6, h = el.offsetHeight + 4, x = Math.min(Math.max(items[i].x, w / 2 + 4), W - w / 2 - 4);
+    el.style.left = x + 'px';
+    let y = items[i].y, ok = false;
+    for (const dy of [0, -1, 1, -2, 2, -3, 3]) {
+      const yy = items[i].y + dy * h;
+      if (yy > h / 2 && yy < H - h / 2 && !placed.some(r => Math.abs(r.x - x) < (r.w + w) / 2 && Math.abs(r.y - yy) < (r.h + h) / 2)) { y = yy; ok = true; break; }
+    }
+    if (!ok) { el.remove(); return; }
+    el.style.top = y + 'px'; placed.push({ x, y, w, h });
+    el.onclick = () => showCluster(+el.dataset.c);
+  });
+}
+
+// --- tours: guided walkthroughs; the user performs each step, the page state tells the engine it is done ----
+let panelKind = 'hint';
+const flags = { hovered: false, reloaded: {}, card: {} };
+const pick = (() => {
+  const cluster = [...DATA.clusters].sort((a, b) => b.n - a.n)[0];
+  const spread = [...Map.groupBy(S.filter(s => !s.befragung), s => s.agenda_id)].filter(([, v]) => v.length >= 8)
+    .map(([id, v]) => ({ id, clusters: new Set(v.filter(s => s.cluster >= 0).map(s => s.cluster)).size, title: v[0].agenda }))
+    .sort((a, b) => b.clusters - a.clusters)[0];
+  const speaker = [...Map.groupBy(S.filter(s => !s.befragung && !s.zwischenfrage), s => s.speaker)].sort((a, b) => b[1].length - a[1].length)[0];
+  return { cluster: cluster ? cluster.id : -1, clusterLabel: cluster ? clusterLabel(cluster.id) : '', agenda: spread ? spread.id : '', agendaTitle: spread ? spread.title : '', agendaClusters: spread ? spread.clusters : 0, speaker: speaker ? speaker[0] : '' };
+})();
+const expand = id => document.getElementById(id).classList.remove('collapsed');
+const listRow = (k, v) => document.querySelector(`.item[data-key=${k}][data-i="${listOrder[k].indexOf(v)}"]`);
+const TOURS = {
+  woche: { title: 'Was war diese Woche los?', blurb: 'Karte lesen, ein Thema öffnen, eine Rede bis zur Quelle verfolgen.', steps: [
+    { target: '#map', title: 'Die Landschaft', text: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen, die sich aus den Reden ergeben.',
+      mText: 'Jeder Punkt ist eine Rede dieser Sitzungswoche. Nahe Punkte handeln von Ähnlichem; die Labels sind die Themen. Ein Finger verschiebt die Karte, zwei Finger zoomen.' },
+    { target: '#map', title: 'Punkte erkunden', text: '<b>Fahre mit der Maus über einen Punkt.</b> Die Karte zeigt, wer wann wozu gesprochen hat, und den Anfang der Rede.', done: () => flags.hovered,
+      mText: '<b>Tippe einen Punkt an.</b> Unten erscheint eine Vorschau: wer wann wozu gesprochen hat, und der Anfang der Rede.' },
+    { target: () => document.querySelector(`.lbl[data-c="${pick.cluster}"]`) || document.getElementById('map'), title: 'Das größte Thema', text: '<b>Klicke das Label „{cluster}“</b> – das größte Thema der Woche.', done: () => panelKind === 'cluster' },
+    { target: '#panel', title: 'Wer besetzt das Thema', text: 'Die Balken zeigen, welche Fraktion wie oft zu diesem Thema gesprochen hat, darunter die Tagesordnungspunkte und die Redner:innen (anklickbar).' },
+    { target: '#map', title: 'Eine Rede öffnen', text: '<b>Klicke einen Punkt.</b>', done: () => state.open !== '', mText: '<b>Tippe einen Punkt zweimal an</b> oder tippe auf die Vorschau.' },
+    { target: '#panel', title: 'Die Rede', text: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. Der Link führt zum Plenarprotokoll als PDF, ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.',
+      mText: 'Der volle Text mit Zwischenrufen, Beifall und Zwischenfragen an ihrer Stelle. <b>Zieh das Blatt am Griff nach oben</b>, um die Rede bildschirmfüllend zu lesen. Ganz unten stehen die nächste Rede und die fünf ähnlichsten Reden der Woche.' },
+    { target: '#map', title: 'Schließen', text: '<b>Klicke den Punkt noch einmal</b> oder drücke <b>Esc</b>.', done: () => state.open === '', mText: '<b>Tippe den Punkt noch einmal an</b> oder oben in der Rede auf <b>×</b>.' },
+  ] },
+  debatte: { title: 'Eine Debatte über die Landschaft verfolgen', blurb: 'Ein Tagesordnungspunkt ist kein Thema: sehen, wohin er sich verteilt und wer wo spricht.', steps: [
+    { intro: true, title: 'Debatte ≠ Thema', text: 'Ein Tagesordnungspunkt ist eine Debatte. Die Karte ordnet Reden nach Inhalt – eine Debatte verteilt sich deshalb oft über mehrere Themen. In dieser Tour färbst du die Karte nach Debatten und siehst, wer wo spricht.' },
+    { target: () => document.getElementById('dim').closest('.toggle'), prepare: () => { expand('g-view'); if (!state.dim) { state.dim = true; draw(); } }, keepMap: true, title: 'Kontext behalten', text: '„Gefilterte abdunkeln“ ist eingeschaltet: gefilterte Reden bleiben blass sichtbar, statt zu verschwinden. So bleibt der Rest der Woche als Kontext stehen.' },
+    { target: '#color button[data-mode=agenda]', keepMap: true, title: 'Farbe nach Tagesordnungspunkt', text: '<b>Wähle die Farbe „TOP“.</b> Jede Debatte bekommt eine eigene Farbe.', done: () => state.mode === 'agenda' },
+    { target: '#map', title: 'Verteilung', text: '„{agenda}“ verteilt sich auf <b>{agendaClusters} Themen</b>. Die Farbe dieser Debatte taucht an mehreren Stellen der Karte auf.' },
+    { target: () => listRow('agenda', pick.agenda), prepare: () => { expand('g-agenda'); listRow('agenda', pick.agenda)?.scrollIntoView({ block: 'center' }); }, keepMap: true, title: 'Nur diese Debatte', text: '<b>Hake „{agenda}“ an.</b> Alles andere wird abgedunkelt.', done: () => state.checked.agenda.has(pick.agenda) },
+    { target: '#color button[data-mode=fraction]', prepare: () => expand('g-view'), keepMap: true, title: 'Wer spricht wo', text: '<b>Wähle die Farbe „Fraktion“.</b> Jetzt siehst du, welche Fraktion in welcher Ecke der Debatte spricht.', done: () => state.mode === 'fraction' },
+    { target: '#map', title: 'Ein Thema in der Debatte', text: '<b>Klicke ein Themen-Label</b> innerhalb der Debatte. Die Balken zeigen die Fraktionen dieses Themas.', done: () => panelKind === 'cluster' },
+  ] },
+  person: { title: 'Einer Person folgen', blurb: 'Alle Reden einer Person, ihre Themen und ähnliche Reden anderer.', steps: [
+    { intro: true, title: 'Eine Person', text: 'Jede Rede gehört zu einer Person. In dieser Tour wählst du eine aus, siehst ihre Themen und Reden der Woche und springst über ähnliche Reden zu anderen Personen.' },
+    { target: '#g-speaker .reload', prepare: () => expand('g-speaker'), title: 'Die aktivsten zuerst', text: '<b>Klicke ↻</b> neben „Redner:in“. Die Liste wird nach Häufigkeit sortiert.', done: () => flags.reloaded.speaker },
+    { target: () => listEls.speaker.querySelector('.item'), keepMap: true, title: 'Eine Person wählen', text: '<b>Klicke auf einen Namen</b>, zum Beispiel {speaker}. Der Name öffnet das Profil, das Häkchen davor würde die Karte filtern.', done: () => panelKind === 'group' && flags.card.k === 'speaker' },
+    { target: '#panel', title: 'Das Profil der Woche', text: 'Fraktion, Tage, Themen und Tagesordnungspunkte dieser Person als Balken, darunter alle ihre Reden – auch Antworten aus der Regierungsbefragung.' },
+    { target: '#panel', keepMap: true, title: 'Eine Rede öffnen', text: '<b>Öffne eine Rede aus der Liste.</b>', done: () => state.open !== '' },
+    { target: '#panel', keepMap: true, title: 'Über Fraktionsgrenzen', text: '<b>Klicke unter „Ähnliche Reden“ eine Rede einer anderen Person.</b> So springst du von Argument zu Gegenargument.', done: () => state.open !== '' && byId[state.open].speaker !== flags.card.v },
+    { target: '#meta', title: 'Teilen', text: 'Alles, was du eingestellt hast, steckt in der Adresszeile. Kopiere die URL, um genau diese Ansicht zu teilen.' },
+  ] },
+};
+const tour = { id: '', step: 0 };
+const card = document.getElementById('tourCard'), tourMenu = document.getElementById('tourMenu');
+const touchWords = t => t.replace(/\bKlicke\b/g, 'Tippe').replace(/\bklicke\b/g, 'tippe').replace('anklickbar', 'antippbar');
+const fill = t => (mobile ? touchWords(t) : t).replace('{cluster}', esc(pick.clusterLabel)).replace('{agenda}', esc(pick.agendaTitle.slice(0, 60))).replace('{agendaClusters}', pick.agendaClusters).replace('{speaker}', esc(pick.speaker));
+const spot = el => { document.querySelectorAll('.tour-target').forEach(x => x.classList.remove('tour-target')); if (el) el.classList.add('tour-target'); document.body.classList.toggle('tour-sheet', !!el && sheet.contains(el)); };
+function startTour(id) { tour.id = id; tour.step = 0; tourMenu.classList.remove('open'); document.getElementById('tourDim').classList.add('show'); showStep(); }
+function endTour() { tour.id = ''; spot(null); document.body.classList.remove('tour-sheet'); map.classList.remove('tour-keep'); card.classList.remove('show', 'done'); document.getElementById('tourDim').classList.remove('show'); }
+function showStep() {
+  const steps = TOURS[tour.id].steps;
+  if (tour.step >= steps.length) {  // closing card
+    spot(null);
+    const others = Object.entries(TOURS).filter(([k]) => k !== tour.id).map(([k, t]) => `<a href="#" onclick="startTour('${k}');return false">${t.title}</a>`).join(' · ');
+    card.className = 'show';
+    card.innerHTML = `<div class="bar"><i style="width:100%;display:block;height:100%"></i></div><div class="step">Fertig</div><h4>${TOURS[tour.id].title}</h4><p>Das war die Tour. <a href="#" onclick="document.getElementById('reset').click();return false">Zurücksetzen</a> oder weiter mit: ${others}</p><div class="row"><span class="spacer"></span><button class="next" onclick="endTour()">Schließen</button></div>`;
+    place(document.getElementById('map')); return;
+  }
+  const st = steps[tour.step];
+  st.prepare?.();
+  let el = st.intro ? null : typeof st.target === 'function' ? st.target() : document.querySelector(st.target);
+  if (mobile && el) {  // bring the target's tab up; a sidebar target without the map in play gets the whole screen
+    const inAside = el.closest('aside');
+    if (inAside || el.closest('#panel')) setSheet({ tab: inAside ? 'filter' : 'detail', snap: inAside && !st.keepMap ? 'full' : 'half' });
+    else if (sheetSnap === 'full') setSheet({ snap: 'half' });
+    if (inAside) el.scrollIntoView({ block: 'center' });
+    if (!el.getClientRects().length) el = null;  // hidden on phones (the header meta)
+  }
+  spot(el);
+  document.getElementById('tourDim').classList.toggle('show', !st.intro);
+  map.classList.toggle('tour-keep', !!st.keepMap && el !== map);
+  card.className = 'show';
+  card.innerHTML = `<div class="bar"><i style="width:${100 * tour.step / steps.length}%;display:block;height:100%"></i></div>
+    <div class="step">Schritt ${tour.step + 1} von ${steps.length}</div><h4>${fill(st.title)}</h4><p>${fill(mobile && st.mText || st.text)}</p>
+    <div class="row"><a href="#" class="linkbtn" onclick="tour.step++;showStep();return false">Überspringen</a><a href="#" class="linkbtn" onclick="endTour();return false">Beenden</a><span class="spacer"></span>
+    ${st.done ? '<span class="wait">Warte auf dich …</span>' : '<button class="next" onclick="tour.step++;showStep()">Weiter</button>'}</div>`;
+  place(el);
+}
+function place(el) {
+  if (mobile) {  // full width; above the sheet for the map, else on the side of the screen away from the target
+    const ch = card.offsetHeight || 160, head = document.querySelector('header').offsetHeight, r = el && el.getBoundingClientRect();
+    const top = !el ? head + 8 : el === map && side.matches ? innerHeight - ch - 8 : el === map ? sheet.getBoundingClientRect().top - ch - 8 : r.top + r.height / 2 < innerHeight / 2 ? innerHeight - ch - 8 : head + 8;
+    card.style.left = '8px'; card.style.top = Math.max(top, 8) + 'px'; return;
+  }
+  const r = (el || document.getElementById('map')).getBoundingClientRect(), W = innerWidth, H = innerHeight, cw = 320, ch = card.offsetHeight || 160;
+  let x, y;
+  if (r.width < W / 2) { x = r.right + 14 < W - cw ? r.right + 14 : r.left - cw - 14; y = r.top; }  // beside a sidebar / panel element
+  else { x = r.left + r.width / 2 - cw / 2; y = r.top + 24; }                                     // over the map
+  card.style.left = Math.min(Math.max(x, 8), W - cw - 8) + 'px'; card.style.top = Math.min(Math.max(y, 8), H - ch - 8) + 'px';
+}
+let advancing = false;
+function tourCheck() {
+  if (!tour.id || advancing) return;
+  const st = TOURS[tour.id].steps[tour.step];
+  if (!st || !st.done || !st.done()) return;
+  advancing = true; card.classList.add('done'); card.querySelector('.wait').textContent = 'Erledigt ✓';
+  setTimeout(() => { advancing = false; tour.step++; showStep(); }, 700);
+}
+tourMenu.innerHTML = Object.entries(TOURS).map(([k, t]) => `<a class="t" href="#" onclick="startTour('${k}');return false"><b>${t.title}</b><span>${t.blurb} · ${t.steps.length} Schritte</span></a>`).join('');
+document.getElementById('tourBtn').onclick = e => { e.stopPropagation(); tourMenu.classList.toggle('open'); };
+document.addEventListener('click', e => { if (!tourMenu.contains(e.target)) tourMenu.classList.remove('open'); if (!weekCal.contains(e.target)) weekCal.classList.remove('open'); });
+window.addEventListener('resize', () => { if (tour.id) place(document.querySelector('.tour-target')); });
+
+// --- side panel -----------------------------------------------------------------------
+const panel = document.getElementById('panel');
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+const dot = color => `<span class="dot" style="background:${color}"></span>`;
+const highlight = t => {
+  const terms = state.terms.filter(x => x.on).map(x => x.term).concat(state.live.length > 1 ? [state.live] : []);
+  return terms.reduce((h, term) => h.replace(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`), esc(t));
+};
+// info cards: every distribution of a set of speeches as bars; a row opens that value's own card
+const DIMS = [['fraction', 'Fraktionen'], ['weekday', 'Tage'], ['cluster', 'Themen'], ['agenda', 'Tagesordnungspunkte'], ['speaker', 'Redner:innen']];
+const barName = { weekday: GROUPS.weekday.name, agenda: v => AGENDA_BY[v].agenda, cluster: v => clusterLabel(v), fraction: v => v, speaker: v => v };
+const bars = (k, g) => {
+  const by = Map.groupBy(g, GROUPS[k].of), vals = [...by.keys()], max = Math.max(...[...by.values()].map(v => v.length));
+  if (k === 'fraction' || k === 'weekday') vals.sort(GROUPS[k].order); else vals.sort((a, b) => by.get(b).length - by.get(a).length);
+  const tr = v => { const n = by.get(v).length, c = GROUPS[k].color(v);
+    return `<tr data-card="${k}" data-v="${esc(v)}"><td>${dot(c)} ${esc(barName[k](v))}<div class="bar"><i style="width:${100 * n / max}%;background:${c}"></i></div></td><td>${n}</td></tr>`; };
+  const head = vals.slice(0, 12).map(tr).join(''), rest = vals.slice(12);
+  return `<table class="dist">${head}</table>${rest.length ? `<details><summary>${rest.length} weitere</summary><table class="dist">${rest.map(tr).join('')}</table></details>` : ''}`;
+};
+const breakdown = (g, skip) => DIMS.filter(([k]) => k !== skip).map(([k, title]) => `<h3>${title}</h3>${bars(k, g)}`).join('');
+const speechCard = (o, what, head = '') => `<div class="similar" data-open="${o.id}">${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}${o.weekday ? ' · ' + o.weekday : ''}</span></div><div class="what">${what}</div></div>`;
+const firstText = o => (o.paragraphs.find(p => p[0] === 'text') || ['', ''])[1];
+const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
+const avatar = (pid, credit) => `<img class="avatar" src="${CARDS}fotos/${encodeURIComponent(pid)}.jpg" alt="" loading="lazy"${credit ? ` title="Foto: ${esc(credit)}"` : ''} onerror="this.remove()">`;
+const whoHead = (name, o) => `<div class="whohead">${o.photo ? avatar(o.person_id, o.photo_credit) : ''}<h2><a href="${cardUrl(o.person_id)}" target="_blank" rel="noopener" title="Karte mit Reden, Abstimmungen und Ausschüssen">${esc(name)}</a><span class="ext">Karte ↗</span></h2></div>`;
+const topLink = s => { const u = sittingUrl(s.agenda_id); return u ? `<a href="${u}" target="_blank" rel="noopener" title="Sitzung mit Tagesordnung und Abstimmungen">${esc(s.top)} ↗</a>` : esc(s.top); };
+const RESULT_TEXT = { angenommen: 'angenommen', abgelehnt: 'abgelehnt' };
+const decisionsHtml = aid => {  // announced results of the agenda item, each linking to its vote page
+  const ds = (DATA.decisions || {})[aid] || [];
+  return ds.length ? `<div class="votes">${ds.map(d => `<a class="vote" href="${CARDS}${d.page}" target="_blank" rel="noopener"><span class="res ${d.result || ''}">${RESULT_TEXT[d.result] || 'Beschluss'}</span><span class="subj">${esc(cut(d.subject || 'Abstimmung', 110))}</span><span class="how">${d.kind === 'namentlich' ? 'namentlich' : 'Handzeichen'} ↗</span></a>`).join('')}</div>` : '';
+};
+
+// another person taking the floor inside a speech. A Zwischenfrage is always shown in place, in full (every one is
+// also a point of its own, hidden on the map unless „Zwischenfragen zeigen“); a Kurzintervention that is a point is
+// a card that opens it, one too short to be a point expands in place; „Antwort“ leads from a Zwischenfrage back.
+const MARKERS = { zwischenfrage: 'Zwischenfrage', kurzintervention: 'Kurzintervention', antwort: 'Antwort in der Rede' };
+function markerCard(kind, id, s) {
+  const o = byId[id] || DATA.linked[id];
+  if (!o) return '';
+  let what = firstText(o);
+  if (kind === 'antwort') {  // the main speech from where it answers this one
+    const i = o.paragraphs.findIndex(([k, t]) => k in MARKERS && t === s.id);
+    what = (o.paragraphs.slice(i + 1).find(p => p[0] === 'text') || ['', what])[1];
+  }
+  const head = `<div class="kind">${MARKERS[kind]}</div>`;
+  const inPlace = kind === 'zwischenfrage';
+  if (byId[id] && !inPlace) return speechCard(o, esc(cut(what, 180)), head).replace('class="similar"', 'class="similar marker"');
+  const full = o.paragraphs.filter(([k]) => !(k in MARKERS)).map(([k, t]) => `<p class="${k}">${k === 'text' ? highlight(t) : esc(t)}</p>`).join('');
+  const point = byId[id] ? ` · <a href="#" data-open="${o.id}" title="Die Zwischenfrage als eigenen Punkt auf der Karte öffnen">als Punkt öffnen</a>` : '';
+  return `<div class="similar marker${inPlace ? ' open' : ''}" data-aside>${head}<div class="who">${dot(GROUPS.fraction.color(o.fraction))} ${esc(o.speaker)} <span>· ${esc(o.fraction)}${point}</span></div><div class="what">${esc(cut(what, 180))}</div><div class="full">${full}</div></div>`;
+}
+
+function showHint() {
+  panelKind = 'hint'; lastCard = showHint;
+  panel.innerHTML = mobile ? `<p class="hint">Jeder Punkt ist eine Rede der Sitzungswoche; nahe Punkte handeln von Ähnlichem. Die Beschriftungen sind die Themen, die sich aus den Reden ergeben.</p>
+    <p class="hint">Einen Punkt antippen zeigt eine Vorschau, ein zweites Tippen öffnet die Rede. Am Griff lässt sich das Blatt hoch- und herunterziehen. Ein Finger verschiebt die Karte, zwei Finger zoomen, doppelt auf eine leere Stelle tippen setzt zurück. Ein Label antippen: wer spricht zu diesem Thema.</p>
+    <p class="hint">Unter „Filter“: der linke Rand einer Zeile setzt das Häkchen, der Name zeigt die Übersicht. Innerhalb einer Gruppe „oder“, zwischen Gruppen „und“; nichts angehakt heißt alles.</p>` : `<p class="hint">Jeder Punkt ist eine Rede der Sitzungswoche; nahe Punkte handeln von Ähnlichem. Die Beschriftungen sind die Themen, die sich aus den Reden ergeben.</p>
+    <p class="hint">Filter links: das Häkchen filtert, ein Klick auf den Namen zeigt die Übersicht. Innerhalb einer Gruppe „oder“, zwischen Gruppen „und“; nichts angehakt heißt alles. Suchbegriffe markieren Treffer, <kbd>Enter</kbd> macht sie zum Filter.<br>Punkt anklicken: die Rede mit Zwischenrufen, Zwischenfragen, Quelle, der nächsten und ähnlichen Reden. Label anklicken: wer spricht zu diesem Thema. <kbd>Esc</kbd> schließt.</p>`;
+}
+function showSpeech(s) {
+  panelKind = 'speech';
+  state.open = s.id;
+  if (s.befragung) state.befragung = true;
+  if (s.zwischenfrage) state.zwischenfragen = true;
+  if (mobile) {  // the speech takes the sheet's Details tab; the back button closes it again
+    state.peek = ''; renderPeek();
+    if (!levels.includes('speech')) pushLevel('speech');
+    setSheet({ tab: 'detail', snap: sheetSnap === 'full' ? 'full' : 'half' }).then(() => reveal(s));
+  }
+  const paras = s.paragraphs.map(([k, t]) => k in MARKERS ? markerCard(k, t, s) : `<p class="${k}">${k === 'text' ? highlight(t) : esc(t)}</p>`).join('');
+  const next = byId[s.next];
+  panel.innerHTML = `
+    <button class="close" onclick="closeSpeech()" title="Schließen (Esc)">×</button>
+    ${whoHead(s.speaker, s)}
+    <div class="meta"><b>${esc(s.fraction)}</b>${s.role ? ' · ' + esc(s.role) : ''} · <a href="#" onclick="setSpeaker(${esc(JSON.stringify(s.speaker))});return false">alle Reden der Woche</a>${s.zwischenfrage ? ' · Zwischenfrage' : ''}<br>
+      ${s.weekday} ${fmt(s.date)} · ${topLink(s)}<br>${dot(AGENDA_COLOR[s.agenda_id])} ${esc(s.agenda)}<br>
+      Thema: <a href="#" onclick="setCluster(${s.cluster});return false">${esc(clusterLabel(s.cluster))}</a> · ${s.chars.toLocaleString('de')} Zeichen · ${s.comments} Zwischenrufe/Beifall<br>
+      <a href="${s.pdf}" target="_blank" rel="noopener">${esc(s.cite)} (PDF)</a> · Rede ${s.id}${s.drucksachen.length ? ' · Drs. ' + s.drucksachen.join(', ') : ''}</div>
+    ${decisionsHtml(s.agenda_id)}
+    ${paras}
+    ${next ? `<h3>Nächste Rede</h3>${speechCard(next, esc(next.agenda.slice(0, 80)))}` : ''}
+    <h3>Ähnliche Reden</h3>${s.similar.map(id => speechCard(byId[id], esc(byId[id].agenda.slice(0, 80)))).join('')}`;
+  panel.scrollTop = 0;
+  tourCheck();
+}
+// closing a speech on a phone goes back to the card it was opened from
+let lastCard = showHint;
+function closeSpeech() { popLevel('speech'); closeSpeechNow(); }
+function closeSpeechNow() {
+  state.open = '';
+  if (!mobile) showHint();
+  else { lastCard(); setSheet({ tab: lastCard === showHint ? 'filter' : 'detail', snap: sheetSnap === 'full' ? 'half' : sheetSnap }); }
+  draw();
+}
+const toDetail = () => mobile && setSheet({ tab: 'detail', snap: sheetSnap === 'peek' ? 'half' : sheetSnap });
+function showCluster(id) {
+  panelKind = 'cluster'; lastCard = () => showCluster(id); toDetail();
+  const c = clusterById[id], g = S.filter(s => s.cluster === id);
+  panel.innerHTML = `<button class="close" onclick="showHint()" title="Schließen">×</button>
+    <h2>${esc(c.terms.join(' · '))}</h2>
+    <div class="meta">${g.length} Reden · <a href="#" onclick="setCluster(${id});return false">nur dieses Thema zeigen</a></div>${breakdown(g, 'cluster')}`;
+  panel.scrollTop = 0;
+  tourCheck();
+}
+function showGroup(g, title, subtitle, k, v, extra = '') {
+  panelKind = 'group'; lastCard = () => showGroup(g, title, subtitle, k, v, extra); toDetail();
+  flags.card = { k, v };
+  const only = k ? ` · <a href="#" data-only="${k}" data-v="${esc(v)}">nur diese zeigen</a>` : '';
+  const list = g.length <= 40 ? `<h3>Reden</h3>${g.map(o => speechCard(o, `${esc(o.agenda.slice(0, 70))}<br>${esc(excerpt(o).slice(0, 110))}`)).join('')}` : '';
+  panel.innerHTML = `<button class="close" onclick="showHint()" title="Schließen">×</button>
+    ${k === 'speaker' ? whoHead(title, g[0]) : `<h2>${esc(title)}</h2>`}
+    <div class="meta">${subtitle ? subtitle + ' · ' : ''}${g.length} Reden · ${g.reduce((a, s) => a + s.chars, 0).toLocaleString('de')} Zeichen · ${g.reduce((a, s) => a + s.comments, 0)} Zwischenrufe/Beifall${only}</div>${extra}${breakdown(g, k)}${list}`;
+  panel.scrollTop = 0;
+  tourCheck();
+}
+// the card of one filter value: from a name in the sidebar or a bar in another card
+function showCard(k, v) {
+  if (k === 'cluster' && v >= 0) return showCluster(v);
+  const g = S.filter(s => GROUPS[k].of(s) === v), a = g[0];
+  if (k === 'agenda') return showGroup(g, a.agenda, `${a.weekday} ${fmt(a.date)} · ${topLink(a)}`, k, v, decisionsHtml(v));
+  if (k === 'weekday') return showGroup(g, `${v} ${fmt(a.date)}`, 'Sitzungstag', k, v);
+  const sub = { fraction: 'Fraktion', speaker: `${esc(a.fraction)} · alle Reden dieser Woche`, cluster: 'Reden ohne Thema' }[k];
+  showGroup(g, GROUPS[k].name(v), sub, k, v);
+}
+panel.addEventListener('click', e => {
+  const el = e.target.closest('[data-open], [data-aside], [data-card], [data-only]');
+  if (!el) return;
+  e.preventDefault();
+  if (el.dataset.open) { showSpeech(byId[el.dataset.open]); draw(); return; }
+  if ('aside' in el.dataset) { el.classList.toggle('open'); return; }
+  const k = el.dataset.card || el.dataset.only, v = k === 'cluster' ? +el.dataset.v : el.dataset.v;
+  el.dataset.card ? showCard(k, v) : setOnly(k, v);
+});
+// --- phones: bottom sheet with peek / half / full heights, back button steps back ---------
+const sheet = document.getElementById('sheet'), sheetHead = document.getElementById('sheetHead'), peekEl = document.getElementById('peek');
+const side = matchMedia('(orientation: landscape) and (max-height: 500px)');  // the sheet is a fixed right-hand column
+let sheetSnap = 'half', sheetTab = 'filter', mapSize = '';
+const sheetHeights = () => {
+  const H = innerHeight - document.querySelector('header').offsetHeight, peek = sheetHead.offsetHeight;
+  return { H, peek, half: Math.max(Math.round(H * .5), peek), full: H };
+};
+function layoutSheet() {
+  document.body.dataset.tab = sheetTab; sheet.dataset.snap = sheetSnap;
+  if (!mobile || side.matches) sheet.style.height = map.style.height = '';
+  else {  // at full the sheet covers the map, which keeps its half-screen size
+    const h = sheetHeights();
+    sheet.style.height = h[sheetSnap] + 'px';
+    map.style.height = Math.max(h.H - (sheetSnap === 'full' ? h.half : h[sheetSnap]), 0) + 'px';
+  }
+  return resizeMap();
+}
+function resizeMap() {
+  const size = `${map.clientWidth}x${map.clientHeight}`;
+  if (!map._fullLayout || size === mapSize) return Promise.resolve();
+  mapSize = size;
+  return Plotly.Plots.resize(map).then(() => { if (mapRange) mapRange = ranges(); placeLabels(); });
+}
+const levels = [];  // history entries pushed for 'speech' and 'full', so the back button closes them
+let skipPop = 0;
+const pushLevel = k => { levels.push(k); history.pushState({ sheet: levels.length }, '', location.href); };
+const popLevel = k => {  // closed from the page: drop its entry (and any above it) without acting on the popstate
+  const i = levels.lastIndexOf(k);
+  if (i < 0) return;
+  const n = levels.length - i;
+  levels.length = i; skipPop++; history.go(-n);
+};
+addEventListener('popstate', () => {
+  if (skipPop) skipPop--;
+  else {
+    const k = levels.pop();
+    if (k === 'speech' && state.open) closeSpeechNow();
+    else if (k === 'full' && sheetSnap === 'full') { sheetSnap = 'half'; layoutSheet(); }
+  }
+  encodeState();  // going back restored an older URL
+});
+function setSheet({ tab, snap } = {}) {
+  if (!mobile) return Promise.resolve();
+  const was = sheetSnap;
+  if (tab) sheetTab = tab;
+  if (snap) sheetSnap = snap;
+  if (sheetSnap === 'full' && was !== 'full') pushLevel('full');
+  if (was === 'full' && sheetSnap !== 'full') popLevel('full');
+  const done = layoutSheet();
+  if (tour.id) setTimeout(() => {  // after the height transition
+    const el = document.querySelector('.tour-target');
+    if (el?.closest('aside')) el.scrollIntoView({ block: 'center' });
+    place(el);
+  }, 280);
+  return done;
+}
+function renderPeek() {
+  const s = byId[state.peek];
+  peekEl.hidden = !s;
+  peekEl.innerHTML = s ? tipHtml(s, '<span class="go">Öffnen ›</span>') : '';
+  if (mobile) layoutSheet();  // the head got taller or shorter
+}
+peekEl.onclick = () => { const s = byId[state.peek]; if (s) { showSpeech(s); draw(); } };
+sheetHead.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setSheet({ tab: b.dataset.tab, snap: sheetSnap === 'peek' ? 'half' : undefined }));
+sheetHead.querySelector('.grip').onclick = () => setSheet({ snap: sheetSnap === 'half' ? 'full' : 'half' });
+searchInput.addEventListener('focus', () => setSheet({ snap: 'full' }));  // keeps the field above the keyboard
+// dragging: the head always, the content only downwards from its top (as in native sheets); a fling jumps one snap
+let drag = null, dragEnd = 0;
+sheet.addEventListener('touchstart', e => {
+  if (!mobile || side.matches || e.touches.length > 1) return;
+  const head = sheetHead.contains(e.target), content = e.target.closest('aside, #panel');
+  if (head || (content && content.scrollTop <= 0)) drag = { y0: e.touches[0].clientY, h0: sheet.offsetHeight, head, on: false, trail: [] };
+}, { passive: true });
+sheet.addEventListener('touchmove', e => {
+  if (!drag) return;
+  const y = e.touches[0].clientY, dy = y - drag.y0;
+  if (!drag.on) {
+    if (Math.abs(dy) < 8) return;
+    if (!drag.head && dy < 0) { drag = null; return; }  // scrolling the content
+    drag.on = true; sheet.classList.add('dragging');
+  }
+  e.preventDefault();
+  const h = sheetHeights();
+  sheet.style.height = Math.min(Math.max(drag.h0 - dy, h.peek), h.full) + 'px';
+  drag.trail = [...drag.trail.slice(-4), [e.timeStamp, y]];
+}, { passive: false });
+const endDrag = () => {
+  const d = drag; drag = null;
+  if (!d || !d.on) return;
+  sheet.classList.remove('dragging'); dragEnd = Date.now();
+  const h = sheetHeights(), cur = sheet.offsetHeight, order = ['peek', 'half', 'full'], [a, b] = [d.trail[0], d.trail.at(-1)];
+  const v = a && b[0] > a[0] ? (b[1] - a[1]) / (b[0] - a[0]) : 0;  // px/ms, positive = down
+  const nearest = order.reduce((m, k) => Math.abs(h[k] - cur) < Math.abs(h[m] - cur) ? k : m);
+  const snap = v < -.4 ? order.find(k => h[k] > cur + 4) || 'full' : v > .4 ? order.findLast(k => h[k] < cur - 4) || 'peek' : nearest;
+  setSheet({ snap });
+};
+sheet.addEventListener('touchend', endDrag);
+sheet.addEventListener('touchcancel', endDrag);
+sheet.addEventListener('click', e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);  // no tab switch after a drag
+
+// --- phones: own pan / pinch / tap on the map; Plotly keeps the mouse ---------------------
+// Plotly's cartesian plots have no pinch zoom, so touches are caught before they reach it
+const ranges = () => ({ x: [...map._fullLayout.xaxis.range], y: [...map._fullLayout.yaxis.range] });
+const applyRange = r => { mapRange = r; return Plotly.relayout(map, { 'xaxis.range': r.x, 'yaxis.range': r.y }); };
+const resetZoom = () => { mapRange = null; Plotly.relayout(map, { 'xaxis.autorange': true, 'yaxis.autorange': true }); };
+const gest = { start: null, frame: 0, next: null, tap: null, lastTap: null };
+const centre = ts => ({ x: [...ts].reduce((a, t) => a + t.clientX, 0) / ts.length, y: [...ts].reduce((a, t) => a + t.clientY, 0) / ts.length });
+const spread = ts => ts.length < 2 ? 0 : Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+function gestureStart(ts) {
+  const fl = map._fullLayout, r = map.getBoundingClientRect();
+  gest.start = { r: ranges(), c: centre(ts), d: spread(ts), l: r.left + fl._size.l, t: r.top + fl._size.t, w: fl._size.w, h: fl._size.h };
+}
+function gestureMove(ts) {  // the data point under the start centre stays under the fingers, scaled by the pinch
+  const s = gest.start, c = centre(ts), wx = s.r.x[1] - s.r.x[0], wy = s.r.y[1] - s.r.y[0];
+  let k = s.d && ts.length > 1 ? s.d / Math.max(spread(ts), 1) : 1;
+  k = Math.min(Math.max(k, SPAN / 60 / wx), SPAN * 2 / wx);
+  const X = s.r.x[0] + (s.c.x - s.l) / s.w * wx, Y = s.r.y[1] - (s.c.y - s.t) / s.h * wy;
+  const x0 = X - (c.x - s.l) / s.w * wx * k, y1 = Y + (c.y - s.t) / s.h * wy * k;
+  gest.next = { x: [x0, x0 + wx * k], y: [y1 - wy * k, y1] };
+  gest.frame ||= requestAnimationFrame(() => { gest.frame = 0; applyRange(gest.next); });
+}
+function speechAt(cx, cy) {  // nearest shown speech within a finger's reach, else a dimmed one
+  const fl = map._fullLayout, r = map.getBoundingClientRect(), px = cx - r.left - fl._size.l, py = cy - r.top - fl._size.t;
+  const near = list => {
+    let best = null, bd = 26 ** 2;
+    for (const s of list) { const d = (fl.xaxis.l2p(s.x) - px) ** 2 + (fl.yaxis.l2p(s.y) - py) ** 2; if (d < bd) { bd = d; best = s; } }
+    return best;
+  };
+  return near(lastShown) || (state.dim ? near(S) : null);
+}
+function tapAt({ x, y, target }) {
+  const lbl = target.closest?.('.lbl');
+  if (lbl) return showCluster(+lbl.dataset.c);
+  const s = speechAt(x, y);
+  if (s) {  // first tap previews, a second tap opens, a tap on the open speech closes it
+    gest.lastTap = null;
+    if (s.id === state.open) return closeSpeech();
+    if (s.id === state.peek) { showSpeech(s); return draw(); }
+    state.peek = s.id; flags.hovered = true; renderPeek(); return draw();
+  }
+  const last = gest.lastTap;
+  gest.lastTap = { x, y, t: Date.now() };
+  if (last && gest.lastTap.t - last.t < 350 && Math.hypot(x - last.x, y - last.y) < 30) { gest.lastTap = null; return resetZoom(); }
+  if (state.peek) { state.peek = ''; renderPeek(); draw(); }
+}
+function reveal(s) {  // pan (not zoom) so the opened speech is on screen
+  const fl = map._fullLayout;
+  if (!fl) return;
+  const px = fl.xaxis.l2p(s.x), py = fl.yaxis.l2p(s.y), m = 24;
+  if (px > m && px < fl._size.w - m && py > m && py < fl._size.h - m) return;
+  const r = ranges(), dx = s.x - (r.x[0] + r.x[1]) / 2, dy = s.y - (r.y[0] + r.y[1]) / 2;
+  applyRange({ x: r.x.map(v => v + dx), y: r.y.map(v => v + dy) });
+}
+const own = e => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+map.addEventListener('touchstart', e => {
+  own(e);
+  weekCal.classList.remove('open'); tourMenu.classList.remove('open');  // no click follows a prevented touch
+  if (!map._fullLayout) return;
+  gestureStart(e.touches);
+  gest.tap = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), target: e.target } : null;
+}, { capture: true, passive: false });
+map.addEventListener('touchmove', e => {
+  own(e);
+  if (!gest.start) return;
+  if (gest.tap && Math.hypot(e.touches[0].clientX - gest.tap.x, e.touches[0].clientY - gest.tap.y) < 10) return;
+  gest.tap = null;
+  gestureMove(e.touches);
+}, { capture: true, passive: false });
+const touchEnd = e => {
+  own(e);
+  if (e.touches.length) return gestureStart(e.touches);  // a finger lifted: go on with the rest from here
+  gest.start = null;
+  if (gest.tap && e.type === 'touchend' && Date.now() - gest.tap.t < 500) tapAt(gest.tap);
+  gest.tap = null;
+};
+map.addEventListener('touchend', touchEnd, { capture: true, passive: false });
+map.addEventListener('touchcancel', touchEnd, { capture: true, passive: false });
+
+const onLayoutChange = () => {
+  mobile = mq.matches;
+  if (panelKind === 'hint') showHint();
+  layoutSheet();
+};
+mq.addEventListener('change', onLayoutChange);
+side.addEventListener('change', () => layoutSheet());
+addEventListener('resize', () => layoutSheet());
+layoutSheet();
+
+const focus = [...state.checked.cluster];  // <week>.html#cluster=<id>, as linked from the overview: open that topic's card
+if (byId[state.open]) showSpeech(byId[state.open]); else if (focus.length === 1 && clusterById[focus[0]]) showCluster(focus[0]); else showHint();
+draw();
+if (TOURS[startTourId]) startTour(startTourId);
+map.on('plotly_relayouting', placeLabels);
+map.on('plotly_relayout', e => {
+  if (e['xaxis.autorange']) mapRange = null; else if ('xaxis.range[0]' in e || 'xaxis.range' in e) mapRange = ranges();  // uirevision alone let a zoom drift on redraw
+  placeLabels();
+});
+map.on('plotly_afterplot', placeLabels);
+window.addEventListener('resize', () => setTimeout(placeLabels, 50));
+const tip = document.getElementById('tip');
+function tipHtml(s, go = '') {
+  return `<div class="who">${dot(GROUPS.fraction.color(s.fraction))}${esc(s.speaker)} <span>${esc(s.fraction)}</span>${go}</div>
+    <div class="when">${s.weekday} ${fmt(s.date)} · ${esc(s.top)}${s.role ? ' · ' + esc(s.role) : ''}</div>
+    <div class="top">${esc(s.agenda.slice(0, 120))}</div>
+    <div class="topic">${esc(clusterLabel(s.cluster))}</div>
+    <div class="excerpt">${esc(s.text.slice(0, 400))}</div>`;
+}
+map.on('plotly_hover', e => {
+  const s = byId[e.points[0].customdata], ev = e.event, r = map.getBoundingClientRect();
+  if (!s || !ev) return;
+  tip.innerHTML = tipHtml(s);
+  tip.style.display = 'block';
+  flags.hovered = true; tourCheck();
+  const x = Math.min(Math.max(ev.clientX - r.left, 160), r.width - 160), cy = ev.clientY - r.top;
+  const below = cy - 16 < tip.offsetHeight + 8;
+  tip.classList.toggle('below', below);
+  tip.style.left = x + 'px'; tip.style.top = (below ? cy + 16 : cy - 16) + 'px';
+});
+map.on('plotly_unhover', () => tip.style.display = 'none');
+map.addEventListener('mouseleave', () => tip.style.display = 'none');
+map.on('plotly_click', e => {
+  const id = e.points[0].customdata;
+  if (id === state.open) return closeSpeech();  // second click on the open speech closes it
+  showSpeech(byId[id]); draw();
+});
+</script>
+</body>
+</html>
