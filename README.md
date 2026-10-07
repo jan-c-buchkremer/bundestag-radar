@@ -25,6 +25,7 @@ export BDF_DB=/path/to/bundestag-data-foundation/data/bundestag.sqlite   # defau
 uv run radar weeks                 # sitting weeks in the store, with sitting numbers and speech counts
 uv run radar build 2026-W28        # → data/out/2026-W28.html
 uv run radar build overview        # period themes (data/out/period.json) + data/out/index.html from the built weeks
+uv run radar build woche           # the hib week (data/out/woche.json) + data/out/index.html, in seconds
 uv run radar build --all           # every week, the period overview and data/out/index.html
 uv run radar serve                 # http://127.0.0.1:8000/ — re-renders pages from data/out/*.json on every request
 ```
@@ -55,7 +56,19 @@ read-only connections. The store is still opened with `mode=ro`.
 
 ## What the pages show
 
-`index.html` opens with the **themes of the Wahlperiode**: one clustering over every speech of the period
+`index.html`, the Radar's start page, opens with **Diese Woche**: what „heute im bundestag“ (hib), the Bundestag's
+news service, reported in the newest week with items (`woche.py`, from the foundation's `hib_item` and
+`hib_drucksache`). A bar per day (sitting days marked), the Ressorts and the kinds (Antwort, Antrag, Ausschuss, …) as
+chips with live counts; each is a filter (one value per row, AND across rows, a second click clears it), kept in the
+URL (`#ressort=Inneres&art=Antwort&tag=2026-10-07`), „zurücksetzen“ clears all three. The items are listed by Ressort,
+biggest first, newest first inside: date, kind, committee, hib number, the title linking the article on bundestag.de,
+and each linked Drucksache to its Vorgang in Research (else its PDF), with the agenda items where the plenum took it up
+(their sitting page, and the week map filtered to that item when the week is built). hib texts are protected (the
+foundation's `docs/licences.md`), so the page shows titles and facts only and the export never contains a text. The
+heading says „Diese Woche“ only when the newest items are from the current week. Without hib in the store the
+section is left out.
+
+Then the **themes of the Wahlperiode**: one clustering over every speech of the period
 (without Regierungsbefragung and Zwischenfragen), drawn as a streamgraph over the sitting weeks. Hover (or a tap) shows theme,
 week and count in a tooltip below-right of the pointer that flips to stay on screen; clicking a band picks the theme (its strongest weeks, agenda items and a link into the week), a
 second click on the chosen band opens that week with the matching week topic in focus. „Anteil“ switches to the
@@ -148,7 +161,7 @@ words, after at least 4 sitting weeks below that (shorter dips stay inside the e
 Episodes starting in the first 4 sitting weeks are `period_start` and have no `unprompted` part: their lead-up is
 not in the data.
 
-The index takes `index.html#thema=<id>` to pre-select a period theme. Theme ids are by size and change when the
+The index takes `index.html#thema=<id>` to pre-select a period theme (it combines with the „Diese Woche“ keys). Theme ids are by size and change when the
 period is re-clustered; week topic ids change when a week is rebuilt, so only `rede`/`open` links are stable.
 
 ## Touren

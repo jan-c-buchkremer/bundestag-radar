@@ -1,4 +1,4 @@
-"""radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build --all |
+"""radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
 radar serve"""
 
 from __future__ import annotations
@@ -18,7 +18,11 @@ def main(argv: list[str] | None = None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("weeks", help="list sitting weeks in the foundation store")
     b = sub.add_parser("build", help="build the map for one or more weeks")
-    b.add_argument("weeks", nargs="*", help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index)")
+    b.add_argument(
+        "weeks",
+        nargs="*",
+        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index)",
+    )
     b.add_argument("--all", action="store_true", help="every week in the store, the period overview and the index")
     b.add_argument("--out", type=Path, default=Path("data/out"))
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
@@ -45,14 +49,15 @@ def main(argv: list[str] | None = None) -> None:
 
     import time
 
-    from radar import origin, period
+    from radar import origin, period, woche
     from radar.cluster import cluster
 
     week_ids = [w["week"] for w in all_weeks]
     with_overview = args.all or "overview" in args.weeks
-    targets = week_ids if args.all else [w for w in args.weeks if w != "overview"]
-    if not targets and not with_overview:
-        sys.exit("give at least one week, `overview` or --all; see `radar weeks`")
+    with_woche = with_overview or "woche" in args.weeks  # the hib week is cheap: every index build refreshes it
+    targets = week_ids if args.all else [w for w in args.weeks if w not in ("overview", "woche")]
+    if not targets and not with_woche:
+        sys.exit("give at least one week, `overview`, `woche` or --all; see `radar weeks`")
     store = embed.open_store(args.store)
     args.out.mkdir(parents=True, exist_ok=True)
     build.write_assets(args.out)
@@ -88,8 +93,12 @@ def main(argv: list[str] | None = None) -> None:
         origins = origin.build(conn, week_ids, model)
         build._write(args.out / "topic_origins.json", origins)
         print(f"topic_origins.json: {sum(len(t['episodes']) for t in origins['themes'])} episodes")
+        print(f"overview: {len(model['themes'])} themes in {time.time() - t0:.0f} s")
+    if with_woche:
+        n = woche.write(args.out, conn)
+        print(f"{woche.FILE}: {n} hib items" if n is not None else f"{woche.FILE}: no hib in the store, left out")
         (args.out / "index.html").write_text(build.index_page(args.out), encoding="utf-8")
-        print(f"overview: {len(model['themes'])} themes, index written in {time.time() - t0:.0f} s")
+        print("index written")
     n = build.write_speech_clusters(args.out)
     print(f"speech_clusters.json: {n} speech ids")
     if (n := build.write_speech_themes(args.out)) is not None:

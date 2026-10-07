@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from radar import shell
+from radar import shell, woche
 from radar.cluster import Clustering, majority, neighbours
 from radar.corpus import Speech
 
@@ -85,7 +85,7 @@ def week_payload(
     }  # fmt: skip
 
 
-def _inline(template: str, payload: dict) -> str:
+def _inline(template: str, payload: dict, method: str = shell.METHOD) -> str:
     data = json.dumps(payload, ensure_ascii=False).replace("</", r"<\/")
     page = (HERE / template).read_text(encoding="utf-8").replace("__RESEARCH__", json.dumps(RESEARCH))
     page = page.replace("__RESEARCH_URL__", html.escape(RESEARCH))  # in attributes: the footer's Impressum/Datenschutz
@@ -93,7 +93,7 @@ def _inline(template: str, payload: dict) -> str:
         ("__SHELL__", shell.head(RESEARCH)),
         ("__SITE_HEADER__", shell.site_header(RESEARCH)),
         ("__BRAND__", shell.brand(RESEARCH)),
-        ("__METHOD__", shell.method_note(shell.METHOD)),
+        ("__METHOD__", shell.method_note(method)),
     ):
         page = page.replace(key, value)  # the shell (shell.py)
     return page.replace("__DATA__", data)
@@ -108,10 +108,11 @@ def render(payload: dict) -> str:
     return _inline("template.html", payload)
 
 
-def render_index(summaries: list[dict], overview: dict | None = None) -> str:
-    """Landing page: the period's themes over the weeks (`period.overview`), then one card per week, from
-    `summary()` of each week payload."""
-    return _inline("index.html", {"weeks": summaries, "period": overview})
+def render_index(summaries: list[dict], overview: dict | None = None, week: dict | None = None) -> str:
+    """Landing page: „Diese Woche“ from hib (`woche.load`), the period's themes over the weeks (`period.overview`),
+    then one card per week, from `summary()` of each week payload."""
+    method = f"{woche.METHOD} {shell.METHOD}" if week else shell.METHOD
+    return _inline("index.html", {"weeks": summaries, "period": overview, "woche": week}, method)
 
 
 def load_payloads(out: Path) -> dict[str, dict]:
@@ -120,7 +121,8 @@ def load_payloads(out: Path) -> dict[str, dict]:
 
 
 def index_page(out: Path) -> str:
-    """The index from what is in `out`: the week payloads and, if built, the period model (`period.json`)."""
+    """The index from what is in `out`: the week payloads and, if built, the period model (`period.json`) and the
+    hib week (`woche.json`)."""
     from radar import period
 
     payloads = load_payloads(out)
@@ -128,7 +130,9 @@ def index_page(out: Path) -> str:
     overview = period.overview(json.loads(cache.read_text(encoding="utf-8")), payloads) if cache.exists() else None
     if overview and (origins := out / "topic_origins.json").exists():  # origin.py, "Wer brachte das Thema auf?"
         overview["origins"] = json.loads(origins.read_text(encoding="utf-8"))
-    return render_index([summary(p) for p in payloads.values()], overview)
+    hib = out / woche.FILE
+    week = woche.on_maps(json.loads(hib.read_text(encoding="utf-8")), payloads) if hib.exists() else None
+    return render_index([summary(p) for p in payloads.values()], overview, week)
 
 
 def summary(payload: dict) -> dict:
