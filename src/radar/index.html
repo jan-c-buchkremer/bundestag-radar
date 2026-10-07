@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Themenlandschaft des Bundestages</title>
+<title>Radar: Was im Bundestag los ist</title>
 __SHELL__
 <script src="assets/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
@@ -114,7 +114,62 @@ footer a { color: var(--muted); }
 .origin details { margin-top: 4px; color: var(--muted); }
 .origin summary { cursor: pointer; color: var(--faint); font-size: 12px; }
 .origin .method { color: var(--faint); font-size: 12px; margin-top: 10px; }
+/* „Diese Woche“: the hib items of the newest week (woche.py) as a mosaic of policy areas, area = number of items */
+#woche { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 16px; margin-bottom: 36px; }
+#woche[hidden] { display: none; }
+.wplen { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin: 8px 0 14px; color: var(--muted); font-size: 12.5px; }
+.wplen[hidden] { display: none; }
+.wplen span { margin-right: 4px; }
+.wplen a { color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; text-decoration: none; font-weight: 600; font-size: 12.5px; }
+.wplen a:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+.mosaic { position: relative; margin: 4px 0 12px; }
+.tile { position: absolute; display: flex; flex-direction: column; gap: 6px; overflow: hidden; text-align: left; border: 0; border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--text); cursor: pointer;
+  background: color-mix(in srgb, var(--h) 14%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 28%, transparent); transition: background .15s, box-shadow .15s; }
+.tile:hover { box-shadow: inset 0 0 0 2px var(--h); }
+.tile.on { background: color-mix(in srgb, var(--h) 28%, var(--card)); box-shadow: inset 0 0 0 2px var(--h); }
+.tile:focus-visible { outline: 2px solid var(--h); outline-offset: 2px; }
+.tile .th { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 8px; hyphens: auto; overflow-wrap: anywhere; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--h) 70%, var(--text)); }
+.tile .th b { font-size: 20px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.tile.big .th b { font-size: 30px; }
+.tile ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.tile li { font-size: 12.5px; line-height: 1.3; hyphens: auto; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile.big li { font-size: 14.5px; font-weight: 500; line-height: 1.32; }
+.tile li em { font-style: normal; font-size: 10.5px; font-weight: 600; color: color-mix(in srgb, var(--h) 70%, var(--text)); margin-right: 4px; }
+.tile .more { margin-top: auto; font-size: 11.5px; color: var(--muted); }
+.tile .more:empty, .tile ul:empty { display: none; }
+.tile.tight { padding: 6px 8px; }
+.tile.tight .th { flex-direction: column; align-items: flex-start; gap: 0; font-size: 9.5px; letter-spacing: .03em; }
+.tile.tight .th b { font-size: 16px; }
+.fd { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.wchips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 6px 0; }
+.wchips button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.wchips.fr button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fc, var(--faint)); }
+.wchips button:hover { border-color: #cdcdc8; }
+.wchips button span { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wchips button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+#wdetail:empty { display: none; }
+#wdetail { margin-top: 10px; border-top: 1px solid var(--line); }
+#wdetail .dh { display: flex; align-items: center; gap: 10px; margin: 12px 0 2px; }
+#wdetail .dh i { width: 12px; height: 12px; border-radius: 3px; }
+#wdetail .dh h3 { margin: 0; font-size: 15px; font-weight: 600; flex: 1; }
+#wdetail .dh button { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; color: var(--accent); cursor: pointer; }
+.hib { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.hib:last-child { border-bottom: 0; }
+.hib .meta { color: var(--faint); font-size: 12px; }
+.hib .meta .k { color: var(--accent); font-weight: 500; }
+.hib a.ht { display: block; color: var(--text); text-decoration: none; font-weight: 500; font-size: 14px; line-height: 1.4; margin: 1px 0 2px; }
+.hib a.ht:hover { text-decoration: underline; }
+.hib a.ht span { color: var(--faint); font-weight: 400; font-size: 12px; }
+.hib .ds { color: var(--muted); font-size: 12.5px; }
+.hib .ds a { text-decoration: none; }
+.hib .ds a:hover { text-decoration: underline; }
+.hib .ds .plen { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 11.5px; }
+.hib .ds a.map { color: var(--accent); }
+.wempty { color: var(--muted); font-size: 13px; padding: 12px 0; margin: 0; }
 @media (max-width: 760px) {
+  #woche { padding: 14px 14px 12px; margin: 0 -4px 28px; }
+  .wchips { flex-wrap: nowrap; overflow-x: auto; margin: 6px -14px; padding: 0 14px 4px; scrollbar-width: none; }
+  .wchips button { flex: none; }
   #period { padding: 14px 14px 12px; margin: 0 -4px 28px; }
   #stream { height: 300px; margin: 6px -6px 0; }
   .pbody { grid-template-columns: 1fr; }
@@ -130,8 +185,16 @@ footer a { color: var(--muted); }
 __SITE_HEADER__
 <main>
   <span class="eyebrow">Radar</span>
-  <h1>Themenlandschaft des Bundestages</h1>
-  <p class="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte. Eine Rede ist ein Punkt, nahe Punkte haben ähnliche Inhalte, und die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
+  <h1>Was im Bundestag los ist</h1>
+  <p class="lead" id="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte. Eine Rede ist ein Punkt, nahe Punkte haben ähnliche Inhalte, und die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
+  <section id="woche" hidden>
+    <div class="phead"><h2 id="wtitle">Diese Woche</h2><span class="sub" id="wsub"></span></div>
+    <p class="wplen" id="wplen" hidden></p>
+    <div class="mosaic" id="mosaic" role="group" aria-label="Meldungen nach Politikfeld"></div>
+    <div class="wchips fr" id="wfr" aria-label="Eingebracht von"></div>
+    <div id="wdetail"></div>
+    <p class="pnote" id="wnote"></p>
+  </section>
   <section id="period" hidden>
     <div class="phead"><h2>Themen der Wahlperiode</h2><span class="sub" id="psub"></span>
       <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
@@ -170,6 +233,136 @@ document.getElementById('years').innerHTML = [...years].map(([y, ws]) => `
       <div class="topics">${w.clusters.slice(0, 6).map(t => `<span class="topic">${t.join(' · ')}</span>`).join('')}</div>
     </a>`).join('')}</div>`).join('');
 
+// hash state shared by the sections: #thema=<id> (period), #ressort=…&art=…&tag=<date> (Diese Woche)
+const hashGet = k => new URLSearchParams(location.hash.slice(1)).get(k);
+const hashSet = (k, v) => {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (v == null || v === '') p.delete(k); else p.set(k, String(v));
+  const h = p.toString();
+  history.replaceState(null, '', h ? '#' + h : location.pathname + location.search);
+};
+const RESEARCH = __RESEARCH__;
+// policy areas (period.area): one hue family each, in the stacking order of the validated categorical palette, so
+// neighbouring strata get the palette's adjacent-safe pairs; themes of one area are lighter/darker steps of its hue
+const AREAS = [
+  ['wirtschaft', 'Wirtschaft & Finanzen', '#2a78d6'], ['soziales', 'Arbeit & Soziales', '#eb6834'], ['gesundheit', 'Gesundheit & Pflege', '#1baf7a'],
+  ['digital', 'Digitales, Verkehr & Forschung', '#eda100'], ['demokratie', 'Demokratie & Gesellschaft', '#e87ba4'], ['klima', 'Klima, Energie & Landwirtschaft', '#008300'],
+  ['sicherheit', 'Innere Sicherheit & Recht', '#4a3aa7'], ['aussen', 'Außen & Verteidigung', '#e34948'], ['weitere', 'Weitere', '#8a8a84'],
+];
+const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
+// --- Diese Woche: what hib reported in the newest week (woche.py) as a mosaic of policy areas; title and facts only,
+// the text stays at the Bundestag. A tile's area is its number of items; a tap opens the area's items below.
+const WK = DATA.woche;
+if (WK && WK.items.length) (() => {
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const DOW = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const dow = d => DOW[new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10))).getUTCDay()];
+  const AREA = Object.fromEntries(AREAS.map(([k, name, hex]) => [k, { k, name, hex }]));
+  const EINBRINGER = ['CDU/CSU', 'SPD', 'AfD', 'BÜNDNIS 90/DIE GRÜNEN', 'Die Linke', 'Bundesregierung', 'Bundesrat', 'Sonstige'];
+  const FC = { 'CDU/CSU': 'var(--cdu, #2f2f2f)', 'SPD': 'var(--spd, #d7263d)', 'AfD': 'var(--afd, #1f8fd6)', 'BÜNDNIS 90/DIE GRÜNEN': 'var(--gru, #3f9a3f)', 'Die Linke': 'var(--lin, #c0397d)', 'Bundesregierung': 'var(--reg, #a08a2e)' };
+  const frName = f => f === 'BÜNDNIS 90/DIE GRÜNEN' ? 'Grüne' : f;
+  const dots = i => (i.einbringer || []).map(f => `<i class="fd" style="background:${FC[f] || 'var(--faint)'}" title="${esc(frName(f))}"></i>`).join('');
+  // inside a tile the committee sessions and new Vorlagen come before the questions and answers
+  const PRIO = ['Ausschuss', 'Anhörung', 'Gesetzentwurf', 'Antrag', 'Unterrichtung', 'Bericht', 'Große Anfrage', 'Antwort', 'Kleine Anfrage'];
+  const prio = i => { const p = PRIO.indexOf(i.kind); return p < 0 ? PRIO.length : p; };
+  const I = WK.items, kw = +WK.week.slice(6);
+  let area = AREA[hashGet('feld')] ? hashGet('feld') : null;
+  let fr = EINBRINGER.includes(hashGet('fraktion')) ? hashGet('fraktion') : null;
+
+  document.getElementById('woche').hidden = false;
+  document.getElementById('lead').textContent = 'Zuerst die Woche, wie „heute im bundestag“ sie meldet: Vorlagen, Antworten und Ausschusssitzungen nach Politikfeld. Darunter die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Karte, auf der eine Rede ein Punkt ist und nahe Punkte ähnliche Inhalte haben.';
+  document.getElementById('wtitle').textContent = WK.current ? 'Diese Woche' : `Woche ${kw}`;
+  document.getElementById('wsub').textContent = `KW ${kw} · ${fmt(WK.start)}–${fmt(WK.end)}${WK.end.slice(0, 4)} · ${I.length} Meldungen von „heute im bundestag“`;
+  document.getElementById('wnote').innerHTML = `${WK.current ? '' : 'Aus der laufenden Woche gibt es noch keine Meldung, das ist die letzte Woche mit Meldungen. '}Quelle: Deutscher Bundestag, „heute im bundestag“ (hib), mit Nummer und Link auf jede Meldung. Hier stehen Titel und Angaben, den Text liest man beim Bundestag.`;
+  // the newest sitting week's biggest topics, each opening the week map on that topic
+  const PL = WK.plenum;
+  if (PL && PL.topics.length) {
+    const el = document.getElementById('wplen');
+    const when = PL.week === WK.week ? 'Diese Woche im Plenum' : `Zuletzt im Plenum, KW ${+PL.week.slice(6)}`;
+    el.innerHTML = `<span>${when}</span>` + PL.topics.map(t => `<a href="${PL.week}.html#cluster=${t.id}" title="${t.n} Reden">${esc(t.label)}</a>`).join('');
+    el.hidden = false;
+  }
+
+  // squarified treemap (Bruls et al.): rectangles for `vals` (sorted, largest first) that fill w × h
+  function squarify(vals, W, H) {
+    const total = vals.reduce((a, b) => a + b, 0), out = [];
+    let x = 0, y = 0, w = W, h = H, row = [];
+    const items = vals.map((v, i) => ({ i, a: v * W * H / total }));
+    const worst = (r, side) => { const s = r.reduce((a, q) => a + q.a, 0), mx = Math.max(...r.map(q => q.a)), mn = Math.min(...r.map(q => q.a)); return Math.max(side * side * mx / (s * s), s * s / (side * side * mn)); };
+    const lay = r => {
+      const s = r.reduce((a, q) => a + q.a, 0);
+      if (w >= h) { const rw = s / h; let yy = y; r.forEach(q => { out[q.i] = { x, y: yy, w: rw, h: q.a / rw }; yy += q.a / rw; }); x += rw; w -= rw; }
+      else { const rh = s / w; let xx = x; r.forEach(q => { out[q.i] = { x: xx, y, w: q.a / rh, h: rh }; xx += q.a / rh; }); y += rh; h -= rh; }
+    };
+    for (let k = 0; k < items.length;) {
+      const side = Math.min(w, h);
+      if (!row.length || worst([...row, items[k]], side) <= worst(row, side)) row.push(items[k++]);
+      else { lay(row); row = []; }
+    }
+    if (row.length) lay(row);
+    return out;
+  }
+
+  const mosaic = document.getElementById('mosaic'), detail = document.getElementById('wdetail');
+  const shown = () => I.filter(i => !fr || (i.einbringer || []).includes(fr));
+  const itemHtml = i => {
+    const ds = d => {
+      const href = d.page ? RESEARCH + d.page : d.pdf;  // woche.research_path
+      const plen = d.plenum.map(a => {
+        const u = sittingUrl(a.agenda_id), top = `${fmt(a.date)}${a.date.slice(2, 4)}${a.top ? ', ' + a.top : ''}`;
+        return `<span class="plen">im Plenum ${u ? `<a class="ev" href="${u}">${esc(top)}</a>` : esc(top)}${a.map ? ` · <a class="map" href="${a.week}.html#agenda=${encodeURIComponent(a.agenda_id)}">auf der Karte</a>` : ''}</span>`;
+      }).join('');
+      return `<a class="ev" href="${esc(href)}"${d.title ? ` title="${esc(d.title)}"` : ''}>${esc(d.number)}</a>${d.type ? ` ${esc(d.type)}` : ''}${plen}`;
+    };
+    return `<div class="hib"><div class="meta">${dots(i)}${dow(i.date)} ${fmt(i.date)} · <span class="k">${esc(i.kind)}</span> · ${esc(i.committee || i.ressort)} · hib ${esc(i.number)}</div>
+      <a class="ht" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)} <span>bundestag.de ↗</span></a>
+      ${i.drucksachen.length ? `<div class="ds">Drucksache ${i.drucksachen.map(ds).join(' · ')}</div>` : ''}</div>`;
+  };
+
+  function render() {
+    const items = shown();
+    const groups = AREAS.map(([k]) => ({ k, items: items.filter(i => i.area === k) })).filter(g => g.items.length).sort((a, b) => b.items.length - a.items.length);
+    if (area && !groups.some(g => g.k === area)) area = null;
+    const W = mosaic.clientWidth, H = W < 600 ? Math.round(W * 1.45) : 470;
+    mosaic.style.height = `${H}px`;
+    const rects = squarify(groups.map(g => g.items.length), W, H), gap = 3;
+    mosaic.innerHTML = groups.map((g, n) => {
+      const r = rects[n], a = AREA[g.k], big = r.w * r.h > W * H * 0.2 && r.w > 220;
+      const sorted = [...g.items].sort((p, q) => prio(p) - prio(q) || q.date.localeCompare(p.date));
+      const lis = sorted.slice(0, 12).map(i => `<li>${dots(i)}<em>${esc(i.kind)}</em>${esc(i.title)}</li>`).join('');
+      return `<button type="button" class="tile${big ? ' big' : ''}${area === g.k ? ' on' : ''}" data-a="${g.k}" data-n="${g.items.length}" aria-pressed="${area === g.k}" style="--h:${a.hex};left:${r.x + gap}px;top:${r.y + gap}px;width:${Math.max(0, r.w - 2 * gap)}px;height:${Math.max(0, r.h - 2 * gap)}px">`
+        + `<span class="th">${esc(a.name)}<b>${g.items.length}</b></span><ul>${lis}</ul><span class="more"></span></button>`;
+    }).join('') || '<p class="wempty">Keine Meldung mit dieser Auswahl.</p>';
+    // fit: drop headlines from the end until the tile holds what it shows; a tile too small for its name keeps the count
+    mosaic.querySelectorAll('.tile').forEach(b => {
+      const ul = b.querySelector('ul'), more = b.querySelector('.more'), over = () => b.scrollHeight > b.clientHeight + 1 || b.scrollWidth > b.clientWidth + 1;
+      const note = () => { const rest = +b.dataset.n - ul.children.length; more.textContent = rest && ul.children.length ? `+ ${rest} weitere` : ''; };
+      note();
+      while (over() && ul.children.length) { ul.lastElementChild.remove(); note(); }
+      if (over()) b.classList.add('tight');
+    });
+    const frs = EINBRINGER.filter(f => I.some(i => (i.einbringer || []).includes(f)));
+    document.getElementById('wfr').innerHTML = frs.length ? frs.map(f => {
+      const c = I.filter(i => (i.einbringer || []).includes(f)).length;
+      return `<button type="button" data-f="${esc(f)}" class="${fr === f ? 'on' : ''}" aria-pressed="${fr === f}"${FC[f] ? ` style="--fc:${FC[f]}"` : ''}>${esc(frName(f))}<span>${c}</span></button>`;
+    }).join('') : '';
+    const g = groups.find(x => x.k === area);
+    detail.innerHTML = g ? `<div class="dh"><i style="background:${AREA[g.k].hex}"></i><h3>${esc(AREA[g.k].name)}${fr ? `, eingebracht von ${esc(frName(fr))}` : ''}</h3><button type="button" data-close>schließen</button></div>`
+      + [...g.items].sort((p, q) => q.date.localeCompare(p.date) || prio(p) - prio(q)).map(itemHtml).join('') : '';
+  }
+  mosaic.addEventListener('click', ev => {
+    const b = ev.target.closest('.tile'); if (!b) return;
+    area = area === b.dataset.a ? null : b.dataset.a; hashSet('feld', area); render();
+    if (area && innerWidth < 760) detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  detail.addEventListener('click', ev => { if (ev.target.closest('[data-close]')) { area = null; hashSet('feld', null); render(); } });
+  document.getElementById('wfr').addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    fr = fr === b.dataset.f ? null : b.dataset.f; hashSet('fraktion', fr); render();
+  });
+  let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 120); });
+  render();
+})();
 // --- period overview: one clustering over the whole Wahlperiode, drawn as a streamgraph over the sitting weeks ---
 const P = DATA.period;
 if (P && P.themes.length && window.Plotly) (() => {
@@ -193,13 +386,6 @@ if (P && P.themes.length && window.Plotly) (() => {
   const rest = P.unassigned.reduce((a, b) => a + b, 0);
   document.getElementById('pnote').textContent = `Ohne Regierungsbefragung und Zwischenfragen${rest ? `; ${rest.toLocaleString('de')} Reden ohne eindeutiges Thema sind nicht dargestellt` : ''}. Die Themen stammen aus einem Clustering über die ganze Wahlperiode, die Wochenkarten sind eigene Clusterings: Der Link öffnet das Thema der Woche, in dem die meisten dieser Reden liegen.`;
 
-  // policy areas (period.area): one hue family each, in the stacking order of the validated categorical palette, so
-  // neighbouring strata get the palette's adjacent-safe pairs; themes of one area are lighter/darker steps of its hue
-  const AREAS = [
-    ['wirtschaft', 'Wirtschaft & Finanzen', '#2a78d6'], ['soziales', 'Arbeit & Soziales', '#eb6834'], ['gesundheit', 'Gesundheit & Pflege', '#1baf7a'],
-    ['digital', 'Digitales, Verkehr & Forschung', '#eda100'], ['demokratie', 'Demokratie & Gesellschaft', '#e87ba4'], ['klima', 'Klima, Energie & Landwirtschaft', '#008300'],
-    ['sicherheit', 'Innere Sicherheit & Recht', '#4a3aa7'], ['aussen', 'Außen & Verteidigung', '#e34948'], ['weitere', 'Weitere', '#8a8a84'],
-  ];
   const AREA = Object.fromEntries(AREAS.map(([k, name, hex], i) => [k, { k, name, hex, i }]));
   const areaOf = t => AREA[t.area] || AREA.weitere;
   const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
@@ -345,7 +531,7 @@ if (P && P.themes.length && window.Plotly) (() => {
     listEl.querySelectorAll('.trow').forEach(r => r.classList.toggle('on', +r.dataset.t === id));
     const row = listEl.querySelector('.trow.on');  // keep the chosen row visible inside the list, without scrolling the page
     if (row && (row.offsetTop < listEl.scrollTop || row.offsetTop + row.offsetHeight > listEl.scrollTop + listEl.clientHeight)) listEl.scrollTop = row.offsetTop - listEl.clientHeight / 2;
-    history.replaceState(null, '', id == null ? location.pathname : `#thema=${id}`);
+    hashSet('thema', id);
     renderCard(); draw();
   }
   function renderCard() {
@@ -365,8 +551,6 @@ if (P && P.themes.length && window.Plotly) (() => {
   }
   // "Ursprung des Themas" (origin.py): per episode two measures side by side, never combined; names alphabetical
   const O = P.origins, byOrigin = O ? Object.fromEntries(O.themes.map(o => [o.id, o])) : {};
-  const RESEARCH = __RESEARCH__;
-  const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
   const abc = (a, b) => a.localeCompare(b, 'de');
   const wkName = w => `${kw(w)} ${w.slice(0, 4)}`;
   function originHtml(t) {
@@ -403,8 +587,8 @@ if (P && P.themes.length && window.Plotly) (() => {
   document.querySelectorAll('#scale button').forEach(b => b.onclick = () => {
     scale = b.dataset.v; document.querySelectorAll('#scale button').forEach(x => x.classList.toggle('on', x === b)); draw();
   });
-  const start = +new URLSearchParams(location.hash.slice(1)).get('thema');
-  if (location.hash.includes('thema=') && byTheme[start]) select(start); else { renderCard(); draw(); }
+  const start = hashGet('thema');
+  if (start != null && byTheme[+start]) select(+start); else { renderCard(); draw(); }
   addEventListener('resize', () => { if (el._fullLayout) Plotly.Plots.resize(el).then(placeLabels); });
 })();
 </script>

@@ -147,3 +147,13 @@ def conn():
     )
     derive(c)
     return c
+
+
+# The foundation's hib tables (bdf db.py, branch hib), created by the tests that need them: older stores have none
+HIB = """
+CREATE TABLE hib_item (id TEXT PRIMARY KEY, number TEXT NOT NULL, date TEXT NOT NULL, wahlperiode INTEGER NOT NULL,
+    title TEXT NOT NULL, ressort TEXT NOT NULL, kind TEXT NOT NULL, author_code TEXT, committee TEXT,
+    text TEXT NOT NULL, source_url TEXT, source_document_id TEXT, retrieved_at TEXT);
+CREATE TABLE hib_drucksache (hib_id TEXT NOT NULL, drucksache_number TEXT NOT NULL, position INTEGER NOT NULL,
+    PRIMARY KEY (hib_id, drucksache_number));
+"""
