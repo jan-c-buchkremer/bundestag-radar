@@ -42,6 +42,16 @@ def latest_week(conn: sqlite3.Connection, today: str | None = None) -> str | Non
     return week_id(row[0]) if row and row[0] else None
 
 
+# Research's page of a Vorgang by its DIP type: the Fragen have theirs under Fragen an die Regierung
+QUESTION_PAGES = {"Kleine Anfrage": "regierung/anfragen", "Große Anfrage": "regierung/anfragen",
+                  "Schriftliche Frage": "regierung/fragen", "Mündliche Frage": "regierung/fragen"}  # fmt: skip
+
+
+def research_path(vorgang_id: str, vorgang_type: str | None) -> str:
+    """The Research page of a Vorgang, relative to RESEARCH_URL (bundestag-research-platform `urls.py`)."""
+    return f"{QUESTION_PAGES.get(vorgang_type or '', 'vorgaenge')}/{vorgang_id}.html"
+
+
 def _drucksachen(conn: sqlite3.Connection, numbers: list[str]) -> dict[str, dict]:
     """Per Drucksache number: type, title, PDF, Vorgang id (when the store has DIP) and the agenda items that list
     it, oldest first."""
@@ -59,10 +69,15 @@ def _drucksachen(conn: sqlite3.Connection, numbers: list[str]) -> dict[str, dict
             f"FROM drucksache d WHERE d.number IN ({marks}) {bt} ORDER BY d.date",
             numbers,
         )
+        rows = rows.fetchall()
+        types = {}
+        if has_table(conn, "vorgang") and (ids := sorted({r["v"] for r in rows if r["v"]})):
+            q = f"SELECT id, type FROM vorgang WHERE id IN ({','.join('?' * len(ids))})"
+            types = {r["id"]: r["type"] for r in conn.execute(q, ids)}
         for r in rows:
             out[r["number"]].update(
                 {"type": r["type"], "title": r["title"], "pdf": r["pdf_url"] or out[r["number"]]["pdf"],
-                 **({"vorgang": r["v"]} if r["v"] else {})}
+                 **({"vorgang": r["v"], "page": research_path(r["v"], types.get(r["v"]))} if r["v"] else {})}
             )  # fmt: skip
     for r in conn.execute(
         f"SELECT DISTINCT j.value n, a.id, a.top_id, st.date FROM agenda_item a, json_each(a.drucksache_numbers) j "

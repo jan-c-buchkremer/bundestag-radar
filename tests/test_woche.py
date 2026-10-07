@@ -54,6 +54,7 @@ def test_load_newest_week(conn):
     ds = w["items"][2]["drucksachen"]
     assert [d["number"] for d in ds] == ["21/100", "21/8309"]  # in hib's order
     assert ds[0]["vorgang"] == "v1" and ds[0]["pdf"] == "u" and ds[0]["type"] == "Antrag"
+    assert ds[0]["page"] == "vorgaenge/v1.html"  # no vorgang table: the type is unknown
     assert ds[0]["plenum"] == [{"agenda_id": "21/88/2", "top": "Tagesordnungspunkt 2", "date": "2026-07-08",
                                 "week": "2026-W28"}]  # fmt: skip
     assert ds[1] == {"number": "21/8309", "pdf": "https://dserver.bundestag.de/btd/21/083/2108309.pdf", "plenum": []}
@@ -74,3 +75,11 @@ def test_index_page_with_woche(conn, tmp_path):
     (tmp_path / woche.FILE).unlink()
     page = build.index_page(tmp_path)
     assert '"woche": null' in page and "heute im bundestag“ (hib) der neuesten" not in page
+
+
+def test_research_path_by_type():
+    assert woche.research_path("v1", "Antrag") == "vorgaenge/v1.html"
+    assert woche.research_path("v2", "Kleine Anfrage") == "regierung/anfragen/v2.html"
+    assert woche.research_path("v3", "Große Anfrage") == "regierung/anfragen/v3.html"
+    assert woche.research_path("v4", "Schriftliche Frage") == "regierung/fragen/v4.html"
+    assert woche.research_path("v5", None) == "vorgaenge/v5.html"

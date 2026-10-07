@@ -258,7 +258,7 @@ if (WK && WK.items.length) (() => {
   document.getElementById('wsub').textContent = `KW ${kw} · ${fmt(WK.start)}–${fmt(WK.end)}${WK.end.slice(0, 4)} · ${I.length} Meldungen aus ${ressorts.length} Ressorts${WK.sittings.length ? ` · ${WK.sittings.length} Sitzungstage` : ' · keine Sitzung'}`;
   document.getElementById('wnote').innerHTML = `${WK.current ? '' : 'Aus der laufenden Woche gibt es noch keine Meldung; das ist die letzte Woche mit Meldungen. '}Quelle: Deutscher Bundestag, „heute im bundestag“ (hib), mit Nummer und Link auf jede Meldung. Hier stehen Titel und Angaben, den Text liest man beim Bundestag.`;
   const dsHtml = d => {
-    const href = d.vorgang ? `${RESEARCH}vorgaenge/${d.vorgang}.html` : d.pdf;
+    const href = d.page ? RESEARCH + d.page : d.pdf;  // woche.research_path
     const tip = [d.type, d.title].filter(Boolean).join(': ');
     const plen = d.plenum.map(a => {
       const u = sittingUrl(a.agenda_id), top = `${fmt(a.date)}${a.date.slice(2, 4)}${a.top ? ', ' + a.top : ''}`;
