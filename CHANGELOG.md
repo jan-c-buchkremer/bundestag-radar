@@ -8,8 +8,8 @@ not before? If that sentence is hard to write, the release is not a finished ver
 ## v0.3.0 (2026-10-07)
 
 Readers who open the Radar see first what is going on in the Bundestag this week, as „heute im bundestag“ reports
-it: by day, Ressort, kind and the Fraktion that tabled it, each item linked to its article, its Vorgang and the
-debate in the plenum.
+it: a mosaic of policy areas sized by the number of items, with the headlines inside, each item linked to its
+article, its Vorgang and the debate in the plenum, and the newest sitting week's topics leading into the map.
 
 - „Diese Woche“ on top of `index.html` (`woche.py`, `woche.json`); `radar build woche` refreshes it and the index
   without re-clustering. Needs the foundation's `hib_item` and `hib_drucksache` (optional: an older store builds the

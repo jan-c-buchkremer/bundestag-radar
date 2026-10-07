@@ -2,7 +2,7 @@ import json
 
 from conftest import HIB
 
-from radar import build, woche
+from radar import build, period, woche
 
 HIB_ITEM = "INSERT INTO hib_item VALUES (?,?,?,21,?,?,?,?,?,?,?,?,'2026-07-10')"
 
@@ -59,7 +59,10 @@ def test_load_newest_week(conn):
     assert [d["number"] for d in ds] == ["21/100", "21/8309"]  # in hib's order
     assert ds[0]["vorgang"] == "v1" and ds[0]["pdf"] == "u" and ds[0]["type"] == "Antrag"
     assert ds[0]["page"] == "vorgaenge/v1.html"
-    assert w["items"][2]["einbringer"] == ["CDU/CSU", "SPD"]  # the Vorgang's initiators, in chip order
+    assert w["items"][2]["einbringer"] == ["CDU/CSU", "SPD"]
+    assert {i["area"] for i in w["items"]} <= set(woche.RESSORTS_OF_AREA) | {
+        "weitere"
+    }  # the Vorgang's initiators, in chip order
     assert w["items"][0]["einbringer"] == []  # no Drucksache in the store
     assert ds[0]["plenum"] == [{"agenda_id": "21/88/2", "top": "Tagesordnungspunkt 2", "date": "2026-07-08",
                                 "week": "2026-W28"}]  # fmt: skip
@@ -98,3 +101,17 @@ def test_einbringer_groups():
     assert woche.einbringer("Bundesregierung") == "Bundesregierung"
     assert woche.einbringer("Bayern") == woche.einbringer("Bundesrat") == "Bundesrat"
     assert woche.einbringer("Präsidentin des Deutschen Bundestages") == "Sonstige"
+
+
+def test_area_of_ressort():
+    assert woche.AREA_OF_RESSORT["Inneres"] == "sicherheit"
+    assert woche.AREA_OF_RESSORT["Auswärtiges"] == woche.AREA_OF_RESSORT["Verteidigung"] == "aussen"
+    assert woche.AREA_OF_RESSORT["Gesundheit"] == "gesundheit"
+    assert set(woche.RESSORTS_OF_AREA) <= set(period.AREAS)  # the page colours tiles by period's areas
+
+
+def test_plenum_topics():
+    payload = {"week": "2026-W39", "clusters": [{"id": 1, "terms": ["rente", "alter", "x"], "n": 5},
+                                                {"id": 2, "terms": ["bahn", "schiene"], "n": 9}]}  # fmt: skip
+    assert build.plenum_topics(payload) == {"week": "2026-W39", "topics": [
+        {"id": 2, "label": "Bahn · Schiene", "n": 9}, {"id": 1, "label": "Rente · Alter", "n": 5}]}  # fmt: skip

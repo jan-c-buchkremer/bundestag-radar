@@ -5,7 +5,7 @@ them (`hib_item`, `hib_drucksache`); their texts are protected (foundation docs/
 reads `text`: the page shows title, date, issue number, Ressort, kind, committee and the link to the article, and
 connects each item through its Drucksachen to the Vorgang and to the agenda items where the plenum took them up.
 
-The selection is hib's, the grouping by Ressort is ours: Radar, with a method note on the page."""
+The selection is hib's, the grouping into policy areas is ours: Radar, with a method note on the page."""
 
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ from radar.origin import FRACTIONS, initiators
 FILE = "woche.json"  # in the output directory, next to period.json; build.index_page reads it
 
 METHOD = (
-    "„Diese Woche“ zeigt die Meldungen von „heute im bundestag“ (hib) der neuesten Woche, nach Ressort und Art "
-    "gruppiert. Welche Vorgänge eine Meldung bekommen, entscheidet die hib-Redaktion; die Zahlen zählen Meldungen, "
-    "nicht Bedeutung. Über die Drucksachennummern führt jede Meldung zu ihrem Vorgang und zur Tagesordnung. Die "
-    "Fraktion einer Meldung ist die, die den Vorgang eingebracht hat (bei einer Antwort die, die gefragt hat), nicht "
-    "die Redaktion der Meldung."
+    "„Diese Woche“ zeigt die Meldungen von „heute im bundestag“ (hib) der neuesten Woche nach Politikfeldern. Jedes "
+    "Ressort von hib gehört zu einem Feld, die Fläche einer Kachel ist die Zahl ihrer Meldungen. Welche Vorgänge eine "
+    "Meldung bekommen, entscheidet die hib-Redaktion; die Zahlen zählen Meldungen, nicht Bedeutung. Über die "
+    "Drucksachennummern führt jede Meldung zu ihrem Vorgang und zur Tagesordnung. Die Fraktion einer Meldung ist die, "
+    "die den Vorgang eingebracht hat (bei einer Antwort die, die gefragt hat), nicht die Redaktion der Meldung."
 )
 
 
@@ -55,6 +55,28 @@ EINBRINGER = ("CDU/CSU", "SPD", "AfD", "BÜNDNIS 90/DIE GRÜNEN", "Die Linke", "
 LAENDER = {"Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen",
            "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen",
            "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"}  # fmt: skip
+
+
+# hib's Ressort -> the policy area of the period overview (period.AREAS, the colours of index.html's AREAS); the
+# mosaic on the index page has one tile per area. A Ressort not listed is "weitere".
+RESSORTS_OF_AREA = {
+    "wirtschaft": ("Wirtschaft und Energie", "Finanzen", "Haushalt", "Wirtschaft", "Tourismus"),
+    "soziales": ("Arbeit und Soziales", "Wohnen, Stadtentwicklung, Bauwesen und Kommunen",
+                 "Bildung, Familie, Senioren, Frauen und Jugend", "Familie, Senioren, Frauen und Jugend"),
+    "gesundheit": ("Gesundheit", "Enquete-Kommission Corona"),
+    "digital": ("Verkehr", "Digitales und Staatsmodernisierung",
+                "Forschung, Technologie, Raumfahrt und Technikfolgenabschätzung",
+                "Bildung, Forschung und Technikfolgenabschätzung"),
+    "demokratie": ("Kultur und Medien", "Sport und Ehrenamt", "Petitionen", "Bundestagsnachrichten",
+                   "Heute im Bundestag", "Ausschuss für Wahlprüfung, Immunität und Geschäftsordnung"),
+    "klima": ("Umwelt, Klimaschutz, Naturschutz und nukleare Sicherheit", "Landwirtschaft, Ernährung und Heimat",
+              "Umwelt, Naturschutz, nukleare Sicherheit und Verbraucherschutz", "Ernährung und Landwirtschaft",
+              "Umwelt", "Klimaschutz und Energie", "Parlamentarischer Beirat für nachhaltige Entwicklung"),
+    "sicherheit": ("Inneres", "Inneres und Heimat", "Recht und Verbraucherschutz", "Recht"),
+    "aussen": ("Auswärtiges", "Verteidigung", "Wirtschaftliche Zusammenarbeit und Entwicklung", "Europa",
+               "Menschenrechte und humanitäre Hilfe"),
+}  # fmt: skip
+AREA_OF_RESSORT = {r: area for area, rs in RESSORTS_OF_AREA.items() for r in rs}
 
 
 def einbringer(originator: str) -> str:
@@ -148,6 +170,7 @@ def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = 
             "date": r["date"],
             "title": r["title"],
             "ressort": r["ressort"],
+            "area": AREA_OF_RESSORT.get(r["ressort"], "weitere"),
             "kind": r["kind"],
             "url": r["source_url"],
             **({"committee": r["committee"]} if r["committee"] else {}),

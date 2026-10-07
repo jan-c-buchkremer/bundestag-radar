@@ -58,13 +58,14 @@ read-only connections. The store is still opened with `mode=ro`.
 
 `index.html`, the Radar's start page, opens with **Diese Woche**: what „heute im bundestag“ (hib), the Bundestag's
 news service, reported in the newest week with items (`woche.py`, from the foundation's `hib_item` and
-`hib_drucksache`). A bar per day (sitting days marked), the Ressorts and the kinds (Antwort, Antrag, Ausschuss, …) as
-chips with live counts; each is a filter (one value per row, AND across rows, a second click clears it), kept in the
-URL (`#ressort=Inneres&art=Antwort&tag=2026-10-07`), „zurücksetzen“ clears all three. The items are listed by Ressort,
-biggest first, newest first inside: date, kind, committee, hib number, the title linking the article on bundestag.de,
-and each linked Drucksache to its Vorgang in Research (else its PDF), with the agenda items where the plenum took it up
-(their sitting page, and the week map filtered to that item when the week is built). hib texts are protected (the
-foundation's `docs/licences.md`), so the page shows titles and facts only and the export never contains a text. The
+`hib_drucksache`), as a mosaic: one tile per policy area (hib's Ressort mapped onto the period overview's areas,
+`woche.AREA_OF_RESSORT`, in their colours), the area of a tile its number of items, the headlines inside, committee
+sessions and new Vorlagen first, each with the Fraktion dots of who tabled the Vorgang. A tap on a tile lists all its
+items below: date, kind, committee or Ressort, hib number, the title linking the article on bundestag.de, and each
+linked Drucksache to its Research page (else its PDF), with the agenda items where the plenum took it up and, when
+that week's map is built, the map filtered to the item. One row of Fraktion chips narrows the mosaic. Above it, the
+newest sitting week's five biggest topics, each opening that week's map on the topic (`build.plenum_topics`). The
+state is in the URL (`#feld=sicherheit&fraktion=AfD`). The
 heading says „Diese Woche“ only when the newest items are from the current week. Without hib in the store the
 section is left out.
 

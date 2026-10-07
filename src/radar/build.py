@@ -132,7 +132,19 @@ def index_page(out: Path) -> str:
         overview["origins"] = json.loads(origins.read_text(encoding="utf-8"))
     hib = out / woche.FILE
     week = woche.on_maps(json.loads(hib.read_text(encoding="utf-8")), payloads) if hib.exists() else None
+    if week and payloads:
+        week["plenum"] = plenum_topics(payloads[max(payloads)])
     return render_index([summary(p) for p in payloads.values()], overview, week)
+
+
+def plenum_topics(payload: dict, n: int = 5) -> dict:
+    """The newest sitting week's biggest topics for „Diese Woche“: week id and per topic its id (the map's
+    `#cluster=`), label and speech count."""
+    top = sorted(payload["clusters"], key=lambda c: -c["n"])[:n]
+    return {
+        "week": payload["week"],
+        "topics": [{"id": c["id"], "label": topic_label(c["terms"], 2), "n": c["n"]} for c in top],
+    }
 
 
 def summary(payload: dict) -> dict:
