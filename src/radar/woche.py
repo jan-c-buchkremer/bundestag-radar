@@ -15,13 +15,16 @@ import sqlite3
 from pathlib import Path
 
 from radar.corpus import has_table, week_id, week_range
+from radar.origin import FRACTIONS, initiators
 
 FILE = "woche.json"  # in the output directory, next to period.json; build.index_page reads it
 
 METHOD = (
     "„Diese Woche“ zeigt die Meldungen von „heute im bundestag“ (hib) der neuesten Woche, nach Ressort und Art "
     "gruppiert. Welche Vorgänge eine Meldung bekommen, entscheidet die hib-Redaktion; die Zahlen zählen Meldungen, "
-    "nicht Bedeutung. Über die Drucksachennummern führt jede Meldung zu ihrem Vorgang und zur Tagesordnung."
+    "nicht Bedeutung. Über die Drucksachennummern führt jede Meldung zu ihrem Vorgang und zur Tagesordnung. Die "
+    "Fraktion einer Meldung ist die, die den Vorgang eingebracht hat (bei einer Antwort die, die gefragt hat), nicht "
+    "die Redaktion der Meldung."
 )
 
 
@@ -45,6 +48,24 @@ def latest_week(conn: sqlite3.Connection, today: str | None = None) -> str | Non
 # Research's page of a Vorgang by its DIP type: the Fragen have theirs under Fragen an die Regierung
 QUESTION_PAGES = {"Kleine Anfrage": "regierung/anfragen", "Große Anfrage": "regierung/anfragen",
                   "Schriftliche Frage": "regierung/fragen", "Mündliche Frage": "regierung/fragen"}  # fmt: skip
+
+
+# who tabled the Vorgang behind an item, as the chips show it; the order of the chips
+EINBRINGER = ("CDU/CSU", "SPD", "AfD", "BÜNDNIS 90/DIE GRÜNEN", "Die Linke", "Bundesregierung", "Bundesrat", "Sonstige")
+LAENDER = {"Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen",
+           "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen",
+           "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"}  # fmt: skip
+
+
+def einbringer(originator: str) -> str:
+    """One of EINBRINGER for an initiator as `origin.initiators` names it ("AfD", "Bundesministerium der Finanzen")."""
+    if originator in FRACTIONS.values():
+        return originator
+    if originator.startswith(("Bundesregierung", "Bundesministerium", "Bundeskanzler")):
+        return "Bundesregierung"
+    if originator.startswith("Bundesrat") or originator in LAENDER:
+        return "Bundesrat"
+    return "Sonstige"
 
 
 def research_path(vorgang_id: str, vorgang_type: str | None) -> str:
@@ -113,7 +134,9 @@ def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = 
             [r["id"] for r in rows],
         ):
             links.setdefault(r["hib_id"], []).append(r["drucksache_number"])
-    ds = _drucksachen(conn, sorted({n for ns in links.values() for n in ns}))
+    numbers = sorted({n for ns in links.values() for n in ns})
+    ds = _drucksachen(conn, numbers)
+    ini = initiators(conn, numbers)  # via the Vorgang: an Antwort counts for the Fraktion that asked
     sittings = [
         r[0] for r in conn.execute("SELECT DISTINCT date FROM sitting WHERE date BETWEEN ? AND ? ORDER BY date",
                                    (start, end))
@@ -129,6 +152,10 @@ def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = 
             "url": r["source_url"],
             **({"committee": r["committee"]} if r["committee"] else {}),
             "drucksachen": [ds[n] for n in links.get(r["id"], [])],
+            "einbringer": sorted(
+                {einbringer(o) for n in links.get(r["id"], []) for o in ini.get(n, {}).get("originators", [])},
+                key=EINBRINGER.index,
+            ),
         }  # fmt: skip
         for r in rows
     ]

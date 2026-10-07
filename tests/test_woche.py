@@ -37,10 +37,14 @@ def test_load_newest_week(conn):
     _hib(conn)
     conn.executescript(
         """
-        CREATE TABLE drucksache (id TEXT PRIMARY KEY, number TEXT, type TEXT, title TEXT, date TEXT, pdf_url TEXT);
+        CREATE TABLE drucksache (id TEXT PRIMARY KEY, number TEXT, type TEXT, title TEXT, date TEXT, pdf_url TEXT,
+            originators TEXT);
         CREATE TABLE vorgang_drucksache (vorgang_id TEXT, drucksache_id TEXT);
-        INSERT INTO drucksache VALUES ('d1', '21/100', 'Antrag', 'Mietpreisbremse verlängern', '2026-07-01', 'u');
+        CREATE TABLE vorgang (id TEXT PRIMARY KEY, type TEXT, initiators TEXT);
+        INSERT INTO drucksache VALUES ('d1', '21/100', 'Antrag', 'Mietpreisbremse verlängern', '2026-07-01', 'u',
+            '["CDU/CSU", "SPD"]');
         INSERT INTO vorgang_drucksache VALUES ('v1', 'd1');
+        INSERT INTO vorgang VALUES ('v1', 'Antrag', '["Fraktion der SPD", "Fraktion der CDU/CSU"]');
         """
     )
     assert woche.latest_week(conn, today="2026-07-09") == "2026-W28"
@@ -54,7 +58,9 @@ def test_load_newest_week(conn):
     ds = w["items"][2]["drucksachen"]
     assert [d["number"] for d in ds] == ["21/100", "21/8309"]  # in hib's order
     assert ds[0]["vorgang"] == "v1" and ds[0]["pdf"] == "u" and ds[0]["type"] == "Antrag"
-    assert ds[0]["page"] == "vorgaenge/v1.html"  # no vorgang table: the type is unknown
+    assert ds[0]["page"] == "vorgaenge/v1.html"
+    assert w["items"][2]["einbringer"] == ["CDU/CSU", "SPD"]  # the Vorgang's initiators, in chip order
+    assert w["items"][0]["einbringer"] == []  # no Drucksache in the store
     assert ds[0]["plenum"] == [{"agenda_id": "21/88/2", "top": "Tagesordnungspunkt 2", "date": "2026-07-08",
                                 "week": "2026-W28"}]  # fmt: skip
     assert ds[1] == {"number": "21/8309", "pdf": "https://dserver.bundestag.de/btd/21/083/2108309.pdf", "plenum": []}
@@ -83,3 +89,12 @@ def test_research_path_by_type():
     assert woche.research_path("v3", "Große Anfrage") == "regierung/anfragen/v3.html"
     assert woche.research_path("v4", "Schriftliche Frage") == "regierung/fragen/v4.html"
     assert woche.research_path("v5", None) == "vorgaenge/v5.html"
+
+
+def test_einbringer_groups():
+    assert [woche.einbringer(o) for o in ("AfD", "Die Linke", "BÜNDNIS 90/DIE GRÜNEN")] == [
+        "AfD", "Die Linke", "BÜNDNIS 90/DIE GRÜNEN"]  # fmt: skip
+    assert woche.einbringer("Bundesministerium der Finanzen") == "Bundesregierung"
+    assert woche.einbringer("Bundesregierung") == "Bundesregierung"
+    assert woche.einbringer("Bayern") == woche.einbringer("Bundesrat") == "Bundesrat"
+    assert woche.einbringer("Präsidentin des Deutschen Bundestages") == "Sonstige"

@@ -132,6 +132,7 @@ footer a { color: var(--muted); }
 .wchips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 6px 0; }
 .wchips button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; }
 .wchips.kinds button { color: var(--muted); }
+.wchips.fr button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fc, var(--faint)); }
 .wchips button:hover { border-color: #cdcdc8; }
 .wchips button span { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
 .wchips button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
@@ -183,6 +184,7 @@ __SITE_HEADER__
     <div class="wdays" id="wdays" aria-label="Meldungen pro Tag"></div>
     <div class="wchips" id="wres" aria-label="Ressorts"></div>
     <div class="wchips kinds" id="wkind" aria-label="Art der Meldung"></div>
+    <div class="wchips fr" id="wfr" aria-label="Eingebracht von"></div>
     <div id="wlist"></div>
     <p class="pnote" id="wnote"></p>
   </section>
@@ -244,13 +246,18 @@ if (WK && WK.items.length) (() => {
   const I = WK.items, sitting = new Set(WK.sittings);
   const days = [...Array(7)].map((_, k) => { const d = utc(WK.start); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); })
     .filter((d, k) => k < 5 || I.some(i => i.date === d));  // Monday to Friday, a weekend day only with items
-  const DIMS = { tag: i => i.date, ressort: i => i.ressort, art: i => i.kind };
+  // each dimension gives an item's values: one date, Ressort and kind; none, one or several Einbringer (woche.EINBRINGER)
+  const DIMS = { tag: i => [i.date], ressort: i => [i.ressort], art: i => [i.kind], fraktion: i => i.einbringer || [] };
+  const has = (k, i, v) => DIMS[k](i).includes(v);
   const st = {};
-  for (const k in DIMS) { const v = hashGet(k); st[k] = v && I.some(i => DIMS[k](i) === v) ? v : null; }
-  const match = (i, skip) => Object.keys(DIMS).every(k => k === skip || !st[k] || DIMS[k](i) === st[k]);
-  const count = (k, v) => I.filter(i => DIMS[k](i) === v && match(i, k)).length;
-  const byCount = k => [...Map.groupBy(I, DIMS[k])].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'de')).map(([v]) => v);
+  for (const k in DIMS) { const v = hashGet(k); st[k] = v && I.some(i => has(k, i, v)) ? v : null; }
+  const match = (i, skip) => Object.keys(DIMS).every(k => k === skip || !st[k] || has(k, i, st[k]));
+  const count = (k, v) => I.filter(i => has(k, i, v) && match(i, k)).length;
+  const byCount = k => [...Map.groupBy(I.flatMap(i => DIMS[k](i).map(v => [v, i])), ([v]) => v)].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'de')).map(([v]) => v);
+  const EINBRINGER = ['CDU/CSU', 'SPD', 'AfD', 'BÜNDNIS 90/DIE GRÜNEN', 'Die Linke', 'Bundesregierung', 'Bundesrat', 'Sonstige'];
+  const FC = { 'CDU/CSU': 'var(--cdu, #2f2f2f)', 'SPD': 'var(--spd, #d7263d)', 'AfD': 'var(--afd, #1f8fd6)', 'BÜNDNIS 90/DIE GRÜNEN': 'var(--gru, #3f9a3f)', 'Die Linke': 'var(--lin, #c0397d)', 'Bundesregierung': 'var(--reg, #a08a2e)' };
   const ressorts = byCount('ressort'), kinds = byCount('art'), open = new Set();
+  const fractions = EINBRINGER.filter(f => I.some(i => has('fraktion', i, f)));
   const kw = +WK.week.slice(6);
   document.getElementById('woche').hidden = false;
   document.getElementById('lead').textContent = 'Zuerst die Woche, wie „heute im bundestag“ sie meldet: welche Vorlagen, Antworten und Ausschusssitzungen es gab, nach Ressort. Darunter die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Karte, auf der eine Rede ein Punkt ist und nahe Punkte ähnliche Inhalte haben.';
@@ -277,10 +284,10 @@ if (WK && WK.items.length) (() => {
       const c = count('tag', d);
       return `<button type="button" data-v="${d}" class="${st.tag === d ? 'on' : ''}${sitting.has(d) ? ' sit' : ''}"${!c && st.tag !== d ? ' disabled' : ''} title="${c} Meldungen"><i style="height:${Math.round(100 * c / max)}%"></i><span><b>${dow(d)}</b> <em>${fmt(d)} · </em>${c}</span><small>${sitting.has(d) ? 'Sitzung' : ''}</small></button>`;
     }).join('');
-    for (const [id, k, vals] of [['wres', 'ressort', ressorts], ['wkind', 'art', kinds]]) {
+    for (const [id, k, vals] of [['wres', 'ressort', ressorts], ['wkind', 'art', kinds], ['wfr', 'fraktion', fractions]]) {
       document.getElementById(id).innerHTML = vals.map(v => {
-        const c = count(k, v);
-        return `<button type="button" data-k="${k}" data-v="${esc(v)}" class="${st[k] === v ? 'on' : ''}"${!c && st[k] !== v ? ' disabled' : ''}>${esc(v)}<span>${c}</span></button>`;
+        const c = count(k, v), fc = k === 'fraktion' && FC[v] ? ` style="--fc:${FC[v]}"` : '';
+        return `<button type="button" data-k="${k}" data-v="${esc(v)}" class="${st[k] === v ? 'on' : ''}"${fc} aria-pressed="${st[k] === v}"${!c && st[k] !== v ? ' disabled' : ''}>${esc(v)}<span>${c}</span></button>`;
       }).join('');
     }
     const shown = I.filter(i => match(i));
@@ -293,7 +300,7 @@ if (WK && WK.items.length) (() => {
   }
   const pick = (k, v) => { st[k] = st[k] === v ? null : v; hashSet(k, st[k]); render(); };
   document.getElementById('wdays').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b && !b.disabled) pick('tag', b.dataset.v); });
-  for (const id of ['wres', 'wkind']) document.getElementById(id).addEventListener('click', ev => { const b = ev.target.closest('button'); if (b && !b.disabled) pick(b.dataset.k, b.dataset.v); });
+  for (const id of ['wres', 'wkind', 'wfr']) document.getElementById(id).addEventListener('click', ev => { const b = ev.target.closest('button'); if (b && !b.disabled) pick(b.dataset.k, b.dataset.v); });
   document.getElementById('wlist').addEventListener('click', ev => { const b = ev.target.closest('.wmore'); if (b) { open.add(b.dataset.r); render(); } });
   document.getElementById('wreset').onclick = () => { for (const k in DIMS) { st[k] = null; hashSet(k, null); } render(); };
   render();

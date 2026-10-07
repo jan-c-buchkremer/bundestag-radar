@@ -6,11 +6,14 @@ not before? If that sentence is hard to write, the release is not a finished ver
 ## Unreleased
 
 Readers who open the Radar see first what is going on in the Bundestag this week, as „heute im bundestag“ reports
-it: by day, Ressort and kind, each item linked to its article, its Vorgang and the debate in the plenum.
+it: by day, Ressort, kind and the Fraktion that tabled it, each item linked to its article, its Vorgang and the
+debate in the plenum.
 
 - „Diese Woche“ on top of `index.html` (`woche.py`, `woche.json`); `radar build woche` refreshes it and the index
   without re-clustering. Needs the foundation's `hib_item` and `hib_drucksache` (optional: an older store builds the
   index without the section). The method note names hib's selection and our grouping.
+- Fraktion chips: who tabled the Vorgang behind an item (for an Antwort, who asked), from the Vorgang's initiators
+  (`woche.einbringer`), in the Fraktion colours.
 
 ## v0.2.1 (2026-10-06)
 
