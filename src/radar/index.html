@@ -287,7 +287,7 @@ if (WK && WK.items.length) (() => {
     for (const [id, k, vals] of [['wres', 'ressort', ressorts], ['wkind', 'art', kinds], ['wfr', 'fraktion', fractions]]) {
       document.getElementById(id).innerHTML = vals.map(v => {
         const c = count(k, v), fc = k === 'fraktion' && FC[v] ? ` style="--fc:${FC[v]}"` : '';
-        return `<button type="button" data-k="${k}" data-v="${esc(v)}" class="${st[k] === v ? 'on' : ''}"${fc} aria-pressed="${st[k] === v}"${!c && st[k] !== v ? ' disabled' : ''}>${esc(v)}<span>${c}</span></button>`;
+        return `<button type="button" data-k="${k}" data-v="${esc(v)}" class="${st[k] === v ? 'on' : ''}"${fc} aria-pressed="${st[k] === v}"${!c && st[k] !== v ? ' disabled' : ''}>${esc(k === 'fraktion' && v === 'BÜNDNIS 90/DIE GRÜNEN' ? 'Grüne' : v)}<span>${c}</span></button>`;
       }).join('');
     }
     const shown = I.filter(i => match(i));
