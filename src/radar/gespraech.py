@@ -58,6 +58,8 @@ PV_ABOVE = 2.0  # "clearly above": twice the usual week …
 PV_ABOVE_EXTRA = 300  # … and at least this many more readers
 PV_EXTREME = 4.0  # alone enough, with a parliamentary connection
 PV_EXTREME_EXTRA = 2000
+PV_NEWS = 20.0  # a news event about the person (a resignation, an appointment): shows without a plenary link …
+PV_NEWS_EXTRA = 20000  # … when this many more readers than usual came in the week
 # counts per sitting week: (week + 1) / (baseline + 1) >= COUNT_FACTOR and at least COUNT_MIN in the week
 COUNT_FACTOR, COUNT_MIN = 2.0, 2
 # Zurufe per 1,000 words: the baseline shrunk towards the house's rate with RATE_PRIOR_WORDS words
@@ -139,9 +141,10 @@ def pageview_signal(daily: dict[str, int], week_days: list[str], base_days: list
     extra = week_sum - base_week
     above = ratio >= PV_ABOVE and extra >= PV_ABOVE_EXTRA
     extreme = ratio >= PV_EXTREME and extra >= PV_EXTREME_EXTRA
+    news = ratio >= PV_NEWS and extra >= PV_NEWS_EXTRA
     peak = max((d for d in week_days if d in daily), key=lambda d: daily[d])
     detail = {"ratio": round(ratio, 2), "days": len(week), "peak": peak, "peak_views": daily[peak],
-              "series": [daily.get(d) for d in week_days]}  # fmt: skip
+              "series": [daily.get(d) for d in week_days], **({"news": True} if news else {})}  # fmt: skip
     return Signal("wikipedia", week_sum, base_week, above, extreme, detail)
 
 
@@ -163,10 +166,14 @@ def rate_signal(events: int, words: int, base_events: int, base_words: int, hous
 
 
 def include(signals: dict[str, Signal], connected: bool) -> str | None:
-    """Whether a person shows and in which group: None, or "beides" (Wikipedia and the Bundestag), "plenum"
-    (only parliamentary signals) or "wikipedia" (Wikipedia far above, plus something in the Bundestag)."""
+    """Whether a person shows and in which group: None, "nachricht" (Wikipedia twenty times above: news about a
+    member or minister, such as a resignation, is the week's political event even without a speech), "beides"
+    (Wikipedia and the Bundestag), "plenum" (only parliamentary signals) or "wikipedia" (Wikipedia far above, plus
+    something in the Bundestag)."""
     above = [k for k, s in signals.items() if s.above]
     wiki = signals.get("wikipedia")
+    if wiki is not None and wiki.detail.get("news"):
+        return "nachricht"
     if len(above) >= 2:
         return "beides" if "wikipedia" in above else "plenum"
     if wiki is not None and wiki.extreme and connected:
@@ -214,8 +221,11 @@ def people(conn: sqlite3.Connection, start: str, end: str) -> dict[str, dict]:
         "OR (kind = 'other' AND name = 'Präsidium'))"
     ):
         if r["person_id"] in out:
-            office = r["role"] if r["name"] == "Präsidium" else (
-                "Vorsitz der CSU-Landesgruppe" if "CSU" in r["role"] else f"Fraktionsvorsitz {short(r['name'])}")
+            office = (
+                r["role"]
+                if r["name"] == "Präsidium"
+                else ("Vorsitz der CSU-Landesgruppe" if "CSU" in r["role"] else f"Fraktionsvorsitz {short(r['name'])}")
+            )
             out[r["person_id"]]["roles"].append({"office": office, "kind": "fraktion"})
     for p in out.values():
         p["name"] = full_name(p)
@@ -270,7 +280,8 @@ def plenary(conn: sqlite3.Connection, start: str, end: str) -> tuple[dict[str, d
         "SELECT s.id, s.rede_id, s.person_id, s.text, s.interruption, st.date, a.id agenda_id, a.position, a.title, "
         "a.top_id, s.sitting_id FROM speech s JOIN sitting st ON st.id = s.sitting_id "
         "LEFT JOIN agenda_item a ON a.id = s.agenda_item_id "
-        "WHERE st.date BETWEEN ? AND ? AND s.kind = 'rede' AND coalesce(a.kind, '') NOT IN ('befragung', 'fragestunde') "
+        "WHERE st.date BETWEEN ? AND ? AND s.kind = 'rede' "
+        "AND coalesce(a.kind, '') NOT IN ('befragung', 'fragestunde') "
         "AND s.id NOT IN (SELECT speech_id FROM question_turn) ORDER BY s.sitting_id, s.position",
         (start, end),
     ).fetchall()
@@ -322,7 +333,8 @@ def deviations(conn: sqlite3.Connection, start: str, end: str) -> dict[str, list
     out: dict[str, list[dict]] = defaultdict(list)
     for v in conn.execute("SELECT id, title, date FROM roll_call_vote WHERE date BETWEEN ? AND ?", (start, end)):
         rows = conn.execute(
-            "SELECT person_id, fraction, vote FROM individual_vote WHERE vote_id = ? AND vote IN ('yes','no','abstain')",
+            "SELECT person_id, fraction, vote FROM individual_vote "
+            "WHERE vote_id = ? AND vote IN ('yes','no','abstain')",
             (v["id"],),
         ).fetchall()
         majority = {}
@@ -519,8 +531,9 @@ def people_payload(conn: sqlite3.Connection, date: str, fetch: bool = True, cach
         signals["zurufe"] = rate_signal(w["zurufe"], w["words"], b["zurufe"], b["words"], base_house)
         zf_w = len(w["zf_asked"]) + len(w["zf_received"])
         zf_b = len(b["zf_asked"]) + len(b["zf_received"])
-        signals["zwischenfragen"] = count_signal("zwischenfragen", zf_w, zf_b, base_weeks,
-                                                 {"asked": len(w["zf_asked"]), "received": len(w["zf_received"])})
+        signals["zwischenfragen"] = count_signal(
+            "zwischenfragen", zf_w, zf_b, base_weeks, {"asked": len(w["zf_asked"]), "received": len(w["zf_received"])}
+        )
         ans_w, ans_b = sum(a["n"] for a in w["answers"]), sum(a["n"] for a in b["answers"])
         signals["antworten"] = count_signal("antworten", ans_w, ans_b, base_weeks)
         hib_ids = sorted(m_week.get(pid, set()))
@@ -545,10 +558,14 @@ def people_payload(conn: sqlite3.Connection, date: str, fetch: bool = True, cach
                 "abweichungen": devs.get(pid, []),
             },
         })  # fmt: skip
+    for e in out:  # what the news was: the reader should not have to guess (a handful of calls)
+        if e["group"] == "nachricht" and fetch:
+            next_day = (dt.date.fromisoformat(end) + dt.timedelta(days=1)).isoformat()  # the morning's coverage
+            e["tagesschau"] = tagesschau(e["name"], start, next_day, cache)
     if with_tagesschau:
-        for e in out[:30]:  # 60 calls per hour: never more than half of that in one run
+        for e in [e for e in out if "tagesschau" not in e][:30]:  # 60 calls an hour: at most half in one run
             e["tagesschau"] = tagesschau(e["name"], start, end, cache)
-    order = {"beides": 0, "plenum": 1, "wikipedia": 2}
+    order = {"nachricht": 0, "beides": 1, "plenum": 2, "wikipedia": 3}
     out.sort(key=lambda e: (order[e["group"]], persons[e["id"]]["last"], e["name"]))
     return {"people": out, "n_persons": len(persons), "n_with_wiki": len(views),
             "pageviews_until": max((d for v in views.values() for d in v if d <= end), default=None),
@@ -666,8 +683,9 @@ def befragungen(conn: sqlite3.Connection, start: str, end: str) -> list[dict]:
                                                           "office": t["speaker_role"], "answers": 0})  # fmt: skip
                 a["answers"] += t["role"] == "antwort"
         asked = Counter(short(t["f"]) for t in turns if t["role"] in ("frage", "nachfrage", "zusatzfrage") and t["f"])
-        out.append({"date": s["date"], "sitting": s["id"], "url": f"regierung/regierungsbefragung/{page_id(s['id'])}.html",
-                    "answering": list(answering.values()), "questions_by_fraction": dict(asked.most_common())})  # fmt: skip
+        url = f"regierung/regierungsbefragung/{page_id(s['id'])}.html"
+        out.append({"date": s["date"], "sitting": s["id"], "url": url, "answering": list(answering.values()),
+                    "questions_by_fraction": dict(asked.most_common())})  # fmt: skip
     return out
 
 
@@ -699,13 +717,16 @@ METHOD = (
     "„Im Gespräch“ zeigt, wer und was in dieser Woche mehr Aufmerksamkeit bekommt als sonst. Jede Zahl wird mit "
     "derselben Person oder demselben Sachgebiet in den 90 Tagen davor verglichen, nicht mit anderen. Eine Person "
     "steht hier, wenn mindestens zwei Werte deutlich über ihrem Normalwert liegen oder wenn ihre Wikipedia-Seite "
-    "ein Vielfaches der üblichen Aufrufe hat und sie in der Woche im Bundestag aufgetreten ist. Gezählt werden "
+    "ein Vielfaches der üblichen Aufrufe hat und sie in der Woche im Bundestag aufgetreten ist. Bei mehr als dem "
+    "Zwanzigfachen steht sie auch ohne Auftritt hier: dann gibt es Nachrichten über sie, die tagesschau-Meldungen "
+    "nennen sie. Gezählt werden "
     "Aufrufe der Wikipedia-Seite, Reden, Zurufe während der Reden je 1.000 Wörter, Zwischenfragen, Antworten in "
     "Regierungsbefragung und Fragestunde und Nennungen in hib-Meldungen. Die Reihenfolge ist keine Rangfolge. "
     "Aufmerksamkeit ist keine Bewertung. Ämter wie Ministerium oder Fraktionsvorsitz bringen mehr Aufmerksamkeit."
 )
 
 GROUPS = {
+    "nachricht": "In den Nachrichten: ein Vielfaches der üblichen Aufrufe",
     "beides": "Mehr Aufrufe und mehr Aufmerksamkeit im Bundestag",
     "plenum": "Mehr Aufmerksamkeit im Bundestag",
     "wikipedia": "Viel mehr Aufrufe, in der Woche im Bundestag aufgetreten",
@@ -759,9 +780,7 @@ def _a(href: str, label: str, research: str) -> str:
 def render_person(e: dict, research: str) -> str:
     who = html.escape(short(e["fraction"]) if e["fraction"] else "")
     role = f'<div class="gs-role">{html.escape(e["role"])}</div>' if e["role"] else ""
-    lines = "".join(
-        f'<li class="{"gs-up" if up else ""}">{html.escape(t)}</li>' for t, up in signal_lines(e)
-    )
+    lines = "".join(f'<li class="{"gs-up" if up else ""}">{html.escape(t)}</li>' for t, up in signal_lines(e))
     ev = e["evidence"]
     links = []
     for r in ev["reden"]:
@@ -823,7 +842,8 @@ def render_topics(t: dict, research: str) -> str:
 STYLE = f"""
 .gs {{ --gs: {RADAR}; }}
 .gs h2 {{ margin: 0 0 .2rem; }}
-.gs .gs-tag {{ color: var(--gs); font-size: .8rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }}
+.gs .gs-tag {{ color: var(--gs); font-size: .8rem; font-weight: 600; letter-spacing: .03em;
+  text-transform: uppercase; }}
 .gs h3 {{ font-size: 1rem; margin: 1.2rem 0 .4rem; border-bottom: 2px solid var(--gs); padding-bottom: .15rem; }}
 .gs ul.gs-people, .gs ul.gs-list {{ list-style: none; padding: 0; margin: 0; }}
 .gs .gs-person, .gs ul.gs-list > li {{ padding: .55rem 0; border-bottom: 1px solid #e5e7eb; }}
