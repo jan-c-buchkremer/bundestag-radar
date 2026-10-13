@@ -499,7 +499,31 @@ def _finish(story: dict) -> dict:
     ressorts = Counter(h["ressort"] for h in story["hib"])
     story["area"] = AREA_OF_RESSORT.get(ressorts.most_common(1)[0][0], "weitere") if ressorts else None
     story["hib"].sort(key=lambda h: (h["date"], h["id"]))
+    if voted := plenum_stage(story):
+        story["stage"] = voted
+    elif sig["debatte"] and (story.get("stage") or {}).get("dip") == "Noch nicht beraten":
+        story["stage"] = {**story["stage"], "label": "Im Plenum beraten"}  # DIP has not caught up with the debate
     return story
+
+
+def plenum_stage(story: dict) -> dict | None:
+    """The plenum's vote of this week on the story's own Vorgang: DIP's Stand lags it by days, so the card names
+    the vote ("Im Plenum abgelehnt") instead of "In den Ausschüssen". A Beschlussempfehlung is named as such: its
+    "angenommen" often means the Antrag was rejected."""
+    key = story.get("key") or {}
+    if key.get("kind") != "vorgang":
+        return None
+    own = [
+        d
+        for d in story["abstimmungen"]
+        if not d.get("shared") and f"vorgaenge/{key['id']}.html" in (d.get("url") or "") and d.get("result")
+    ]
+    if not own:
+        return None
+    last = own[-1]
+    what = "Beschlussempfehlung" if last.get("subject", "").startswith("Beschlussempfehlung") else "Im Plenum"
+    old = story.get("stage") or {}
+    return {"label": f"{what} {last['result']}", "dip": old.get("dip"), "vote": last["id"]}
 
 
 def _plenum_entry(item: dict, reden: list[dict]) -> dict:
