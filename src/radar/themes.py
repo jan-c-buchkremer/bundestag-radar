@@ -617,7 +617,11 @@ def run_label(registry_path: Path, labeller=claude_label) -> int:
     for t in active(registry):
         if t.get("label"):
             continue
-        name = labeller(t)
+        try:
+            name = labeller(t)
+        except Exception as e:  # one failed call (rate limit, timeout) must not end the run; the next run retries
+            print(f"  {t['id']} not named: {e.__class__.__name__}")
+            continue
         if name and len(name) <= 60:
             t["label"], t["label_by"] = name, f"generated {dt.date.today().isoformat()}"
             n += 1
