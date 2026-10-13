@@ -1,5 +1,6 @@
 """radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
-radar build stories [--week 2026-W41] | radar build lead [--week 2026-W41] [--backend cli|api] | radar serve"""
+radar build stories [--week 2026-W41] | radar build lead [--week 2026-W41] [--backend cli|api] |
+radar build gespraech [--date 2026-10-11] | radar serve"""
 
 from __future__ import annotations
 
@@ -21,12 +22,16 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument(
         "weeks",
         nargs="*",
-        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index); "
-        "or `stories` (Geschichten der Woche) / `lead` (stories + generated texts) alone",
+        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index), "
+        "`gespraech` (Im Gespräch: attention of the 7 days up to --date); or `stories` (Geschichten der Woche) / "
+        "`lead` (stories + generated texts) alone",
     )
     b.add_argument("--week", help="stories/lead: the ISO week (default: the newest hib week)")
     b.add_argument("--backend", default="cli", choices=("cli", "api"), help="lead: claude -p or the Anthropic API")
     b.add_argument("--no-positions", action="store_true", help="lead: skip the per-Fraktion sentences")
+    b.add_argument("--date", help="gespraech: last day of the week, ISO (default: yesterday)")
+    b.add_argument("--no-fetch", action="store_true", help="gespraech: no Wikipedia calls (cached or not)")
+    b.add_argument("--tagesschau", action="store_true", help="gespraech: count tagesschau hits (max 30 calls)")
     b.add_argument("--all", action="store_true", help="every week in the store, the period overview and the index")
     b.add_argument("--out", type=Path, default=Path("data/out"))
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
@@ -54,6 +59,18 @@ def main(argv: list[str] | None = None) -> None:
     if args.weeks and args.weeks[0] in ("stories", "lead"):
         _stories(conn, args)
         return
+    if "gespraech" in args.weeks:
+        import datetime as dt
+
+        from radar import gespraech
+
+        date = args.date or (dt.date.today() - dt.timedelta(days=1)).isoformat()
+        payload = gespraech.build(conn, date, fetch=not args.no_fetch, with_tagesschau=args.tagesschau)
+        gespraech.log_summary(payload)
+        print(f"wrote {gespraech.write(args.out, payload)} and {args.out / gespraech.PREVIEW}")
+        args.weeks = [w for w in args.weeks if w != "gespraech"]
+        if not args.weeks and not args.all:
+            return
 
     import time
 
