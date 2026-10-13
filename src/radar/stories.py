@@ -501,7 +501,7 @@ def _finish(story: dict) -> dict:
     story["hib"].sort(key=lambda h: (h["date"], h["id"]))
     if voted := plenum_stage(story):
         story["stage"] = voted
-    elif sig["debatte"] and (story.get("stage") or {}).get("dip") == "Noch nicht beraten":
+    elif sig["debatte"] and ((story.get("stage") or {}).get("dip") or "").endswith("Noch nicht beraten"):
         story["stage"] = {**story["stage"], "label": "Im Plenum beraten"}  # DIP has not caught up with the debate
     return story
 
