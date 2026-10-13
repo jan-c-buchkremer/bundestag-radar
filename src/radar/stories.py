@@ -50,8 +50,13 @@ TOP_N = 6  # stories the lead text and the "kurz erklärt" are written for
 
 # the kinds of source, in the order the card names them
 SIGNALS = ("hib", "drucksache", "debatte", "abstimmung", "namentlich")
-SIGNAL_LABEL = {"hib": "hib", "drucksache": "Drucksache", "debatte": "Debatte", "abstimmung": "Abstimmung",
-                "namentlich": "namentliche Abstimmung"}  # fmt: skip
+SIGNAL_LABEL = {
+    "hib": "hib",
+    "drucksache": "Drucksache",
+    "debatte": "Debatte",
+    "abstimmung": "Abstimmung",
+    "namentlich": "namentliche Abstimmung",
+}
 
 # Research's stages of a Gesetzgebung by DIP Beratungsstand (bundestag-research-platform procedures.STAGE, labels
 # from procedures.STAGES/ENDED); any other Vorgang shows DIP's Stand as it is
@@ -85,10 +90,42 @@ METHOD = (
 )
 
 _WORD = re.compile(r"[a-zäöüß]{5,}")
-_STOP = {"bundesregierung", "fraktion", "antrag", "gesetz", "gesetzes", "entwurf", "entwurfs", "deutschen",
-         "bundestag", "bundestages", "ausschuss", "beratung", "unterrichtung", "anfrage", "antwort", "kleine",
-         "fragen", "sowie", "zwischen", "werden", "wurde", "durch", "gegen", "unter", "einer", "eines", "dieser",
-         "fordert", "fordern", "weitere", "keine", "experten", "sachverständige", "regierung"}  # fmt: skip
+_STOP = {
+    "bundesregierung",
+    "fraktion",
+    "antrag",
+    "gesetz",
+    "gesetzes",
+    "entwurf",
+    "entwurfs",
+    "deutschen",
+    "bundestag",
+    "bundestages",
+    "ausschuss",
+    "beratung",
+    "unterrichtung",
+    "anfrage",
+    "antwort",
+    "kleine",
+    "fragen",
+    "sowie",
+    "zwischen",
+    "werden",
+    "wurde",
+    "durch",
+    "gegen",
+    "unter",
+    "einer",
+    "eines",
+    "dieser",
+    "fordert",
+    "fordern",
+    "weitere",
+    "keine",
+    "experten",
+    "sachverständige",
+    "regierung",
+}
 
 
 def stems(text: str) -> set[str]:
@@ -180,9 +217,14 @@ def _drucksachen(conn: sqlite3.Connection, numbers: list[str]) -> dict[str, dict
         f"FROM drucksache d WHERE d.number IN ({_marks(numbers)}) AND coalesce(d.publisher, 'BT') = 'BT'",
         numbers,
     ):
-        out[r["number"]] = {"number": r["number"], "type": r["type"], "title": r["title"], "date": r["date"],
-                            "pdf": r["pdf_url"] or drucksache_pdf(r["number"]),
-                            "vorgaenge": sorted(set(json.loads(r["vs"])))}  # fmt: skip
+        out[r["number"]] = {
+            "number": r["number"],
+            "type": r["type"],
+            "title": r["title"],
+            "date": r["date"],
+            "pdf": r["pdf_url"] or drucksache_pdf(r["number"]),
+            "vorgaenge": sorted(set(json.loads(r["vs"]))),
+        }
     return out
 
 
@@ -197,8 +239,15 @@ def _week_drucksachen(conn: sqlite3.Connection, vids: list[str], start: str, end
         f"AND d.date BETWEEN ? AND ? AND coalesce(d.publisher, 'BT') = 'BT' ORDER BY d.date, d.number",
         [*vids, start, end],
     ):
-        out[r["v"]].append({"number": r["number"], "type": r["type"], "title": r["title"], "date": r["date"],
-                            "pdf": r["pdf_url"] or drucksache_pdf(r["number"])})  # fmt: skip
+        out[r["v"]].append(
+            {
+                "number": r["number"],
+                "type": r["type"],
+                "title": r["title"],
+                "date": r["date"],
+                "pdf": r["pdf_url"] or drucksache_pdf(r["number"]),
+            }
+        )
     return out
 
 
@@ -233,9 +282,15 @@ def _agenda(conn: sqlite3.Connection, sittings: list[dict]) -> list[dict]:
         f"GROUP BY agenda_item_id, rede_id ORDER BY sitting_id, p",
         list(items),
     ):
-        items[r[0]]["reden"].append({"id": r["rede_id"], "sub": r["sub_item_id"], "person_id": r["person_id"],
-                                     "speaker": re.sub(r"\s*\(.*\)$", "", r["speaker_name"]),
-                                     "fraction": r["speaker_group"]})  # fmt: skip
+        items[r[0]]["reden"].append(
+            {
+                "id": r["rede_id"],
+                "sub": r["sub_item_id"],
+                "person_id": r["person_id"],
+                "speaker": re.sub(r"\s*\(.*\)$", "", r["speaker_name"]),
+                "fraction": r["speaker_group"],
+            }
+        )
     return list(items.values())
 
 
@@ -246,17 +301,30 @@ def _decisions(conn: sqlite3.Connection, sittings: list[dict]) -> list[dict]:
     if not ids or not has_table(conn, "decision"):
         return []
     out, seen = [], set()
-    rcv = {r["id"]: dict(r) for r in conn.execute(
-        f"SELECT id, title, vorgang_id, yes, no, abstain, date FROM roll_call_vote WHERE sitting_id IN ({_marks(ids)})",
-        ids)} if has_table(conn, "roll_call_vote") else {}  # fmt: skip
+    rcv = (
+        {
+            r["id"]: dict(r)
+            for r in conn.execute(
+                "SELECT id, title, vorgang_id, yes, no, abstain, date FROM roll_call_vote "
+                f"WHERE sitting_id IN ({_marks(ids)})",
+                ids,
+            )
+        }
+        if has_table(conn, "roll_call_vote")
+        else {}
+    )
     for r in conn.execute(
         f"SELECT d.id, d.agenda_item_id, d.kind, d.subject, d.result, d.roll_call_vote_id, d.vorgang_id, "
         f"d.drucksache_number, st.date FROM decision d JOIN sitting st ON st.id = d.sitting_id "
         f"WHERE d.sitting_id IN ({_marks(ids)}) ORDER BY st.date, d.position",
         ids,
     ):
-        links = [(v, via) for v, via in conn.execute(
-            "SELECT vorgang_id, via FROM decision_vorgang WHERE decision_id = ? ORDER BY vorgang_id", (r["id"],))]
+        links = [
+            (v, via)
+            for v, via in conn.execute(
+                "SELECT vorgang_id, via FROM decision_vorgang WHERE decision_id = ? ORDER BY vorgang_id", (r["id"],)
+            )
+        ]
         if r["vorgang_id"]:
             vs = [r["vorgang_id"]]
         elif len(links) <= 1 or not (strong := [v for v, via in links if via in ("roll_call", "dip_step")]):
@@ -264,11 +332,23 @@ def _decisions(conn: sqlite3.Connection, sittings: list[dict]) -> list[dict]:
         else:
             vs = strong
         page = page_id(r["roll_call_vote_id"] or r["id"])
-        d = {"id": r["id"], "date": r["date"], "agenda_id": r["agenda_item_id"], "kind": r["kind"],
-             "subject": r["subject"], "result": r["result"], "drucksache": r["drucksache_number"],
-             "vorgaenge": vs, "url": decision_url(page, [v for v, _ in links]),
-             "fraktionen": {f: p for f, p in conn.execute(
-                 "SELECT fraction, position FROM decision_fraction WHERE decision_id = ?", (r["id"],))}}  # fmt: skip
+        d = {
+            "id": r["id"],
+            "date": r["date"],
+            "agenda_id": r["agenda_item_id"],
+            "kind": r["kind"],
+            "subject": r["subject"],
+            "result": r["result"],
+            "drucksache": r["drucksache_number"],
+            "vorgaenge": vs,
+            "url": decision_url(page, [v for v, _ in links]),
+            "fraktionen": {
+                f: p
+                for f, p in conn.execute(
+                    "SELECT fraction, position FROM decision_fraction WHERE decision_id = ?", (r["id"],)
+                )
+            },
+        }
         if (v := rcv.get(r["roll_call_vote_id"] or "")) is not None:
             seen.add(v["id"])
             d |= {"title": v["title"], "yes": v["yes"], "no": v["no"], "abstain": v["abstain"]}
@@ -276,11 +356,24 @@ def _decisions(conn: sqlite3.Connection, sittings: list[dict]) -> list[dict]:
     for v in rcv.values():
         if v["id"] not in seen:
             vs = [v["vorgang_id"]] if v["vorgang_id"] else []
-            out.append({"id": v["id"], "date": v["date"], "agenda_id": None, "kind": "namentlich",
-                        "subject": v["title"], "title": v["title"], "drucksache": None,
-                        "result": "angenommen" if v["yes"] > v["no"] else "abgelehnt", "vorgaenge": vs,
-                        "url": decision_url(page_id(v["id"]), vs), "fraktionen": {},
-                        "yes": v["yes"], "no": v["no"], "abstain": v["abstain"]})  # fmt: skip
+            out.append(
+                {
+                    "id": v["id"],
+                    "date": v["date"],
+                    "agenda_id": None,
+                    "kind": "namentlich",
+                    "subject": v["title"],
+                    "title": v["title"],
+                    "drucksache": None,
+                    "result": "angenommen" if v["yes"] > v["no"] else "abgelehnt",
+                    "vorgaenge": vs,
+                    "url": decision_url(page_id(v["id"]), vs),
+                    "fraktionen": {},
+                    "yes": v["yes"],
+                    "no": v["no"],
+                    "abstain": v["abstain"],
+                }
+            )
     return out
 
 
@@ -289,9 +382,15 @@ def _vorgaenge(conn: sqlite3.Connection, vids: list[str]) -> dict[str, dict]:
     if not vids:
         return {}
     out = {
-        r["id"]: {"id": r["id"], "type": r["type"], "title": " ".join(r["title"].split()), "status": r["status"],
-                  "subjects": json.loads(r["subjects"] or "[]"), "initiators": json.loads(r["initiators"] or "[]"),
-                  "committees": set()}  # fmt: skip
+        r["id"]: {
+            "id": r["id"],
+            "type": r["type"],
+            "title": " ".join(r["title"].split()),
+            "status": r["status"],
+            "subjects": json.loads(r["subjects"] or "[]"),
+            "initiators": json.loads(r["initiators"] or "[]"),
+            "committees": set(),
+        }
         for r in conn.execute(
             f"SELECT id, type, title, status, subjects, initiators FROM vorgang WHERE id IN ({_marks(vids)})", vids
         )
@@ -320,6 +419,7 @@ def _hib_vorgaenge(item: dict, ds: dict[str, dict], info: dict[str, dict]) -> di
         return vs
     words = stems(f"{item['title']} {item.get('text', '')[:400]}")
     order = list(dict.fromkeys(vs.values()))
+
     def shared(n: str) -> int:
         return max(len(words & stems(info[v]["title"])) for v, m in vs.items() if m == n)
 
@@ -331,8 +431,13 @@ def _hib_vorgaenge(item: dict, ds: dict[str, dict], info: dict[str, dict]) -> di
 
 def _vorgang_signals(v: str, hib_of: dict, ds_of: dict, reden_of: dict, dec_of: dict) -> int:
     dec = dec_of.get(v, [])
-    return (bool(hib_of.get(v)) + bool(ds_of.get(v)) + bool(reden_of.get(v)) + bool(dec)
-            + any(d["kind"] == "namentlich" for d in dec))  # fmt: skip
+    return (
+        bool(hib_of.get(v))
+        + bool(ds_of.get(v))
+        + bool(reden_of.get(v))
+        + bool(dec)
+        + any(d["kind"] == "namentlich" for d in dec)
+    )
 
 
 def _committee_match(item: dict, story: dict, info: dict[str, dict]) -> bool:
@@ -354,13 +459,14 @@ def _attach_loose(loose: list[dict], stories: list[dict], info: dict[str, dict])
         for s in stories:
             if s["key"]["kind"] != "vorgang" or not _committee_match(item, s, info):
                 continue
-            theirs = set().union(*(stems(info[v]["title"]) for v in s["vorgang_ids"]),
-                                 *(stems(h["title"]) for h in s["hib"]))  # fmt: skip
+            theirs = set().union(
+                *(stems(info[v]["title"]) for v in s["vorgang_ids"]), *(stems(h["title"]) for h in s["hib"])
+            )
             n = len(words & theirs)
             if n > best_n:
                 best, best_n = s, n
         if best is not None and best_n >= MIN_SHARED_WORDS:
-            best["hib"].append(item | {"via": f"Ausschuss und {best_n} gemeinsame Stichwörter"})
+            best["hib"].append(_hib_entry(item, f"Ausschuss und {best_n} gemeinsame Stichwörter"))
         else:
             alone.append(item)
     return alone
@@ -397,9 +503,17 @@ def _finish(story: dict) -> dict:
 
 def _plenum_entry(item: dict, reden: list[dict]) -> dict:
     count = Counter(r["fraction"] for r in reden)
-    return {"agenda_id": item["id"], "sitting": item["sitting_id"], "date": item["date"], "top": item["top_id"],
-            "title": short_title(item["title"], item["top_id"]), "url": top_url(item["sitting_id"], item["position"]),
-            "no_debate": bool(item["no_debate"]), "reden": len(reden), "fraktionen": dict(count.most_common())}  # fmt: skip
+    return {
+        "agenda_id": item["id"],
+        "sitting": item["sitting_id"],
+        "date": item["date"],
+        "top": item["top_id"],
+        "title": short_title(item["title"], item["top_id"]),
+        "url": top_url(item["sitting_id"], item["position"]),
+        "no_debate": bool(item["no_debate"]),
+        "reden": len(reden),
+        "fraktionen": dict(count.most_common()),
+    }
 
 
 def _reden_for(item: dict, subs: set[str | None]) -> list[dict]:
@@ -410,17 +524,34 @@ def _reden_for(item: dict, subs: set[str | None]) -> list[dict]:
 
 
 def _rede_entry(r: dict, agenda_id: str) -> dict:
-    return {"id": r["id"], "speaker": r["speaker"], "fraction": r["fraction"], "person_id": r["person_id"],
-            "agenda_id": agenda_id, "url": speech_url(r["id"])}  # fmt: skip
+    return {
+        "id": r["id"],
+        "speaker": r["speaker"],
+        "fraction": r["fraction"],
+        "person_id": r["person_id"],
+        "agenda_id": agenda_id,
+        "url": speech_url(r["id"]),
+    }
 
 
 def _vorgang_ref(v: dict) -> dict:
-    return {"id": v["id"], "title": v["title"], "type": v["type"], "status": v["status"],
-            "url": RESEARCH + research_path(v["id"], v["type"])}  # fmt: skip
+    return {
+        "id": v["id"],
+        "title": v["title"],
+        "type": v["type"],
+        "status": v["status"],
+        "url": RESEARCH + research_path(v["id"], v["type"]),
+    }
 
 
-def assemble(hib: list[dict], ds: dict[str, dict], agenda: list[dict], decisions: list[dict], info: dict[str, dict],
-             week_ds: dict[str, list[dict]]) -> list[dict]:
+def assemble(
+    hib: list[dict],
+    ds: dict[str, dict],
+    agenda: list[dict],
+    decisions: list[dict],
+    info: dict[str, dict],
+    week_ds: dict[str, list[dict]],
+) -> list[dict]:
     """The week's stories from the loaded rows, best-carried first (see the module docstring)."""
     union = _Union()
     hib_of: dict[str, list[tuple[dict, str]]] = defaultdict(list)
@@ -451,8 +582,12 @@ def assemble(hib: list[dict], ds: dict[str, dict], agenda: list[dict], decisions
             reden_of[v].append((a, s))
         if not a["no_debate"] and a["reden"] and 1 < len(subs) <= MAX_AGENDA_VORGAENGE:
             union.union([f"v:{v}" for v in subs])
-        if (not subs and a["reden"] and a["kind"] not in ("befragung", "fragestunde")
-                and not (a["title"] or "").startswith("Zur Geschäftsordnung")):
+        if (
+            not subs
+            and a["reden"]
+            and a["kind"] not in ("befragung", "fragestunde")
+            and not (a["title"] or "").startswith("Zur Geschäftsordnung")
+        ):
             debates_alone.append(a)
     dec_of: dict[str, list[dict]] = defaultdict(list)
     votes_alone = []
@@ -468,11 +603,16 @@ def assemble(hib: list[dict], ds: dict[str, dict], agenda: list[dict], decisions
         groups[union.find(f"v:{v}")].append(v)
 
     def rank(v: str) -> tuple:
-        return (TYPE_RANK.get(info[v]["type"], 2), -_vorgang_signals(v, hib_of, week_ds, reden_of, dec_of),
-                -len(hib_of.get(v, [])), v)  # fmt: skip
+        return (
+            TYPE_RANK.get(info[v]["type"], 2),
+            -_vorgang_signals(v, hib_of, week_ds, reden_of, dec_of),
+            -len(hib_of.get(v, [])),
+            v,
+        )
 
-    stories = [_vorgang_story(sorted(vs, key=rank), info, hib_of, reden_of, dec_of, week_ds, ds)
-               for vs in groups.values()]  # fmt: skip
+    stories = [
+        _vorgang_story(sorted(vs, key=rank), info, hib_of, reden_of, dec_of, week_ds, ds) for vs in groups.values()
+    ]
     alone = _attach_loose(loose, stories, info)
     stories += [_drucksache_story(n, items, ds) for n, items in loose_ds.items()]
     stories += [_hib_story(item) for item in alone]
@@ -536,9 +676,23 @@ def _vote_entry(d: dict) -> dict:
 
 
 def _empty(id_: str, kind: str, title: str, url: str | None) -> dict:
-    return {"id": id_, "key": {"kind": kind, "id": id_.split("-", 1)[1]}, "title": title, "type": None, "url": url,
-            "stage": None, "vorgang_ids": [], "vorgaenge": [], "einbringer": [], "sachgebiete": [], "hib": [],
-            "drucksachen": [], "plenum": [], "reden": [], "abstimmungen": []}  # fmt: skip
+    return {
+        "id": id_,
+        "key": {"kind": kind, "id": id_.split("-", 1)[1]},
+        "title": title,
+        "type": None,
+        "url": url,
+        "stage": None,
+        "vorgang_ids": [],
+        "vorgaenge": [],
+        "einbringer": [],
+        "sachgebiete": [],
+        "hib": [],
+        "drucksachen": [],
+        "plenum": [],
+        "reden": [],
+        "abstimmungen": [],
+    }
 
 
 def _drucksache_story(number: str, items: list[dict], ds: dict) -> dict:
@@ -546,8 +700,11 @@ def _drucksache_story(number: str, items: list[dict], ds: dict) -> dict:
     d = ds.get(number)
     s = _empty(f"ds-{page_id(number)}", "drucksache", d["title"] if d else items[0]["title"], None)
     s["hib"] = [_hib_entry(i, f"Drucksache {number}") for i in items]
-    s["drucksachen"] = [{k: d[k] for k in ("number", "type", "title", "date", "pdf")} if d else
-                        {"number": number, "pdf": drucksache_pdf(number)}]  # fmt: skip
+    s["drucksachen"] = [
+        {k: d[k] for k in ("number", "type", "title", "date", "pdf")}
+        if d
+        else {"number": number, "pdf": drucksache_pdf(number)}
+    ]
     s["title_source"] = "dip" if d else "hib"
     return s
 
@@ -596,31 +753,46 @@ def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = 
     if week is None:
         return None
     start, end = week_range(week)
-    sittings = [dict(r) for r in conn.execute(
-        "SELECT id, date, preliminary FROM sitting WHERE date BETWEEN ? AND ? ORDER BY date", (start, end))]  # fmt: skip
+    sittings = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT id, date, preliminary FROM sitting WHERE date BETWEEN ? AND ? ORDER BY date", (start, end)
+        )
+    ]
     hib = _hib(conn, start, end) if has_table(conn, "hib_item") else []
     numbers = sorted({n for i in hib for n in i["drucksachen"]})
     ds = _drucksachen(conn, numbers) if has_table(conn, "drucksache") else {}
     agenda = _agenda(conn, sittings)
     decisions = _decisions(conn, sittings)
-    vids = sorted({v for d in ds.values() for v in d["vorgaenge"]}
-                  | {vl["vorgang"] for a in agenda for vl in a["vorlagen"] if vl["vorgang"]}
-                  | {v for d in decisions for v in d["vorgaenge"]})  # fmt: skip
+    vids = sorted(
+        {v for d in ds.values() for v in d["vorgaenge"]}
+        | {vl["vorgang"] for a in agenda for vl in a["vorlagen"] if vl["vorgang"]}
+        | {v for d in decisions for v in d["vorgaenge"]}
+    )
     info = _vorgaenge(conn, vids) if has_table(conn, "vorgang") else {}
     week_ds = _week_drucksachen(conn, sorted(info), start, end) if has_table(conn, "vorgang_drucksache") else {}
     stories = assemble(hib, ds, agenda, decisions, info, week_ds)
     for s in stories:
         s.pop("vorgang_ids", None)
     return {
-        "week": week, "start": start, "end": end,
+        "week": week,
+        "start": start,
+        "end": end,
         "sittings": [{"id": s["id"], "date": s["date"], "preliminary": bool(s["preliminary"])} for s in sittings],
         "method": METHOD,
-        "params": {"max_agenda_vorgaenge": MAX_AGENDA_VORGAENGE, "max_hib_vorgaenge": MAX_HIB_VORGAENGE,
-                   "min_shared_words": MIN_SHARED_WORDS, "signals": list(SIGNALS)},
-        "counts": {"hib": len(hib), "stories": len(stories),
-                   "by_score": dict(sorted(Counter(s["score"] for s in stories).items(), reverse=True))},
+        "params": {
+            "max_agenda_vorgaenge": MAX_AGENDA_VORGAENGE,
+            "max_hib_vorgaenge": MAX_HIB_VORGAENGE,
+            "min_shared_words": MIN_SHARED_WORDS,
+            "signals": list(SIGNALS),
+        },
+        "counts": {
+            "hib": len(hib),
+            "stories": len(stories),
+            "by_score": dict(sorted(Counter(s["score"] for s in stories).items(), reverse=True)),
+        },
         "stories": stories,
-    }  # fmt: skip
+    }
 
 
 def write(out: Path, conn: sqlite3.Connection, week: str | None = None) -> dict | None:
@@ -672,24 +844,29 @@ def _chips(names: list[str]) -> str:
 
 def _sources(s: dict) -> str:
     """The evidence list of a card: every hib item, Drucksache, TOP, vote and the Reden, each a link."""
-    lines = [f'<li><a class="ev" href="{_e(h["url"])}">hib {_e(h["number"])}</a> {_e(h["title"])}</li>'
-             for h in s["hib"]]  # fmt: skip
-    lines += [f'<li><a class="ev" href="{_e(d["pdf"])}">Drucksache {_e(d["number"])}</a> '
-              f'{_e(d.get("type") or "")}</li>' for d in s["drucksachen"][:6]]  # fmt: skip
+    lines = [
+        f'<li><a class="ev" href="{_e(h["url"])}">hib {_e(h["number"])}</a> {_e(h["title"])}</li>' for h in s["hib"]
+    ]
+    lines += [
+        f'<li><a class="ev" href="{_e(d["pdf"])}">Drucksache {_e(d["number"])}</a> {_e(d.get("type") or "")}</li>'
+        for d in s["drucksachen"][:6]
+    ]
     if len(s["drucksachen"]) > 6:
         lines.append(f"<li>und {len(s['drucksachen']) - 6} weitere Drucksachen</li>")
     for p in s["plenum"]:
         what = "ohne Aussprache" if p["no_debate"] or not p["reden"] else f"{p['reden']} Reden"
-        lines.append(f'<li><a class="ev" href="{_e(p["url"])}">Plenum {_e(p["date"])}</a> '
-                     f'{_e(p["top"])}, {what}</li>')  # fmt: skip
+        lines.append(f'<li><a class="ev" href="{_e(p["url"])}">Plenum {_e(p["date"])}</a> {_e(p["top"])}, {what}</li>')
     for d in s["abstimmungen"]:
         kind = "Namentliche Abstimmung" if d["kind"] == "namentlich" else "Abstimmung"
         votes = f" ({d['yes']} Ja, {d['no']} Nein, {d['abstain']} Enthaltungen)" if "yes" in d else ""
-        lines.append(f'<li><a class="ev" href="{_e(d["url"])}">{kind}</a> {_e(d.get("result") or "ohne Ergebnis")}'
-                     f"{votes}: {_e(d.get('title') or d['subject'])}</li>")  # fmt: skip
+        lines.append(
+            f'<li><a class="ev" href="{_e(d["url"])}">{kind}</a> {_e(d.get("result") or "ohne Ergebnis")}'
+            f"{votes}: {_e(d.get('title') or d['subject'])}</li>"
+        )
     if len(s["vorgaenge"]) > 1:
-        lines += [f'<li><a class="ev" href="{_e(v["url"])}">Vorgang</a> {_e(v["title"])}</li>'
-                  for v in s["vorgaenge"][1:]]  # fmt: skip
+        lines += [
+            f'<li><a class="ev" href="{_e(v["url"])}">Vorgang</a> {_e(v["title"])}</li>' for v in s["vorgaenge"][1:]
+        ]
     return "<ul>" + "".join(lines) + "</ul>"
 
 
@@ -699,22 +876,28 @@ def render_card(s: dict, extra: dict | None = None) -> str:
     title = f'<a href="{_e(s["url"])}">{_e(s["title"])}</a>' if s.get("url") else _e(s["title"])
     meta = []
     if s.get("stage"):
-        meta.append(f'<span class="stage" title="Beratungsstand im DIP: {_e(s["stage"]["dip"])}">'
-                    f'{_e(s["stage"]["label"])}</span>')  # fmt: skip
+        meta.append(
+            f'<span class="stage" title="Beratungsstand im DIP: {_e(s["stage"]["dip"])}">'
+            f"{_e(s['stage']['label'])}</span>"
+        )
     if s.get("type"):
         meta.append(_e(s["type"]))
     if s["einbringer"]:
         meta.append(_chips(s["einbringer"]))
     if s["n_reden"]:
         meta.append(f"{s['n_reden']} Reden")
-    parts = [f"<h3>{title}</h3>", f'<div class="meta">{"".join(f"<span>{m}</span>" for m in meta)}</div>',
-             f'<div class="quellen">Quellen: {_e(s["quellen"])}</div>']  # fmt: skip
+    parts = [
+        f"<h3>{title}</h3>",
+        f'<div class="meta">{"".join(f"<span>{m}</span>" for m in meta)}</div>',
+        f'<div class="quellen">Quellen: {_e(s["quellen"])}</div>',
+    ]
     if extra.get("kurz"):
         parts.append(f'<p class="kurz">{extra["kurz"]}</p>')  # already escaped and linked by lead.render_text
     if extra.get("positions"):
         lis = "".join(f"<li>{p}</li>" for p in extra["positions"])
-        parts.append(f'<details open><summary>Positionen in der Debatte</summary><ul class="positions">{lis}</ul>'
-                     "</details>")  # fmt: skip
+        parts.append(
+            f'<details open><summary>Positionen in der Debatte</summary><ul class="positions">{lis}</ul></details>'
+        )
     parts.append(f"<details><summary>Belege</summary>{_sources(s)}</details>")
     return f'<article class="story" id="{_e(s["id"])}">{"".join(parts)}</article>'
 
@@ -724,8 +907,10 @@ def render_section(payload: dict, lead: dict | None = None, limit: int = 12) -> 
     "kurz erklärt" and positions go on the cards it covers."""
     extras = (lead or {}).get("stories", {})
     cards = "".join(render_card(s, extras.get(s["id"])) for s in payload["stories"][:limit])
-    return (f'<section class="radar-stories"><style>{CSS}</style><h2>Geschichten der Woche</h2>'
-            f'<div class="stories">{cards}</div><p class="radar-gen">{_e(payload["method"])}</p></section>')  # fmt: skip
+    return (
+        f'<section class="radar-stories"><style>{CSS}</style><h2>Geschichten der Woche</h2>'
+        f'<div class="stories">{cards}</div><p class="radar-gen">{_e(payload["method"])}</p></section>'
+    )
 
 
 def lab_page(payload: dict, lead: dict | None = None) -> str:

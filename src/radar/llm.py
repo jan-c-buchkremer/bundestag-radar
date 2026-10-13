@@ -62,27 +62,50 @@ class ClaudeCLI:
 
     name = "claude-cli"
 
-    def __init__(self, model: str | None = None, command: str = "claude", timeout: int = 600,
-                 runner: Callable[..., subprocess.CompletedProcess] = subprocess.run, cwd: str | None = None) -> None:  # fmt: skip
+    def __init__(
+        self,
+        model: str | None = None,
+        command: str = "claude",
+        timeout: int = 600,
+        runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+        cwd: str | None = None,
+    ) -> None:
         self.model = model or os.environ.get("RADAR_CLI_MODEL", DEFAULT_CLI_MODEL)
         self.command, self.timeout, self.runner, self.cwd = command, timeout, runner, cwd
 
     def args(self, system: str) -> list[str]:
-        return [self.command, "-p", "--output-format", "json", "--model", self.model, "--tools", "",
-                "--system-prompt", system, "--no-session-persistence"]  # fmt: skip
+        return [
+            self.command,
+            "-p",
+            "--output-format",
+            "json",
+            "--model",
+            self.model,
+            "--tools",
+            "",
+            "--system-prompt",
+            system,
+            "--no-session-persistence",
+        ]
 
     def generate(self, system: str, documents: list[Document], task: str) -> Result:
         prompt = f"{render_documents(documents)}\n\n{task}"
-        done = self.runner(self.args(system), input=prompt, capture_output=True, text=True, timeout=self.timeout,
-                           cwd=self.cwd)  # fmt: skip
+        done = self.runner(
+            self.args(system), input=prompt, capture_output=True, text=True, timeout=self.timeout, cwd=self.cwd
+        )
         if done.returncode != 0:
             raise RuntimeError(f"claude -p failed ({done.returncode}): {done.stderr.strip()[:500]}")
         out = json.loads(done.stdout)
         if out.get("is_error") or out.get("subtype", "success") != "success":
             raise RuntimeError(f"claude -p error: {str(out.get('result'))[:500]}")
         models = list(out.get("modelUsage") or {})
-        return Result(text=out["result"], model=models[0] if models else self.model, backend=self.name,
-                      cost_usd=out.get("total_cost_usd"), usage=out.get("usage") or {})  # fmt: skip
+        return Result(
+            text=out["result"],
+            model=models[0] if models else self.model,
+            backend=self.name,
+            cost_usd=out.get("total_cost_usd"),
+            usage=out.get("usage") or {},
+        )
 
 
 class AnthropicAPI:
@@ -90,8 +113,14 @@ class AnthropicAPI:
 
     name = "anthropic-api"
 
-    def __init__(self, model: str | None = None, client: Any = None, effort: str = "medium",
-                 max_tokens: int = 16000, fallbacks: bool = True) -> None:  # fmt: skip
+    def __init__(
+        self,
+        model: str | None = None,
+        client: Any = None,
+        effort: str = "medium",
+        max_tokens: int = 16000,
+        fallbacks: bool = True,
+    ) -> None:
         self.model = model or os.environ.get("RADAR_LLM_MODEL", DEFAULT_API_MODEL)
         self.effort, self.max_tokens, self.fallbacks = effort, max_tokens, fallbacks
         self._client = client
@@ -107,8 +136,12 @@ class AnthropicAPI:
     def request(self, system: str, documents: list[Document], task: str) -> dict:
         """The request body; the system prompt is cached (it is the same for every call of a kind)."""
         blocks: list[dict] = [
-            {"type": "document", "source": {"type": "text", "media_type": "text/plain", "data": d.text},
-             "title": d.id, "citations": {"enabled": True}}  # fmt: skip
+            {
+                "type": "document",
+                "source": {"type": "text", "media_type": "text/plain", "data": d.text},
+                "title": d.id,
+                "citations": {"enabled": True},
+            }
             for d in documents
         ]
         blocks.append({"type": "text", "text": task})
@@ -131,8 +164,7 @@ class AnthropicAPI:
         if message.stop_reason == "refusal":
             raise RuntimeError(f"refused: {getattr(message, 'stop_details', None)}")
         usage = message.usage.model_dump() if hasattr(message.usage, "model_dump") else dict(message.usage or {})
-        return Result(text=cited_text(message.content, documents), model=message.model, backend=self.name,
-                      usage=usage)  # fmt: skip
+        return Result(text=cited_text(message.content, documents), model=message.model, backend=self.name, usage=usage)
 
 
 def cited_text(content: list[Any], documents: list[Document]) -> str:
@@ -150,11 +182,11 @@ def cited_text(content: list[Any], documents: list[Document]) -> str:
                 ids.append(title)
         if ids:
             stripped = text.rstrip()
-            text = f"{stripped} [{'; '.join(ids)}]{text[len(stripped):]}"
+            text = f"{stripped} [{'; '.join(ids)}]{text[len(stripped) :]}"
         out.append(text)
     return "".join(out).strip()
 
 
 def backend(name: str, **kwargs: Any) -> Backend:
-    """"cli" or "api"."""
+    """ "cli" or "api"."""
     return ClaudeCLI(**kwargs) if name == "cli" else AnthropicAPI(**kwargs)

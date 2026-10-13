@@ -34,16 +34,35 @@ from radar import llm, stories
 from radar.llm import Document
 
 FILE = "lead.json"
-LABEL = ("Automatisch erstellt aus den Meldungen von „heute im bundestag“ und den Daten des Bundestages. Jeder Satz "
-         "nennt seine Quellen. Der Text kann Fehler enthalten.")  # fmt: skip
+LABEL = (
+    "Automatisch erstellt aus den Meldungen von „heute im bundestag“ und den Daten des Bundestages. Jeder Satz "
+    "nennt seine Quellen. Der Text kann Fehler enthalten."
+)
 LEAD_WORDS = (120, 200)
 MAX_SENTENCE_WORDS = 20  # Einfache Sprache: a longer sentence is logged as a warning, not dropped
 MAX_REDEN_PER_FRACTION = 3  # speeches given to the model per Fraktion, the longest first
 MAX_REDE_CHARS = 6000
-FRACTION_LABEL = {"CDU/CSU": "CDU/CSU", "SPD": "SPD", "AfD": "AfD", "BÜNDNIS 90/DIE GRÜNEN": "Grüne",
-                  "Die Linke": "Linke"}  # fmt: skip
-MONTHS = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November",
-          "Dezember")  # fmt: skip
+FRACTION_LABEL = {
+    "CDU/CSU": "CDU/CSU",
+    "SPD": "SPD",
+    "AfD": "AfD",
+    "BÜNDNIS 90/DIE GRÜNEN": "Grüne",
+    "Die Linke": "Linke",
+}
+MONTHS = (
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember",
+)
 
 SYSTEM = """Du schreibst für plenar-radar.de kurze Texte über die Arbeit des Deutschen Bundestages. Du arbeitest wie \
 eine neutrale Nachrichtenredaktion.
@@ -124,12 +143,20 @@ def _hib_sources(conn: sqlite3.Connection, items: list[dict]) -> list[Source]:
     """hib items with their full text (allowed for generated summaries with a link to each item, Jan 2026-10-12)."""
     if not items:
         return []
-    texts = {r[0]: r[1] for r in conn.execute(
-        f"SELECT id, text FROM hib_item WHERE id IN ({','.join('?' * len(items))})", [i["id"] for i in items])}  # fmt: skip
+    texts = {
+        r[0]: r[1]
+        for r in conn.execute(
+            f"SELECT id, text FROM hib_item WHERE id IN ({','.join('?' * len(items))})", [i["id"] for i in items]
+        )
+    }
     return [
-        Source(f"hib {i['number']}", f"heute im bundestag {i['number']}, {german_date(i['date'])}. Ressort: "
-               f"{i['ressort']}. Art: {i['kind']}.\nÜberschrift: {i['title']}\n{texts.get(i['id'], '')}",
-               i["url"], f"hib {i['number']}")  # fmt: skip
+        Source(
+            f"hib {i['number']}",
+            f"heute im bundestag {i['number']}, {german_date(i['date'])}. Ressort: "
+            f"{i['ressort']}. Art: {i['kind']}.\nÜberschrift: {i['title']}\n{texts.get(i['id'], '')}",
+            i["url"],
+            f"hib {i['number']}",
+        )
         for i in items
     ]
 
@@ -137,13 +164,20 @@ def _hib_sources(conn: sqlite3.Connection, items: list[dict]) -> list[Source]:
 def _drucksache_sources(conn: sqlite3.Connection, ds: list[dict]) -> list[Source]:
     out = []
     for d in ds:
-        row = conn.execute("SELECT originators FROM drucksache WHERE number = ? AND coalesce(publisher, 'BT') = 'BT'",
-                           (d["number"],)).fetchone()  # fmt: skip
+        row = conn.execute(
+            "SELECT originators FROM drucksache WHERE number = ? AND coalesce(publisher, 'BT') = 'BT'", (d["number"],)
+        ).fetchone()
         who = ", ".join(json.loads(row[0])) if row and row[0] else ""
         date = f", {german_date(d['date'])}" if d.get("date") else ""
         text = f"Drucksache {d['number']} ({d.get('type') or 'Drucksache'}{date}).\nTitel: {d.get('title') or ''}"
-        out.append(Source(f"Drucksache {d['number']}", text + (f"\nUrheber: {who}" if who else ""), d["pdf"],
-                          f"Drucksache {d['number']}"))  # fmt: skip
+        out.append(
+            Source(
+                f"Drucksache {d['number']}",
+                text + (f"\nUrheber: {who}" if who else ""),
+                d["pdf"],
+                f"Drucksache {d['number']}",
+            )
+        )
     return out
 
 
@@ -156,12 +190,17 @@ def _vote_sources(votes: list[dict]) -> list[Source]:
         if v.get("shared"):
             continue
         kind = "namentliche Abstimmung" if v["kind"] == "namentlich" else "Abstimmung per Handzeichen"
-        lines = [f"Abstimmung im Bundestag am {german_date(v['date'])} ({kind}).",
-                 f"Gegenstand: {v.get('title') or v['subject']}", f"Ergebnis: {v.get('result') or 'nicht bekannt'}"]  # fmt: skip
+        lines = [
+            f"Abstimmung im Bundestag am {german_date(v['date'])} ({kind}).",
+            f"Gegenstand: {v.get('title') or v['subject']}",
+            f"Ergebnis: {v.get('result') or 'nicht bekannt'}",
+        ]
         if "yes" in v:
             lines.append(f"Stimmen: {v['yes']} Ja, {v['no']} Nein, {v['abstain']} Enthaltungen.")
         if v.get("fraktionen"):
-            lines.append("Fraktionen: " + ", ".join(f"{f} {POSITION_WORD.get(p, p)}" for f, p in v["fraktionen"].items()))
+            lines.append(
+                "Fraktionen: " + ", ".join(f"{f} {POSITION_WORD.get(p, p)}" for f, p in v["fraktionen"].items())
+            )
         out.append(Source(f"Abstimmung {v['id']}", "\n".join(lines), v["url"], "Abstimmung"))
     return out
 
@@ -174,9 +213,15 @@ def _debate_sources(conn: sqlite3.Connection, plenum: list[dict]) -> list[Source
         row = conn.execute("SELECT title FROM agenda_item WHERE id = ?", (p["agenda_id"],)).fetchone()
         title = (row[0] if row and row[0] else p["title"]).replace(" | ", "; ")
         counts = ", ".join(f"{f} {n}" for f, n in p["fraktionen"].items())
-        out.append(Source(f"Debatte {p['agenda_id']}", f"Debatte im Bundestag am {german_date(p['date'])}, "
-                          f"{p['top']}: {title}\n{p['reden']} Reden. Reden nach Fraktion: {counts}.",
-                          p["url"], f"Debatte {german_date(p['date'])}"))  # fmt: skip
+        out.append(
+            Source(
+                f"Debatte {p['agenda_id']}",
+                f"Debatte im Bundestag am {german_date(p['date'])}, "
+                f"{p['top']}: {title}\n{p['reden']} Reden. Reden nach Fraktion: {counts}.",
+                p["url"],
+                f"Debatte {german_date(p['date'])}",
+            )
+        )
     return out
 
 
@@ -187,14 +232,25 @@ def _rede_sources(conn: sqlite3.Connection, reden: list[dict]) -> list[Source]:
     for r in reden:
         if r["fraction"] not in FRACTION_LABEL:
             continue
-        text = "\n".join(t for (t,) in conn.execute(
-            "SELECT text FROM speech WHERE rede_id = ? AND interruption IS NULL ORDER BY position", (r["id"],)))  # fmt: skip
+        text = "\n".join(
+            t
+            for (t,) in conn.execute(
+                "SELECT text FROM speech WHERE rede_id = ? AND interruption IS NULL ORDER BY position", (r["id"],)
+            )
+        )
         by_fraction.setdefault(r["fraction"], []).append((len(text), r, text))
     out = []
     for f, rs in by_fraction.items():
         for _, r, text in sorted(rs, key=lambda x: -x[0])[:MAX_REDEN_PER_FRACTION]:
-            out.append(Source(f"Rede {r['id']}", f"Rede von {r['speaker']} ({f}).\n{text[:MAX_REDE_CHARS]}",
-                              r["url"], f"Rede {r['speaker']}", fraction=f))  # fmt: skip
+            out.append(
+                Source(
+                    f"Rede {r['id']}",
+                    f"Rede von {r['speaker']} ({f}).\n{text[:MAX_REDE_CHARS]}",
+                    r["url"],
+                    f"Rede {r['speaker']}",
+                    fraction=f,
+                )
+            )
     return out
 
 
@@ -203,8 +259,12 @@ def story_sources(conn: sqlite3.Connection, story: dict, max_drucksachen: int = 
     ds = story["drucksachen"]
     linked = {n for h in story["hib"] for n in h.get("drucksachen", [])}
     ds = [d for d in ds if d["number"] in linked] + [d for d in ds if d["number"] not in linked]
-    return (_hib_sources(conn, story["hib"]) + _drucksache_sources(conn, ds[:max_drucksachen])
-            + _vote_sources(story["abstimmungen"][:6]) + _debate_sources(conn, story["plenum"]))  # fmt: skip
+    return (
+        _hib_sources(conn, story["hib"])
+        + _drucksache_sources(conn, ds[:max_drucksachen])
+        + _vote_sources(story["abstimmungen"][:6])
+        + _debate_sources(conn, story["plenum"])
+    )
 
 
 def unique(sources: list[Source]) -> list[Source]:
@@ -229,13 +289,27 @@ def unique(sources: list[Source]) -> list[Source]:
 _CITES = re.compile(r"\[([^\[\]]+)\]")
 _SENTENCE = re.compile(r"(.*?[.!?…“\"])\s*((?:\[[^\[\]]+\]\s*)+)")
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
-NUMBER_WORDS = {1: "ein", 2: "zwei", 3: "drei", 4: "vier", 5: "fünf", 6: "sechs", 7: "sieben", 8: "acht",
-                9: "neun", 10: "zehn", 11: "elf", 12: "zwölf"}  # fmt: skip
+NUMBER_WORDS = {
+    1: "ein",
+    2: "zwei",
+    3: "drei",
+    4: "vier",
+    5: "fünf",
+    6: "sechs",
+    7: "sieben",
+    8: "acht",
+    9: "neun",
+    10: "zehn",
+    11: "elf",
+    12: "zwölf",
+}
 # names that must occur in a cited source when a sentence names them: a pattern for the sentence and the words
 # any of which a source must contain (lower case)
 NAMES = {
-    "CDU/CSU": (re.compile(r"\b(CDU|CSU|Unionsfraktion)\b|(?<!Europäische )(?<!Europäischen )\bUnion\b"),
-                ("cdu", "csu", "union")),
+    "CDU/CSU": (
+        re.compile(r"\b(CDU|CSU|Unionsfraktion)\b|(?<!Europäische )(?<!Europäischen )\bUnion\b"),
+        ("cdu", "csu", "union"),
+    ),
     "SPD": (re.compile(r"\bSPD\b"), ("spd",)),
     "AfD": (re.compile(r"\bAfD\b"), ("afd",)),
     "Grüne": (re.compile(r"\bGrünen?\b|BÜNDNIS 90"), ("grüne", "bündnis 90")),
@@ -244,8 +318,10 @@ NAMES = {
     "Bundesrat": (re.compile(r"\bBundesrat(es|s)?\b"), ("bundesrat", "länder")),
     "Ministerium": (re.compile(r"[Mm]inisteri|[Mm]inister(in)?\b"), ("minister",)),
 }
-_ROLE_NAME = re.compile(r"(?i:minister(?:in)?|sekretär(?:in)?|beauftragte[rn]?|abgeordnete[rn]?|kanzler(?:in)?|"
-                        r"präsident(?:in)?)\s+(?:Dr\.\s+)?([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)")  # fmt: skip
+_ROLE_NAME = re.compile(
+    r"(?i:minister(?:in)?|sekretär(?:in)?|beauftragte[rn]?|abgeordnete[rn]?|kanzler(?:in)?|"
+    r"präsident(?:in)?)\s+(?:Dr\.\s+)?([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)"
+)
 
 
 def strip_cites(text: str) -> str:
@@ -263,8 +339,15 @@ def parse(text: str) -> list[dict]:
             continue
         pos = 0
         for m in _SENTENCE.finditer(line):
-            cites = [c.strip() for g in _CITES.findall(m.group(0)) for c in re.split(r";|,(?=\s*(?:hib|Drucksache|"
-                     r"Abstimmung|Debatte|Rede)\b)", g)]  # fmt: skip
+            cites = [
+                c.strip()
+                for g in _CITES.findall(m.group(0))
+                for c in re.split(
+                    r";|,(?=\s*(?:hib|Drucksache|"
+                    r"Abstimmung|Debatte|Rede)\b)",
+                    g,
+                )
+            ]
             out.append({"text": strip_cites(m.group(1)), "cites": [c for c in cites if c], "paragraph": paragraph})
             pos = m.end()
         if rest := line[pos:].strip():
@@ -292,12 +375,18 @@ def person_names(conn: sqlite3.Connection) -> set[tuple[str, str]]:
     """(first, last) of every person in the store: a sentence naming one must find the last name in its sources."""
     if not stories.has_table(conn, "person"):
         return set()
-    return {(f.split()[0], last) for f, last in conn.execute(
-        "SELECT first_name, last_name FROM person WHERE first_name IS NOT NULL AND last_name IS NOT NULL") if f}  # fmt: skip
+    return {
+        (f.split()[0], last)
+        for f, last in conn.execute(
+            "SELECT first_name, last_name FROM person WHERE first_name IS NOT NULL AND last_name IS NOT NULL"
+        )
+        if f
+    }
 
 
-def check(sentence: dict, sources: dict[str, Source], people: set[tuple[str, str]],
-          fraction: str | None = None) -> list[str]:  # fmt: skip
+def check(
+    sentence: dict, sources: dict[str, Source], people: set[tuple[str, str]], fraction: str | None = None
+) -> list[str]:
     """The failures of one sentence (empty: it passes)."""
     fails = []
     if not sentence["cites"]:
@@ -320,8 +409,11 @@ def check(sentence: dict, sources: dict[str, Source], people: set[tuple[str, str
             fails.append(f"{name} nicht in den genannten Quellen")
     tokens = re.findall(r"[A-ZÄÖÜ][\wäöüß-]+", text)
     for first, last in people:
-        if last in tokens and re.search(rf"\b{re.escape(first)}\s+(?:[A-ZÄÖÜ]\.\s+)?{re.escape(last)}\b", text) \
-                and last.lower() not in low:
+        if (
+            last in tokens
+            and re.search(rf"\b{re.escape(first)}\s+(?:[A-ZÄÖÜ]\.\s+)?{re.escape(last)}\b", text)
+            and last.lower() not in low
+        ):
             fails.append(f"Name {first} {last} nicht in den genannten Quellen")
     for m in _ROLE_NAME.finditer(text):
         if m.group(1).lower() not in low:
@@ -349,8 +441,9 @@ class Cache:
 
     @staticmethod
     def key(backend: llm.Backend, system: str, documents: list[Document], task: str) -> str:
-        blob = json.dumps([backend.name, backend.model, system, [asdict(d) for d in documents], task],
-                          ensure_ascii=False)  # fmt: skip
+        blob = json.dumps(
+            [backend.name, backend.model, system, [asdict(d) for d in documents], task], ensure_ascii=False
+        )
         return hashlib.sha256(blob.encode()).hexdigest()[:24]
 
     def get(self, key: str) -> llm.Result | None:
@@ -359,8 +452,9 @@ class Cache:
 
     def put(self, key: str, result: llm.Result) -> None:
         self.folder.mkdir(parents=True, exist_ok=True)
-        (self.folder / f"{key}.json").write_text(json.dumps(asdict(result), ensure_ascii=False, indent=1),
-                                                 encoding="utf-8")  # fmt: skip
+        (self.folder / f"{key}.json").write_text(
+            json.dumps(asdict(result), ensure_ascii=False, indent=1), encoding="utf-8"
+        )
 
 
 def _call(backend: llm.Backend, cache: Cache, documents: list[Document], task: str) -> tuple[llm.Result, bool]:
@@ -377,8 +471,15 @@ def _fraction_of(sentence: dict) -> str | None:
     return {v: k for k, v in FRACTION_LABEL.items()}[m.group(1)] if m else None
 
 
-def generate(backend: llm.Backend, cache: Cache, sources: list[Source], task: str, people: set,
-             kind: str, length: tuple[int, int] | None = None) -> dict:  # fmt: skip
+def generate(
+    backend: llm.Backend,
+    cache: Cache,
+    sources: list[Source],
+    task: str,
+    people: set,
+    kind: str,
+    length: tuple[int, int] | None = None,
+) -> dict:
     """One checked text: the model's attempt, the checks, one retry with the failures if any sentence failed,
     and the sentences that passed. kind "positions" checks each line's Fraktion against its cited speech."""
     by_id = {s.id: s for s in sources}
@@ -398,9 +499,19 @@ def generate(backend: llm.Backend, cache: Cache, sources: list[Source], task: st
                 s["fraction"] = fraction
         n_words = sum(words(s["text"]) for s in sentences if s["ok"])
         length_fail = length is not None and not (length[0] <= n_words <= length[1])
-        attempts.append({"attempt": attempt, "cached": cached, "model": result.model, "backend": result.backend,
-                         "cost_usd": result.cost_usd, "raw": result.text, "words": n_words,
-                         "length_ok": not length_fail, "sentences": sentences})  # fmt: skip
+        attempts.append(
+            {
+                "attempt": attempt,
+                "cached": cached,
+                "model": result.model,
+                "backend": result.backend,
+                "cost_usd": result.cost_usd,
+                "raw": result.text,
+                "words": n_words,
+                "length_ok": not length_fail,
+                "sentences": sentences,
+            }
+        )
         failed = [s for s in sentences if not s["ok"]]
         if not failed and not length_fail:
             break
@@ -409,8 +520,11 @@ def generate(backend: llm.Backend, cache: Cache, sources: list[Source], task: st
             lines.append(f"- Länge: {n_words} geprüfte Wörter, verlangt sind {length[0]} bis {length[1]}.")
         prompt = f"{task}\n\n{RETRY.format(failures=chr(10).join(lines))}"
     final = attempts[-1]
-    kept = [{k: s[k] for k in ("text", "cites", "paragraph", "warnings") + (("fraction",) if kind == "positions"
-             else ())} for s in final["sentences"] if s["ok"]]  # fmt: skip
+    kept = [
+        {k: s[k] for k in ("text", "cites", "paragraph", "warnings") + (("fraction",) if kind == "positions" else ())}
+        for s in final["sentences"]
+        if s["ok"]
+    ]
     return {
         "sentences": kept,
         "words": sum(words(s["text"]) for s in kept),
@@ -421,14 +535,29 @@ def generate(backend: llm.Backend, cache: Cache, sources: list[Source], task: st
 
 
 def _lead_task(payload: dict, top: list[dict]) -> str:
-    lines = [f"{i}. {s['title']} (Stand: {s['stage']['label'] if s.get('stage') else 'ohne Stand'}; Quellen der "
-             f"Woche: {s['quellen']})" for i, s in enumerate(top, 1)]  # fmt: skip
-    return TASK_LEAD.format(start=german_date(payload["start"]), end=german_date(payload["end"]),
-                            stories="\n".join(lines), lo=LEAD_WORDS[0], hi=LEAD_WORDS[1])  # fmt: skip
+    lines = [
+        f"{i}. {s['title']} (Stand: {s['stage']['label'] if s.get('stage') else 'ohne Stand'}; Quellen der "
+        f"Woche: {s['quellen']})"
+        for i, s in enumerate(top, 1)
+    ]
+    return TASK_LEAD.format(
+        start=german_date(payload["start"]),
+        end=german_date(payload["end"]),
+        stories="\n".join(lines),
+        lo=LEAD_WORDS[0],
+        hi=LEAD_WORDS[1],
+    )
 
 
-def build(conn: sqlite3.Connection, payload: dict, backend: llm.Backend, cache: Cache, positions: bool = True,
-          top_n: int = stories.TOP_N, log=print) -> dict:  # fmt: skip
+def build(
+    conn: sqlite3.Connection,
+    payload: dict,
+    backend: llm.Backend,
+    cache: Cache,
+    positions: bool = True,
+    top_n: int = stories.TOP_N,
+    log=print,
+) -> dict:
     """lead.json for the week of `payload` (stories.json)."""
     top = payload["stories"][:top_n]
     people = person_names(conn)
@@ -439,8 +568,19 @@ def build(conn: sqlite3.Connection, payload: dict, backend: llm.Backend, cache: 
     for st in top:
         srcs = unique(story_sources(conn, st))
         log(f"kurz {st['id']}: {len(srcs)} sources")
-        entry = {"title": st["title"], "kurz": generate(backend, cache, srcs, TASK_KURZ.format(
-            title=st["title"], start=german_date(payload["start"]), end=german_date(payload["end"])), people, "kurz")}  # fmt: skip
+        entry = {
+            "title": st["title"],
+            "kurz": generate(
+                backend,
+                cache,
+                srcs,
+                TASK_KURZ.format(
+                    title=st["title"], start=german_date(payload["start"]), end=german_date(payload["end"])
+                ),
+                people,
+                "kurz",
+            ),
+        }
         reden = _rede_sources(conn, st["reden"]) if positions else []
         fractions = [f for f in FRACTION_LABEL if any(r.fraction == f for r in reden)]
         if len(fractions) >= 2:
@@ -449,20 +589,37 @@ def build(conn: sqlite3.Connection, payload: dict, backend: llm.Backend, cache: 
             entry["positions"] = generate(backend, cache, unique(reden), task, people, "positions")
         per_story[st["id"]] = entry
     return {
-        "week": payload["week"], "start": payload["start"], "end": payload["end"],
-        "label": LABEL, "backend": backend.name, "model": backend.model,
+        "week": payload["week"],
+        "start": payload["start"],
+        "end": payload["end"],
+        "label": LABEL,
+        "backend": backend.name,
+        "model": backend.model,
         "generated": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
-        "rules": {"lead_words": list(LEAD_WORDS), "max_sentence_words": MAX_SENTENCE_WORDS,
-                  "checks": ["Quelle genannt", "Quelle unter den Eingaben", "Zahlen in den genannten Quellen",
-                             "Fraktionen, Regierung, Bundesrat, Ministerien, Personen in den genannten Quellen",
-                             "Positionen: Rede der eigenen Fraktion zitiert"]},  # fmt: skip
+        "rules": {
+            "lead_words": list(LEAD_WORDS),
+            "max_sentence_words": MAX_SENTENCE_WORDS,
+            "checks": [
+                "Quelle genannt",
+                "Quelle unter den Eingaben",
+                "Zahlen in den genannten Quellen",
+                "Fraktionen, Regierung, Bundesrat, Ministerien, Personen in den genannten Quellen",
+                "Positionen: Rede der eigenen Fraktion zitiert",
+            ],
+        },
         "lead": lead,
         "stories": per_story,
     }
 
 
-def write(out: Path, conn: sqlite3.Connection, payload: dict, backend: str = "cli", positions: bool = True,
-          cache: Path | None = None) -> dict:  # fmt: skip
+def write(
+    out: Path,
+    conn: sqlite3.Connection,
+    payload: dict,
+    backend: str = "cli",
+    positions: bool = True,
+    cache: Path | None = None,
+) -> dict:
     """Generates (or takes from the cache) and writes lead.json next to stories.json; returns it with the
     rendered HTML of each text (`html`) for stories.render_section."""
     data = build(conn, payload, llm.backend(backend), Cache(cache or out.parent / "llm-cache"), positions)
@@ -521,5 +678,7 @@ def render_section(data: dict) -> str:
     checked = data["lead"]
     dropped = len(checked["dropped"])
     note = f" {dropped} Sätze fielen bei der Prüfung heraus." if dropped else ""
-    return (f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>Die Woche im Bundestag</h2>'
-            f"{render_text(checked)}<p class=\"radar-gen\">{_e(data['label'])}{_e(note)}</p></section>")  # fmt: skip
+    return (
+        f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>Die Woche im Bundestag</h2>'
+        f'{render_text(checked)}<p class="radar-gen">{_e(data["label"])}{_e(note)}</p></section>'
+    )

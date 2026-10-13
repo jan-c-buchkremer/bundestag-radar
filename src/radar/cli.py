@@ -124,7 +124,10 @@ def _stories(conn, args) -> None:
     payload = stories.write(args.out, conn, args.week)
     if payload is None:
         sys.exit("no hib in the store")
-    print(f"{stories.FILE}: {payload['week']}, {len(payload['stories'])} stories, by score {payload['counts']['by_score']}")
+    print(
+        f"{stories.FILE}: {payload['week']}, {len(payload['stories'])} stories, "
+        f"by score {payload['counts']['by_score']}"
+    )
     for s in payload["stories"][:10]:
         print(f"  [{s['quellen']}] {s['title'][:90]}")
     texts = None
