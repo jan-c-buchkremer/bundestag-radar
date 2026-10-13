@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -71,7 +72,9 @@ class ClaudeCLI:
         cwd: str | None = None,
     ) -> None:
         self.model = model or os.environ.get("RADAR_CLI_MODEL", DEFAULT_CLI_MODEL)
-        self.command, self.timeout, self.runner, self.cwd = command, timeout, runner, cwd
+        # outside the repo, so no project CLAUDE.md is read into the prompt
+        self.command, self.timeout, self.runner = command, timeout, runner
+        self.cwd = cwd or tempfile.gettempdir()
 
     def args(self, system: str) -> list[str]:
         return [

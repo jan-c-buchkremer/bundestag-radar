@@ -20,7 +20,8 @@ hib Ressort the story's) and its title shares enough words with the story; other
 without Vorlagen (Aktuelle Stunden, vereinbarte Debatten) and roll calls without a Vorgang are stories too.
 
 The order is transparent and coarse: how many kinds of source carry the story this week (hib, Drucksache, Debatte,
-Abstimmung, namentliche Abstimmung), then the number of hib items and of speeches. The page shows the kinds
+Abstimmung, namentliche Abstimmung), then a Gesetzgebung before an Antrag before the rest, then the number of
+speeches and of hib items. The page shows the kinds
 ("Quellen: hib, Debatte, Abstimmung"), never a rank number. hib texts are read only for the committee heuristic;
 `stories.json` carries no hib text (foundation docs/licences.md)."""
 
@@ -619,7 +620,8 @@ def assemble(
     stories += [_debate_story(a) for a in debates_alone]
     stories += [_vote_story(d) for d in votes_alone]
     stories = [_finish(s) for s in stories]
-    stories.sort(key=lambda s: (-s["score"], -s["n_hib"], -s["n_reden"], s["id"]))
+    # within a score a bill before an Antrag (a law changes, an Antrag asks), then the longer debate, then hib
+    stories.sort(key=lambda s: (-s["score"], TYPE_RANK.get(s.get("type"), 2), -s["n_reden"], -s["n_hib"], s["id"]))
     return stories
 
 
