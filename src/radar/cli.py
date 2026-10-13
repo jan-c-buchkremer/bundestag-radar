@@ -1,5 +1,5 @@
 """radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
-radar serve"""
+radar build stories [--week 2026-W41] | radar build lead [--week 2026-W41] [--backend cli|api] | radar serve"""
 
 from __future__ import annotations
 
@@ -21,8 +21,12 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument(
         "weeks",
         nargs="*",
-        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index)",
+        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index); "
+        "or `stories` (Geschichten der Woche) / `lead` (stories + generated texts) alone",
     )
+    b.add_argument("--week", help="stories/lead: the ISO week (default: the newest hib week)")
+    b.add_argument("--backend", default="cli", choices=("cli", "api"), help="lead: claude -p or the Anthropic API")
+    b.add_argument("--no-positions", action="store_true", help="lead: skip the per-Fraktion sentences")
     b.add_argument("--all", action="store_true", help="every week in the store, the period overview and the index")
     b.add_argument("--out", type=Path, default=Path("data/out"))
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
@@ -45,6 +49,10 @@ def main(argv: list[str] | None = None) -> None:
         for w in all_weeks:
             first, last, n = w["sittings"][0], w["sittings"][-1], len(w["sittings"])
             print(f"{w['week']}  sittings {first}-{last} ({n})  speeches {w['speeches']}")
+        return
+
+    if args.weeks and args.weeks[0] in ("stories", "lead"):
+        _stories(conn, args)
         return
 
     import time
@@ -106,6 +114,28 @@ def main(argv: list[str] | None = None) -> None:
     if args.all and period_speeches:  # a partial build would overwrite the period's neighbours with a subset
         n = build.write_speech_neighbours(args.out, period_speeches, np.vstack(period_vectors))
         print(f"speech_neighbours.json: {n} speech ids")
+
+
+def _stories(conn, args) -> None:
+    """`radar build stories` / `radar build lead`: stories.json (deterministic), and with `lead` the generated
+    texts in lead.json; both write the preview lab-stories.html."""
+    from radar import lead, stories
+
+    payload = stories.write(args.out, conn, args.week)
+    if payload is None:
+        sys.exit("no hib in the store")
+    print(f"{stories.FILE}: {payload['week']}, {len(payload['stories'])} stories, by score {payload['counts']['by_score']}")
+    for s in payload["stories"][:10]:
+        print(f"  [{s['quellen']}] {s['title'][:90]}")
+    texts = None
+    if args.weeks[0] == "lead":
+        texts = lead.write(args.out, conn, payload, backend=args.backend, positions=not args.no_positions)
+        print(f"{lead.FILE}: {texts['lead']['words']} words, {len(texts['stories'])} stories explained")
+    elif (args.out / lead.FILE).exists():
+        old = json.loads((args.out / lead.FILE).read_text(encoding="utf-8"))
+        texts = old if old.get("week") == payload["week"] else None
+    (args.out / "lab-stories.html").write_text(stories.lab_page(payload, texts), encoding="utf-8")
+    print("lab-stories.html written")
 
 
 if __name__ == "__main__":
