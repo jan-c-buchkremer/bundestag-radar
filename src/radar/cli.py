@@ -1,5 +1,5 @@
 """radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
-radar serve"""
+radar build gespraech [--date 2026-10-11] | radar serve"""
 
 from __future__ import annotations
 
@@ -21,8 +21,12 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument(
         "weeks",
         nargs="*",
-        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index)",
+        help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index), "
+        "`gespraech` (Im Gespräch: attention of the 7 days up to --date)",
     )
+    b.add_argument("--date", help="gespraech: last day of the week, ISO (default: yesterday)")
+    b.add_argument("--no-fetch", action="store_true", help="gespraech: no Wikipedia calls (cached or not)")
+    b.add_argument("--tagesschau", action="store_true", help="gespraech: count tagesschau hits (max 30 calls)")
     b.add_argument("--all", action="store_true", help="every week in the store, the period overview and the index")
     b.add_argument("--out", type=Path, default=Path("data/out"))
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
@@ -46,6 +50,19 @@ def main(argv: list[str] | None = None) -> None:
             first, last, n = w["sittings"][0], w["sittings"][-1], len(w["sittings"])
             print(f"{w['week']}  sittings {first}-{last} ({n})  speeches {w['speeches']}")
         return
+
+    if "gespraech" in args.weeks:
+        import datetime as dt
+
+        from radar import gespraech
+
+        date = args.date or (dt.date.today() - dt.timedelta(days=1)).isoformat()
+        payload = gespraech.build(conn, date, fetch=not args.no_fetch, with_tagesschau=args.tagesschau)
+        gespraech.log_summary(payload)
+        print(f"wrote {gespraech.write(args.out, payload)} and {args.out / gespraech.PREVIEW}")
+        args.weeks = [w for w in args.weeks if w != "gespraech"]
+        if not args.weeks and not args.all:
+            return
 
     import time
 
