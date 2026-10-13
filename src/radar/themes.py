@@ -67,8 +67,14 @@ def speeches(conn: sqlite3.Connection, week_ids: list[str]) -> list[Doc]:
     """The speeches of the period model (`period.load`: no Regierungsbefragung, no Zwischenfragen, no Fragestunde)."""
     return [
         Doc(
-            id=s.id, source="reden", date=s.date, title=s.agenda_title, text=s.text, url=speech_url(s.id),
-            weight=float(len(s.text.split())), extra={"speaker": s.speaker, "fraction": s.fraction},
+            id=s.id,
+            source="reden",
+            date=s.date,
+            title=s.agenda_title,
+            text=s.text,
+            url=speech_url(s.id),
+            weight=float(len(s.text.split())),
+            extra={"speaker": s.speaker, "fraction": s.fraction},
         )  # fmt: skip
         for _, s in period.load(conn, week_ids)
     ]
@@ -85,8 +91,13 @@ def hib(conn: sqlite3.Connection, start: str = "0000", end: str = "9999") -> lis
     )
     return [
         Doc(
-            id=f"hib-{r['id']}", source="hib", date=r["date"], title=r["title"], text=f"{r['title']}\n\n{r['text']}",
-            url=r["source_url"], extra={"number": r["number"], "ressort": r["ressort"], "kind": r["kind"]},
+            id=f"hib-{r['id']}",
+            source="hib",
+            date=r["date"],
+            title=r["title"],
+            text=f"{r['title']}\n\n{r['text']}",
+            url=r["source_url"],
+            extra={"number": r["number"], "ressort": r["ressort"], "kind": r["kind"]},
         )  # fmt: skip
         for r in rows
     ]
@@ -114,7 +125,11 @@ def drucksachen(conn: sqlite3.Connection, start: str = "0000", end: str = "9999"
     )
     return [
         Doc(
-            id=f"drs-{r['number']}", source="drucksachen", date=r["date"], title=r["title"], text=r["title"],
+            id=f"drs-{r['number']}",
+            source="drucksachen",
+            date=r["date"],
+            title=r["title"],
+            text=r["title"],
             url=RESEARCH + research_path(r["v"], r["vt"]) if r["v"] else _pdf(r["number"]),
             extra={"number": r["number"], "type": r["type"]},
         )  # fmt: skip
@@ -196,8 +211,9 @@ def assign(x: np.ndarray, cents: np.ndarray, floor: float) -> tuple[np.ndarray, 
     return np.where(cos >= floor, best, -1), cos
 
 
-def floors(xs: dict[str, np.ndarray], idx: dict[str, np.ndarray], cents: np.ndarray, q: float = FLOOR_QUANTILE
-           ) -> dict[str, float]:
+def floors(
+    xs: dict[str, np.ndarray], idx: dict[str, np.ndarray], cents: np.ndarray, q: float = FLOOR_QUANTILE
+) -> dict[str, float]:
     """The cosine floor per source. `idx[s]` is the theme index of each of source s's fit documents (-1: none).
 
     A clustered source: the q-quantile of its members' cosines to their own centroid. A source outside the
@@ -222,8 +238,15 @@ def jaccard(a: set[str], b: set[str], common: set[str]) -> float:
     return len(a & b) / len(a | b) if a | b else 0.0
 
 
-def match(old_cents: np.ndarray, new_cents: np.ndarray, old_members: list[set[str]], new_members: list[set[str]],
-          common: set[str], min_cos: float = MATCH_COS, min_jaccard: float = MATCH_JACCARD) -> dict[int, int]:
+def match(
+    old_cents: np.ndarray,
+    new_cents: np.ndarray,
+    old_members: list[set[str]],
+    new_members: list[set[str]],
+    common: set[str],
+    min_cos: float = MATCH_COS,
+    min_jaccard: float = MATCH_JACCARD,
+) -> dict[int, int]:
     """Hungarian matching of old to new themes on centroid cosine; a pair counts only at ≥ min_cos and a member
     overlap ≥ min_jaccard (over the documents both fits contain). Returns {new index: old index}."""
     from scipy.optimize import linear_sum_assignment
@@ -435,8 +458,7 @@ def new_topics(docs: list[Doc], x: np.ndarray, cents: np.ndarray, floor: float, 
     return out
 
 
-def week_payload(conn: sqlite3.Connection, store: sqlite3.Connection, registry: dict, week: str,
-                 embed_fn=None) -> dict:
+def week_payload(conn: sqlite3.Connection, store: sqlite3.Connection, registry: dict, week: str, embed_fn=None) -> dict:
     """Per theme and source: this week's share against the trailing sitting weeks, z, whether it rises, the
     strongest documents; the Themen der Woche (rising in ≥ 2 of 3 sources) and the new candidates."""
     from radar.period import area
@@ -521,8 +543,16 @@ def period_docs(conn: sqlite3.Connection, until: str | None = None) -> list[Doc]
     return [d for d in speeches(conn, weeks) + hib(conn) + drucksachen(conn) if d.date <= end]
 
 
-def run_fit(conn, store, registry_path: Path, refit: bool = False, until: str | None = None, subset: float = 1.0,
-            seed: int = 42, min_cluster_size: int | None = None) -> dict:
+def run_fit(
+    conn,
+    store,
+    registry_path: Path,
+    refit: bool = False,
+    until: str | None = None,
+    subset: float = 1.0,
+    seed: int = 42,
+    min_cluster_size: int | None = None,
+) -> dict:
     """Fit the themes and write the registry; with `refit`, ids of the existing registry carry over."""
     docs = period_docs(conn)
     vecs = vectors(docs, store)
@@ -562,6 +592,7 @@ Titel von hib-Meldungen: {hib}"""
 
 def claude_label(theme: dict) -> str:
     import subprocess
+    import tempfile
 
     ex = theme.get("examples", {})
     prompt = LABEL_PROMPT.format(
@@ -569,7 +600,11 @@ def claude_label(theme: dict) -> str:
         reden=" | ".join(ex.get("reden", [])[:5]),
         hib=" | ".join(ex.get("hib", [])[:5]),
     )
-    out = subprocess.run(["claude", "-p", prompt], capture_output=True, text=True, timeout=180, check=True).stdout
+    args = ["claude", "-p", "--model", "sonnet", "--tools", "", "--no-session-persistence", prompt]
+    # outside the repo, so no project CLAUDE.md is read into the prompt
+    out = subprocess.run(
+        args, capture_output=True, text=True, timeout=180, check=True, cwd=tempfile.gettempdir()
+    ).stdout
     return out.strip().splitlines()[0].strip(" „“\"'.") if out.strip() else ""
 
 
@@ -753,7 +788,7 @@ def render_section(payload: dict) -> str:
     out = [
         f'<section class="thw"><style>{_CSS}</style>',
         f'<h2><span class="tag">Radar</span>Themen der Woche {esc(payload["week"].split("-W")[1])}/'
-        f'{esc(payload["week"][:4])}</h2>',
+        f"{esc(payload['week'][:4])}</h2>",
         '<p class="intro">Themen, die in dieser Woche mehr Raum bekamen als in den acht Sitzungswochen davor. Gezählt '
         "wird in drei Quellen: Reden im Plenum, Meldungen von „heute im bundestag“ (hib) und neue Drucksachen. Ein "
         "Thema der Woche steigt in mindestens zwei der drei Quellen.</p>",
@@ -770,7 +805,7 @@ def render_section(payload: dict) -> str:
             for n in payload["neu"]
         )
         out.append(
-            "<h3>Neu diese Woche</h3><p class=\"note\">Gruppen ähnlicher Dokumente dieser Woche, die zu keinem "
+            '<h3>Neu diese Woche</h3><p class="note">Gruppen ähnlicher Dokumente dieser Woche, die zu keinem '
             f'bisherigen Thema passen.</p><ul class="one">{items}</ul>'
         )
     out.append(f'<p class="note">{esc(METHOD)}</p></section>')
@@ -784,6 +819,6 @@ def lab_page(payload: dict) -> str:
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f"<title>Themen der Woche {esc(payload['week'])} (Labor)</title>"
         '<link rel="stylesheet" href="https://plenar-radar.de/assets/shell.css">'
-        '<style>body{margin:0;padding:1rem;background:#fff}</style></head>'
+        "<style>body{margin:0;padding:1rem;background:#fff}</style></head>"
         f"<body>{render_section(payload)}</body></html>"
     )

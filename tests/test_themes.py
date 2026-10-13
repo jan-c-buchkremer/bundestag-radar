@@ -15,8 +15,8 @@ def blobs(n_per: int, centres: np.ndarray, seed: int = 0, noise: float = 0.05) -
 
 def docs_for(labels: np.ndarray, prefix: str = "d", source: str = "reden") -> list[themes.Doc]:
     return [
-        themes.Doc(id=f"{prefix}{i}", source=source, date="2026-09-08", title=f"t{lab}", text=f"wort{'abcdef'[lab]} thema{'abcdef'[lab]}",
-                   url="u")
+        themes.Doc(id=f"{prefix}{i}", source=source, date="2026-09-08", title=f"t{lab}",
+                   text=f"wort{'abcdef'[lab]} thema{'abcdef'[lab]}", url="u")
         for i, lab in enumerate(labels)
     ]  # fmt: skip
 
