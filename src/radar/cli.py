@@ -176,7 +176,7 @@ def _stories(conn, args) -> None:
         print(f"{lead.FILE}: {texts['lead']['words']} words, {len(texts['stories'])} stories explained")
     elif (args.out / lead.FILE).exists():
         old = json.loads((args.out / lead.FILE).read_text(encoding="utf-8"))
-        texts = old if old.get("week") == payload["week"] else None
+        texts = lead.with_html(old) if old.get("week") == payload["week"] else None
     (args.out / "lab-stories.html").write_text(stories.lab_page(payload, texts), encoding="utf-8")
     print("lab-stories.html written")
 

@@ -108,11 +108,13 @@ def render(payload: dict) -> str:
     return _inline("template.html", payload)
 
 
-def render_index(summaries: list[dict], overview: dict | None = None, week: dict | None = None) -> str:
-    """Landing page: „Diese Woche“ from hib (`woche.load`), the period's themes over the weeks (`period.overview`),
-    then one card per week, from `summary()` of each week payload."""
+def render_index(summaries: list[dict], overview: dict | None = None, week: dict | None = None, top: str = "") -> str:
+    """Landing page: `top` (start.py: lead, stories, Im Gespräch, Themen der Woche), „Diese Woche“ from hib
+    (`woche.load`), the period's themes over the weeks (`period.overview`), then one card per week, from `summary()`
+    of each week payload."""
     method = f"{woche.METHOD} {shell.METHOD}" if week else shell.METHOD
-    return _inline("index.html", {"weeks": summaries, "period": overview, "woche": week}, method)
+    page = _inline("index.html", {"weeks": summaries, "period": overview, "woche": week}, method)
+    return page.replace("__START__", top)
 
 
 def load_payloads(out: Path) -> dict[str, dict]:
@@ -134,7 +136,9 @@ def index_page(out: Path) -> str:
     week = woche.on_maps(json.loads(hib.read_text(encoding="utf-8")), payloads) if hib.exists() else None
     if week and payloads:
         week["plenum"] = plenum_topics(payloads[max(payloads)])
-    return render_index([summary(p) for p in payloads.values()], overview, week)
+    from radar import start
+
+    return render_index([summary(p) for p in payloads.values()], overview, week, start.sections(out, RESEARCH))
 
 
 def plenum_topics(payload: dict, n: int = 5) -> dict:

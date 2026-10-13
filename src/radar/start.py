@@ -3,9 +3,9 @@
 In the order a reader asks (radar-lab research 01): what happened this week (the generated lead „Die Woche im
 Bundestag“ over the top stories), which stories carried it (the first cards of `stories.json`, with their "kurz
 erklärt" and the Fraktionen's positions), who and what is talked about (`gespraech.json`, shortened to the news
-and a few names), and which themes rose (`themen.json`). Each part is optional: what is not built is left out, so
-an older output directory still renders the index as before. The full lists go to their own pages
-(`geschichten.html`, `gespraech.html`, `themen.html`), linked below each part.
+and a few names), and which themes rose (`themen.json`, short already). Each part is optional: what is not
+built is left out, so an older output directory still renders the index as before. The full lists go to their own pages
+(`geschichten.html`, `gespraech.html`), linked below each part.
 
 Nothing here selects anything: the order comes from each module's own rule, this module only cuts the lists."""
 
@@ -19,7 +19,6 @@ from radar import shell
 
 STORIES_ON_START = 6
 PEOPLE_ON_START = 6  # besides the news tier, which always shows
-THEMES_ON_START = 4
 
 PAGE_CSS = """
 .start-more{margin:6px 0 28px;font-size:.9rem}
@@ -67,9 +66,10 @@ def sections(out: Path, research: str) -> str:
     if ld:
         parts.append(lead.render_section(ld))
     if st:
-        parts.append(stories.render_section(st, ld, limit=STORIES_ON_START))
+        cards = lead.with_html(ld) if ld else None  # the "kurz erklärt" and positions as HTML
+        parts.append(stories.render_section(st, cards, limit=STORIES_ON_START))
         parts.append(_more("geschichten.html", f"Alle {len(st['stories'])} Geschichten der Woche"))
-        full = stories.render_section(st, ld, limit=len(st["stories"]))
+        full = stories.render_section(st, cards, limit=len(st["stories"]))
         (out / "geschichten.html").write_text(page("Geschichten der Woche", full, research), encoding="utf-8")
     if gs := _load(out, gespraech.FILE):
         parts.append(gespraech.render_section(short_people(gs), research))
@@ -81,8 +81,5 @@ def sections(out: Path, research: str) -> str:
     except ImportError:  # the theme registry is not part of every build
         themes = None
     if themes is not None and (th := _load(out, "themen.json")):
-        parts.append(themes.render_section(th, limit=THEMES_ON_START))
-        parts.append(_more("themen.html", "Alle Themen der Woche"))
-        full = themes.render_section(th, limit=None)
-        (out / "themen.html").write_text(page("Themen der Woche", full, research), encoding="utf-8")
+        parts.append(themes.render_section(th))
     return "".join(parts)
