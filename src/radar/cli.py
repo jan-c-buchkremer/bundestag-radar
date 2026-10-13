@@ -1,6 +1,7 @@
 """radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
 radar build stories [--week 2026-W41] | radar build lead [--week 2026-W41] [--backend cli|api] |
-radar build gespraech [--date 2026-10-11] | radar serve"""
+radar build gespraech [--date 2026-10-11] | radar build themen [--week 2026-W41] | radar themes embed |
+radar themes fit [--refit] | radar themes label | radar serve"""
 
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ def main(argv: list[str] | None = None) -> None:
         "`gespraech` (Im Gespräch: attention of the 7 days up to --date); or `stories` (Geschichten der Woche) / "
         "`lead` (stories + generated texts) alone",
     )
-    b.add_argument("--week", help="stories/lead: the ISO week (default: the newest hib week)")
+    b.add_argument("--week", help="stories/lead/themen: the ISO week (default: the newest hib week)")
     b.add_argument("--backend", default="cli", choices=("cli", "api"), help="lead: claude -p or the Anthropic API")
     b.add_argument("--no-positions", action="store_true", help="lead: skip the per-Fraktion sentences")
     b.add_argument("--date", help="gespraech: last day of the week, ISO (default: yesterday)")
@@ -37,6 +38,16 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
     b.add_argument("--min-cluster-size", type=int, default=8)
     b.add_argument("--period-min-cluster-size", type=int, default=None, help="HDBSCAN size for the period themes")
+    b.add_argument("--registry", type=Path, default=Path("data/themes.json"), help="`themen`: the theme registry")
+    th = sub.add_parser("themes", help="the frozen theme registry (data/themes.json)")
+    th.add_argument("action", choices=["embed", "fit", "label"])
+    th.add_argument("--registry", type=Path, default=Path("data/themes.json"))
+    th.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
+    th.add_argument("--refit", action="store_true", help="keep the ids of the existing registry where themes match")
+    th.add_argument("--until", help="fit only on documents up to this date (default: all)")
+    th.add_argument("--subset", type=float, default=1.0, help="fit on a random share of the documents (a test)")
+    th.add_argument("--seed", type=int, default=42)
+    th.add_argument("--min-cluster-size", type=int, default=None)
     sv = sub.add_parser("serve", help="dev server: pages are re-rendered from data/out/*.json on every request")
     sv.add_argument("--out", type=Path, default=Path("data/out"))
     sv.add_argument("--port", type=int, default=8000)
@@ -49,6 +60,11 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     conn = corpus.connect()
+    if args.cmd == "themes":
+        from radar import themes
+
+        themes.command(args, conn)
+        return
     all_weeks = corpus.weeks(conn)
     if args.cmd == "weeks":
         for w in all_weeks:
@@ -78,6 +94,13 @@ def main(argv: list[str] | None = None) -> None:
     from radar.cluster import cluster
 
     week_ids = [w["week"] for w in all_weeks]
+    if "themen" in args.weeks:
+        from radar import themes
+
+        themes.build_command(args, conn)
+        args.weeks = [w for w in args.weeks if w != "themen"]
+        if not args.weeks and not args.all:
+            return
     with_overview = args.all or "overview" in args.weeks
     with_woche = with_overview or "woche" in args.weeks  # the hib week is cheap: every index build refreshes it
     targets = week_ids if args.all else [w for w in args.weeks if w not in ("overview", "woche")]
