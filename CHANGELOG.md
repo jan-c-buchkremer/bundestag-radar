@@ -5,6 +5,10 @@ not before? If that sentence is hard to write, the release is not a finished ver
 
 ## Unreleased
 
+## v0.2.2 (2026-10-16)
+
+The Themenlandschaft counts its readers like the rest of the site, without cookies (Research's Datenschutz page).
+
 - The pages report their view to Research's reader count (GoatCounter on the same server, no cookies; see
   Research's Datenschutz page).
 
