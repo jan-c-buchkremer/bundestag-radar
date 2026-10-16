@@ -5,6 +5,9 @@ not before? If that sentence is hard to write, the release is not a finished ver
 
 ## Unreleased
 
+- The pages report their view to Research's reader count (GoatCounter on the same server, no cookies; see
+  Research's Datenschutz page).
+
 ## v0.2.1 (2026-10-06)
 
 Readers see a speech's tooltip on the map directly above the speech, not wherever the mouse happens to be.
