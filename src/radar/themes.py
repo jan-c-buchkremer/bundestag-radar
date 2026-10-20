@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import math
 import sqlite3
 from collections import Counter
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
-from radar import corpus, embed, period
+from radar import corpus, embed, period, shell
 from radar.build import RESEARCH
 from radar.corpus import has_table, week_id, week_range
 from radar.woche import drucksache_pdf, research_path
@@ -825,4 +826,99 @@ def lab_page(payload: dict) -> str:
         '<link rel="stylesheet" href="https://plenar-radar.de/assets/shell.css">'
         "<style>body{margin:0;padding:1rem;background:#fff}</style></head>"
         f"<body>{render_section(payload)}</body></html>"
+    )
+
+
+# --- the start page's chart: which themes are rising -------------------------------------------------------------
+
+RISE_CSS = """
+.rise{margin:34px 0 8px}
+.rise h2{font-size:1.25rem;margin:0 0 2px}
+.rise .rsub{color:#6b7280;font-size:13px;margin:0 0 12px}
+.rise ol{list-style:none;margin:0;padding:0;border-top:1px solid #e7e7e3}
+.rise li{border-bottom:1px solid #e7e7e3}
+.rise summary{display:grid;grid-template-columns:minmax(0,300px) 1fr 64px 14px;align-items:center;gap:12px;
+  padding:9px 4px;cursor:pointer;list-style:none}
+.rise summary::-webkit-details-marker{display:none}
+.rise summary:hover{background:#faf7ff}
+.rise .rl{font-weight:600;font-size:14.5px;line-height:1.3}
+.rise .tdw{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:#7c3aed;color:#fff;
+  font-size:10.5px;font-weight:600;vertical-align:.12em;white-space:nowrap}
+.rise .rb{height:14px;background:#f3f1fa;border-radius:7px;overflow:hidden}
+.rise .rb i{display:block;height:100%;border-radius:7px;background:#c4b5fd}
+.rise li.top .rb i{background:#7c3aed}
+.rise .rf{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;text-align:right;color:#4c1d95}
+.rise .chev{color:#a1a1aa;font-size:12px;transition:transform .15s}
+.rise details[open] .chev{transform:rotate(90deg)}
+.rise .rd{padding:2px 4px 14px}
+.rise .rd.thw{max-width:760px}.rise .rd .card{margin:0}
+.rise .people{margin:12px 0 0;font-size:13.5px;color:#374151}
+.rise .people a{color:#7c3aed}
+@media (max-width:640px){
+  .rise summary{grid-template-columns:1fr 54px 14px;row-gap:5px}
+  .rise .rl{grid-column:1/-1}
+}
+"""
+
+
+def rise_factor(t: dict) -> float | None:
+    """How many times its usual share a theme has this week, over the sources it rises in (each source's share
+    against the mean of the baseline weeks). None when it had no share at all before."""
+    src = [t["sources"][s] for s in t["rising_in"]]
+    base = sum(v["mean"] for v in src)
+    return sum(v["share"] for v in src) / base if base else None
+
+
+def factor_text(f: float | None) -> str:
+    return "neu" if f is None else (f"{f:.1f}".replace(".", ",") + "×")
+
+
+def render_rising(payload: dict, extra: str = "") -> str:
+    """„Steigende Themen“: one bar per rising theme, its length the factor against the usual share (log scale),
+    the Themen der Woche (rising in two or more sources) first. A click on a row opens the per-source dots and the
+    documents (`card`). `extra` goes under the list (start.py: the people in the news)."""
+    weeks = payload["baseline_weeks"]
+    rising = [t for t in payload["themes"] if t["rising_in"]]
+    kw = f"KW {int(payload['week'].split('-W')[1])}/{payload['week'][:4]}"
+    expl = (
+        "Themen, die in dieser Woche mehr Raum bekamen als in den acht Sitzungswochen davor. Gezählt wird in drei "
+        "Quellen: Reden im Plenum, Meldungen von „heute im bundestag“ (hib) und neue Drucksachen. Die Zahl gibt an, "
+        "wie viel Mal so groß der Anteil des Themas in dieser Woche ist wie sonst. Sie gilt für die Quellen, in "
+        "denen das Thema steigt. Der Balken zeigt sie logarithmisch. Ein Thema der Woche steigt in mindestens zwei "
+        "der drei Quellen und steht deshalb oben. Ein Klick auf eine Zeile zeigt die Quellen einzeln und die "
+        "Dokumente. " + esc(METHOD)
+    )
+    head = f"<h2>Steigende Themen{shell.info(expl)}</h2>"
+    if not rising:
+        return (f'<section class="rise"><style>{RISE_CSS}</style>{head}<p class="rsub">{kw} · In dieser Woche '
+                f"steigt kein Thema.</p>{extra}</section>")  # fmt: skip
+    factors = {t["id"]: rise_factor(t) for t in rising}
+    rising.sort(key=lambda t: (-len(t["rising_in"]), -(factors[t["id"]] or float("inf"))))
+    fmax = max([f for f in factors.values() if f] + [2.0])
+    legend = (
+        '<div class="legend"><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#7c3aed"/></svg>'
+        ' diese Woche, steigt</span><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#fff" '
+        'stroke="#7c3aed" stroke-width="2"/></svg> diese Woche</span><span><svg width="10" height="10"><circle cx="5" '
+        'cy="5" r="3" fill="#9ca3af"/></svg> die acht Sitzungswochen davor</span><span><svg width="18" height="10">'
+        '<rect x="0" y="1" width="18" height="8" rx="4" fill="#e5e7eb"/></svg> üblicher Bereich</span></div>'
+    )
+    rows = []
+    for t in rising:
+        f = factors[t["id"]]
+        width = 100 if f is None else max(4.0, 100 * math.log(max(f, 1.0)) / math.log(fmax))
+        top = len(t["rising_in"]) >= 2
+        badge = '<span class="tdw">Thema der Woche</span>' if top else ""
+        rows.append(
+            f'<li class="{"top" if top else ""}"><details><summary>'
+            f'<span class="rl">{esc(t["label"])}{badge}</span>'
+            f'<span class="rb" aria-hidden="true"><i style="width:{width:.0f}%"></i></span>'
+            f'<span class="rf" title="{esc(factor_text(f))} so viel wie sonst">{factor_text(f)}</span>'
+            f'<span class="chev" aria-hidden="true">▶</span></summary>'
+            f'<div class="rd thw">{legend}{card(t, weeks)}</div></details></li>'
+        )
+    n_top = sum(len(t["rising_in"]) >= 2 for t in rising)
+    sub = f"{kw} · {len(rising)} Themen steigen" + (f", {n_top} davon in mehreren Quellen" if n_top else "")
+    return (
+        f'<section class="rise"><style>{RISE_CSS}{_CSS}</style>{head}<p class="rsub">{sub}</p>'
+        f"<ol>{''.join(rows)}</ol>{extra}</section>"
     )

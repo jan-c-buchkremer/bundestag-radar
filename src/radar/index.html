@@ -27,7 +27,6 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inte
 main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 64px; }
 .eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
 h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 6px; }
-.lead { color: var(--muted); max-width: 640px; margin: 0 0 36px; }
 .year { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 28px 0 12px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; color: inherit; text-decoration: none; transition: border-color .12s, transform .12s, box-shadow .12s; }
@@ -45,6 +44,25 @@ a.tour b { display: block; font-weight: 600; margin-bottom: 4px; }
 a.tour span { color: var(--muted); font-size: 13px; }
 a.tour em { display: block; margin-top: 8px; font-style: normal; color: var(--accent); font-size: 13px; }
 footer { color: var(--faint); font-size: 12.5px; margin-top: 48px; }
+/* the page's two parts: this week, then the whole Wahlperiode on a tinted band */
+.part { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+.part-k { font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+.part-d { color: var(--muted); font-size: 13.5px; }
+.era { margin: 56px -24px 0; padding: 6px 24px 24px; background: #ebe9e3; border-radius: 18px; }
+.part-era { border-bottom-color: #8a8a84; }
+.part-era .part-k::before { content: ""; display: inline-block; width: 26px; height: 10px; margin-right: 10px; vertical-align: .08em; border-radius: 5px; background: linear-gradient(90deg, #d4d1c8, #8a8a84); }
+.era .year:first-of-type { margin-top: 8px; }
+/* the tile to the newest week's Themenlandschaft */
+a.mapcta { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 18px; margin: 14px 0 18px; padding: 14px 18px; border-radius: 14px; background: var(--accent); color: #fff; text-decoration: none; box-shadow: 0 6px 18px rgba(124,58,237,.22); transition: transform .12s, box-shadow .12s; }
+a.mapcta[hidden] { display: none; }
+a.mapcta:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(124,58,237,.3); }
+a.mapcta svg { width: 54px; height: 54px; }
+a.mapcta b { display: block; font-size: 17px; font-weight: 700; }
+a.mapcta .mt { font-size: 13px; opacity: .9; }
+a.mapcta .mc { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+a.mapcta .mc span { background: rgba(255,255,255,.18); border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 500; }
+a.mapcta .go { font-weight: 700; font-size: 14px; white-space: nowrap; }
+@media (max-width: 600px) { a.mapcta { grid-template-columns: 1fr; } a.mapcta svg { display: none; } .era { margin: 40px -16px 0; padding: 4px 16px 20px; border-radius: 0; } .part-k { font-size: 19px; } }
 @media (max-width: 600px) { main { padding: 28px 16px 48px; } h1 { font-size: 22px; } .grid, .tours { grid-template-columns: 1fr; } }
 footer a { color: var(--muted); }
 
@@ -101,7 +119,6 @@ footer a { color: var(--muted); }
 .wk .c { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
 .agenda { margin: 12px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); }
 .agenda li { margin-bottom: 3px; }
-.pnote { color: var(--faint); font-size: 12px; margin: 10px 0 0; }
 .origin { margin-top: 16px; font-size: 12.5px; }
 .origin .ep { border-top: 1px solid var(--line); padding: 8px 0 4px; }
 .origin .ep > b { font-size: 13px; font-weight: 600; }
@@ -117,11 +134,6 @@ footer a { color: var(--muted); }
 /* „Diese Woche“: the hib items of the newest week (woche.py) as a mosaic of policy areas, area = number of items */
 #woche { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 16px; margin-bottom: 36px; }
 #woche[hidden] { display: none; }
-.wplen { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin: 8px 0 14px; color: var(--muted); font-size: 12.5px; }
-.wplen[hidden] { display: none; }
-.wplen span { margin-right: 4px; }
-.wplen a { color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; text-decoration: none; font-weight: 600; font-size: 12.5px; }
-.wplen a:hover { box-shadow: inset 0 0 0 1px var(--accent); }
 .mosaic { position: relative; margin: 4px 0 12px; }
 .tile { position: absolute; display: flex; flex-direction: column; gap: 6px; overflow: hidden; text-align: left; border: 0; border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--text); cursor: pointer;
   background: color-mix(in srgb, var(--h) 14%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 28%, transparent); transition: background .15s, box-shadow .15s; }
@@ -180,36 +192,42 @@ footer a { color: var(--muted); }
   .trow { padding: 7px 6px; }
 }
 </style>
+__INFO__
 </head>
 <body class="mode-radar">
 __SITE_HEADER__
 <main>
   <span class="eyebrow">Radar</span>
-  <h1>Was im Bundestag los ist</h1>
-  <p class="lead" id="lead">Jede Sitzungswoche der 21. Wahlperiode als Karte. Eine Rede ist ein Punkt, nahe Punkte haben ähnliche Inhalte, und die Beschriftungen sind die Themen, die sich aus den Reden ergeben. Oben die Themen der ganzen Wahlperiode im Zeitverlauf, darunter jede Woche einzeln.</p>
-  __START__
+  <h1>Was im Bundestag los ist<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">„Diese Woche“ zeigt einen Überblick über die letzte Sitzungswoche, die Meldungen von „heute im bundestag“ nach Politikfeld, die Geschichten der Woche und die steigenden Themen. „Die ganze Wahlperiode“ zeigt die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Themenlandschaft. Darin ist eine Rede ein Punkt, und nahe Punkte haben ähnliche Inhalte.</span></span></h1>
+
+  <div class="part part-now"><span class="part-k">Diese Woche</span><span class="part-d" id="nowDates"></span></div>
+  __START_LEAD__
+  <a class="mapcta" id="mapcta" hidden></a>
   <section id="woche" hidden>
-    <div class="phead"><h2 id="wtitle">Diese Woche</h2><span class="sub" id="wsub"></span></div>
-    <p class="wplen" id="wplen" hidden></p>
+    <div class="phead"><h2 id="wtitle">Meldungen der Woche</h2><span class="sub" id="wsub"></span></div>
     <div class="mosaic" id="mosaic" role="group" aria-label="Meldungen nach Politikfeld"></div>
     <div class="wchips fr" id="wfr" aria-label="Eingebracht von"></div>
     <div id="wdetail"></div>
-    <p class="pnote" id="wnote"></p>
   </section>
-  <section id="period" hidden>
-    <div class="phead"><h2>Themen der Wahlperiode</h2><span class="sub" id="psub"></span>
-      <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
-    <div id="areas" aria-label="Politikfelder"></div>
-    <div id="stream"><div id="slabels"></div><div id="stip"></div></div>
-    <div class="pbody">
-      <div><h3>Alle Themen</h3><div id="themeList"></div></div>
-      <div id="themeCard"></div>
-    </div>
-    <p class="pnote" id="pnote"></p>
-  </section>
-  <div class="year">Touren zum Einstieg</div>
-  <div class="tours" id="tours"></div>
-  <div id="years"></div>
+  __START_STORIES__
+  __START_RISING__
+
+  <div class="era">
+    <div class="part part-era"><span class="part-k">Die ganze Wahlperiode</span><span class="part-d" id="eraDates"></span></div>
+    <section id="period" hidden>
+      <div class="phead"><h2>Themen der Wahlperiode<span id="pinfo"></span></h2><span class="sub" id="psub"></span>
+        <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
+      <div id="areas" aria-label="Politikfelder"></div>
+      <div id="stream"><div id="slabels"></div><div id="stip"></div></div>
+      <div class="pbody">
+        <div><h3>Alle Themen</h3><div id="themeList"></div></div>
+        <div id="themeCard"></div>
+      </div>
+    </section>
+    <div class="year">Touren zum Einstieg</div>
+    <div class="tours" id="tours"></div>
+    <div id="years"></div>
+  </div>
   __METHOD__
   <footer>Reden aus den Plenarprotokollen des Deutschen Bundestages (<a href="https://www.bundestag.de/services/opendata">Open Data</a>), aufbereitet mit <a href="https://github.com/jan-c-buchkremer/bundestag-data-foundation">bundestag-data-foundation</a>. Jede Rede verlinkt auf ihr Protokoll. <a href="__RESEARCH_URL__impressum.html">Impressum</a> · <a href="__RESEARCH_URL__datenschutz.html">Datenschutz</a></footer>
 </main>
@@ -233,6 +251,27 @@ document.getElementById('years').innerHTML = [...years].map(([y, ws]) => `
       <div class="dates">${fmt(w.dates[0])} – ${fmt(w.dates[w.dates.length - 1])}${w.dates[0].slice(0, 4)}${w.speeches < 30 ? ' · Einzelsitzung' : ''}</div>
       <div class="topics">${w.clusters.slice(0, 6).map(t => `<span class="topic">${t.join(' · ')}</span>`).join('')}</div>
     </a>`).join('')}</div>`).join('');
+
+// the info button (shell.info): an explanation behind an "i", as tooltip on hover, pinned by a click
+const infoBtn = h => `<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">${h}</span></span>`;
+const fmtY = d => fmt(d) + d.slice(0, 4);
+{
+  const first = DATA.weeks[0], wk = DATA.woche;
+  if (first) document.getElementById('eraDates').textContent = `21. Wahlperiode, alle Sitzungswochen seit ${fmtY(first.dates[0])}`;
+  if (wk) document.getElementById('nowDates').textContent = `KW ${+wk.week.slice(6)} · ${fmtY(wk.start)} bis ${fmtY(wk.end)}`;
+  // the newest sitting week's Themenlandschaft, with its biggest topics (woche.json's `plenum`, else the week card's)
+  const W = DATA.weeks.find(w => w.week === latest), PL = wk && wk.plenum && wk.plenum.week === latest ? wk.plenum : null;
+  const el = document.getElementById('mapcta');
+  if (W) {
+    const topics = PL ? PL.topics.map(t => t.label) : W.clusters.slice(0, 5).map(t => t.join(' · '));
+    el.href = `${latest}.html`;
+    el.innerHTML = `<svg viewBox="0 0 54 54" aria-hidden="true"><g fill="#fff">${[[12,14,3],[20,10,2.4],[17,22,2.8],[30,16,2.2],[38,12,3.2],[42,22,2.4],[34,28,2.8],[14,36,2.6],[22,40,3.2],[30,42,2.2],[40,38,3],[46,44,2]].map(([x, y, r], i) => `<circle cx="${x}" cy="${y}" r="${r}" opacity="${.45 + (i % 4) * .15}"/>`).join('')}</g></svg>
+      <span><b>Themenlandschaft der Woche</b><span class="mt">KW ${+latest.slice(6)} · ${fmt(W.dates[0])}–${fmtY(W.dates.at(-1))} · ${W.speeches} Reden im Plenum, nach Themen geordnet</span>
+      <span class="mc">${topics.map(t => `<span>${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join('')}</span></span>
+      <span class="go">Öffnen →</span>`;
+    el.hidden = false;
+  }
+}
 
 // hash state shared by the sections: #thema=<id> (period), #ressort=…&art=…&tag=<date> (Diese Woche)
 const hashGet = k => new URLSearchParams(location.hash.slice(1)).get(k);
@@ -271,18 +310,8 @@ if (WK && WK.items.length) (() => {
   let fr = EINBRINGER.includes(hashGet('fraktion')) ? hashGet('fraktion') : null;
 
   document.getElementById('woche').hidden = false;
-  document.getElementById('lead').textContent = 'Zuerst die Woche, wie „heute im bundestag“ sie meldet: Vorlagen, Antworten und Ausschusssitzungen nach Politikfeld. Darunter die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Karte, auf der eine Rede ein Punkt ist und nahe Punkte ähnliche Inhalte haben.';
-  document.getElementById('wtitle').textContent = WK.current ? 'Diese Woche' : `Woche ${kw}`;
+  document.getElementById('wtitle').innerHTML = 'Meldungen der Woche' + infoBtn(`${WK.current ? '' : 'Aus der laufenden Woche gibt es noch keine Meldung. Das ist die letzte Woche mit Meldungen. '}Quelle: Deutscher Bundestag, „heute im bundestag“ (hib), mit Nummer und Link auf jede Meldung. Hier stehen Titel und Angaben, den Text liest man beim Bundestag. Die Fläche einer Kachel ist die Zahl der Meldungen in diesem Politikfeld. Ein Klick auf eine Kachel zeigt ihre Meldungen.`);
   document.getElementById('wsub').textContent = `KW ${kw} · ${fmt(WK.start)}–${fmt(WK.end)}${WK.end.slice(0, 4)} · ${I.length} Meldungen von „heute im bundestag“`;
-  document.getElementById('wnote').innerHTML = `${WK.current ? '' : 'Aus der laufenden Woche gibt es noch keine Meldung, das ist die letzte Woche mit Meldungen. '}Quelle: Deutscher Bundestag, „heute im bundestag“ (hib), mit Nummer und Link auf jede Meldung. Hier stehen Titel und Angaben, den Text liest man beim Bundestag.`;
-  // the newest sitting week's biggest topics, each opening the week map on that topic
-  const PL = WK.plenum;
-  if (PL && PL.topics.length) {
-    const el = document.getElementById('wplen');
-    const when = PL.week === WK.week ? 'Diese Woche im Plenum' : `Zuletzt im Plenum, KW ${+PL.week.slice(6)}`;
-    el.innerHTML = `<span>${when}</span>` + PL.topics.map(t => `<a href="${PL.week}.html#cluster=${t.id}" title="${t.n} Reden">${esc(t.label)}</a>`).join('');
-    el.hidden = false;
-  }
 
   // squarified treemap (Bruls et al.): rectangles for `vals` (sorted, largest first) that fill w × h
   function squarify(vals, W, H) {
@@ -385,7 +414,7 @@ if (P && P.themes.length && window.Plotly) (() => {
   const shown = T.reduce((a, t) => a + t.n, 0);
   document.getElementById('psub').textContent = `${T.length} Themen aus ${shown.toLocaleString('de')} Reden in ${N} Sitzungswochen`;
   const rest = P.unassigned.reduce((a, b) => a + b, 0);
-  document.getElementById('pnote').textContent = `Ohne Regierungsbefragung und Zwischenfragen${rest ? `; ${rest.toLocaleString('de')} Reden ohne eindeutiges Thema sind nicht dargestellt` : ''}. Die Themen stammen aus einem Clustering über die ganze Wahlperiode, die Wochenkarten sind eigene Clusterings: Der Link öffnet das Thema der Woche, in dem die meisten dieser Reden liegen.`;
+  document.getElementById('pinfo').innerHTML = infoBtn(`Jedes Band ist ein Thema, seine Höhe die Zahl der Reden in der Sitzungswoche. ${matchMedia('(max-width: 760px)').matches ? 'Ein Band antippen' : 'Mit der Maus über die Bänder fahren und eines anklicken'} oder ein Thema aus der Liste wählen. Dann erscheinen seine stärksten Wochen, und ein Link öffnet die Themenlandschaft der Woche mit genau diesem Thema. Ein zweiter Klick auf das gewählte Band öffnet die Woche direkt. Ohne Regierungsbefragung und Zwischenfragen.${rest ? ` ${rest.toLocaleString('de')} Reden ohne eindeutiges Thema sind nicht dargestellt.` : ''} Die Themen stammen aus einem Clustering über die ganze Wahlperiode. Die Wochen haben eigene Clusterings. Der Link öffnet das Thema der Woche, in dem die meisten dieser Reden liegen.`);
 
   const AREA = Object.fromEntries(AREAS.map(([k, name, hex], i) => [k, { k, name, hex, i }]));
   const areaOf = t => AREA[t.area] || AREA.weitere;
@@ -538,7 +567,7 @@ if (P && P.themes.length && window.Plotly) (() => {
   function renderCard() {
     const t = byTheme[sel];
     if (!t) {
-      cardEl.innerHTML = `<h3>Thema</h3><p class="hint">${phone.matches ? 'Ein Band antippen' : 'Mit der Maus über die Bänder fahren und eines anklicken'} oder ein Thema aus der Liste wählen: Dann stehen hier seine stärksten Wochen, und ein Link öffnet die Wochenkarte mit genau diesem Thema. Ein zweiter Klick auf das gewählte Band öffnet die Woche direkt.</p>`;
+      cardEl.innerHTML = `<h3>Thema</h3><p class="hint">${phone.matches ? 'Band antippen' : 'Band anklicken'} oder Thema aus der Liste wählen.</p>`;
       return;
     }
     const weeks = W.map((w, i) => i).filter(i => t.counts[i]).sort((a, b) => t.counts[b] - t.counts[a]);

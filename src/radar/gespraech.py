@@ -39,6 +39,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from radar import shell
 from radar.corpus import short_title, week_id
 from radar.origin import fraction_name
 
@@ -833,9 +834,10 @@ def render_topics(t: dict, research: str) -> str:
                 f"Drucksachen ({s['recent']}), sonst {s['base_share']:.0f} %</span>"
                 f"<details class='gs-ev'><summary>Beispiele</summary><ul>{ex}</ul></details></li>"
             )
-        parts.append(f"<h3>Sachgebiete mit mehr Drucksachen als sonst</h3><p class='gs-meta'>Anteil an den neuen "
-                     f"Drucksachen der letzten {w['recent_days']} Tage, verglichen mit den "
-                     f"{w['base_days']} Tagen davor.</p><ul class='gs-list'>{''.join(items)}</ul>")  # fmt: skip
+        expl = (f"Anteil an den neuen Drucksachen der letzten {w['recent_days']} Tage, verglichen mit den "
+                f"{w['base_days']} Tagen davor.")  # fmt: skip
+        parts.append(f"<h3>Sachgebiete mit mehr Drucksachen als sonst{shell.info(expl)}</h3>"
+                     f"<ul class='gs-list'>{''.join(items)}</ul>")  # fmt: skip
     return "".join(parts)
 
 
@@ -882,11 +884,11 @@ def render_section(payload: dict, research: str | None = None) -> str:
         else "In dieser Woche hat der Bundestag nicht getagt.")  # fmt: skip
     return (
         f"<section class='gs' id='im-gespraech'><style>{STYLE}</style>"
-        f"<div class='gs-tag'>Radar · Aufmerksamkeit</div><h2>Im Gespräch</h2>"
+        f"<div class='gs-tag'>Radar · Aufmerksamkeit</div>"
+        f"<h2>Im Gespräch{shell.info(html.escape(payload['method']))}</h2>"
         f"<p class='gs-meta'>{de_date(payload['start'])} bis {de_date(payload['end'])}. {html.escape(note)}</p>"
         f"<div class='gs-cols'><div><h3 class='gs-h'>Personen</h3>{''.join(groups)}</div>"
-        f"<div><h3 class='gs-h'>Themen</h3>{render_topics(payload['topics'], research)}</div></div>"
-        f"<p class='gs-method'>{html.escape(payload['method'])}</p></section>"
+        f"<div><h3 class='gs-h'>Themen</h3>{render_topics(payload['topics'], research)}</div></div></section>"
     )
 
 

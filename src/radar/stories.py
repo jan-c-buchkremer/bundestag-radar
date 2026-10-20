@@ -35,6 +35,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from radar import shell
 from radar.corpus import has_table, short_title, week_range
 from radar.origin import fraction_name
 from radar.woche import AREA_OF_RESSORT, EINBRINGER, drucksache_pdf, einbringer, latest_week, research_path
@@ -934,8 +935,9 @@ def render_section(payload: dict, lead: dict | None = None, limit: int = 12) -> 
     extras = (lead or {}).get("stories", {})
     cards = "".join(render_card(s, extras.get(s["id"])) for s in payload["stories"][:limit])
     return (
-        f'<section class="radar-stories"><style>{CSS}</style><h2>Geschichten der Woche</h2>'
-        f'<div class="stories">{cards}</div><p class="radar-gen">{_e(payload["method"])}</p></section>'
+        f'<section class="radar-stories"><style>{CSS}</style>'
+        f"<h2>Geschichten der Woche{shell.info(_e(payload['method']))}</h2>"
+        f'<div class="stories">{cards}</div></section>'
     )
 
 

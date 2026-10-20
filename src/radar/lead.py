@@ -30,7 +30,7 @@ import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from radar import llm, stories
+from radar import llm, shell, stories
 from radar.llm import Document
 
 FILE = "lead.json"
@@ -678,7 +678,8 @@ def render_section(data: dict) -> str:
     checked = data["lead"]
     dropped = len(checked["dropped"])
     note = f" {dropped} Sätze fielen bei der Prüfung heraus." if dropped else ""
+    gen = f'<span class="gen-tag">automatisch erstellt</span>{shell.info(_e(data["label"]) + _e(note))}'
     return (
-        f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>Die Woche im Bundestag</h2>'
-        f'{render_text(checked)}<p class="radar-gen">{_e(data["label"])}{_e(note)}</p></section>'
+        f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>Die Woche im Bundestag{gen}</h2>'
+        f"{render_text(checked)}</section>"
     )

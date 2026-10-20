@@ -90,3 +90,69 @@ METHOD = (
     "sie können sich mit neuen "
     "Sitzungswochen ändern. Jede Rede führt zu ihrer Sitzung und ihrem Protokoll in der Recherche."
 )
+
+
+# The info button: explanations of a chart or section sit behind a small "i" next to its heading instead of grey text
+# under it. Hovering (or focusing) shows the text as a tooltip; a click pins it until the next click or Escape. The
+# tooltip is `position: fixed`, placed by INFO_JS, so a card's overflow cannot cut it off.
+INFO_CSS = """
+.info{display:inline-block;vertical-align:.12em;margin-left:6px;line-height:1}
+.info-b{width:18px;height:18px;padding:0;border-radius:50%;border:1px solid #d4d4d8;background:#fff;color:#6b7280;
+  font:600 11px/16px Georgia,serif;font-style:italic;cursor:pointer;text-align:center}
+.info-b:hover,.info.pinned .info-b{border-color:#7c3aed;color:#7c3aed}
+.info.pinned .info-b{background:#f1ebff}
+.info-t{display:none;position:fixed;z-index:60;width:min(380px,calc(100vw - 24px));padding:10px 12px;border-radius:8px;
+  background:#fff;border:1px solid #e4e4e7;box-shadow:0 8px 24px rgba(17,24,39,.14);color:#1f2328;
+  font:400 13px/1.5 Inter,system-ui,sans-serif;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;
+  max-height:min(60vh,420px);overflow-y:auto;overscroll-behavior:contain}
+.info:hover .info-t,.info-b:focus-visible+.info-t,.info.pinned .info-t{display:block}
+.gen-tag{display:inline-block;vertical-align:.15em;margin-left:8px;font-size:11px;font-weight:500;color:#5b5670;
+  border:1px solid #d9d3ea;border-radius:4px;padding:1px 5px;line-height:1.3}
+"""
+INFO_JS = """
+(() => {
+  if (window.__info) return;
+  window.__info = true;
+  const place = i => {
+    const b = i.querySelector('.info-b').getBoundingClientRect(), t = i.querySelector('.info-t');
+    const w = Math.min(380, innerWidth - 24);
+    t.style.left = Math.max(12, Math.min(b.left - 10, innerWidth - w - 12)) + 'px';
+    t.style.top = (b.bottom + 6) + 'px';
+    const h = t.getBoundingClientRect().height;
+    if (h && b.bottom + 6 + h > innerHeight - 8 && b.top - 6 - h > 8) t.style.top = (b.top - 6 - h) + 'px';
+  };
+  const close = keep => document.querySelectorAll('.info.pinned').forEach(i => {
+    if (i === keep) return;
+    i.classList.remove('pinned'); i.querySelector('.info-b').setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('click', e => {
+    if (e.target.closest('.info-t')) return;
+    const b = e.target.closest('.info-b');
+    const i = b && b.parentElement;
+    close(i);
+    if (!i) return;
+    e.preventDefault(); e.stopPropagation();  // a button inside <summary> or a link must not toggle it
+    b.setAttribute('aria-expanded', String(i.classList.toggle('pinned')));
+    place(i);
+  }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(null); });
+  for (const ev of ['mouseover', 'focusin']) document.addEventListener(ev, e => {
+    const i = e.target.closest && e.target.closest('.info');
+    if (i) requestAnimationFrame(() => place(i));
+  });
+  addEventListener('scroll', () => document.querySelectorAll('.info.pinned').forEach(place), { passive: true });
+  addEventListener('resize', () => document.querySelectorAll('.info.pinned').forEach(place));
+})();
+"""
+
+
+def info_assets() -> str:
+    """The info button's style and script, once per page."""
+    return f"<style>{INFO_CSS}</style><script>{INFO_JS}</script>"
+
+
+def info(text: str, label: str = "Erklärung") -> str:
+    """An info button whose tooltip holds `text` (HTML, already escaped by the caller)."""
+    return (f'<span class="info"><button type="button" class="info-b" aria-expanded="false" '
+            f'aria-label="{html.escape(label)}">i</button>'
+            f'<span class="info-t" role="tooltip">{text}</span></span>')  # fmt: skip

@@ -94,6 +94,7 @@ def _inline(template: str, payload: dict, method: str = shell.METHOD) -> str:
         ("__SITE_HEADER__", shell.site_header(RESEARCH)),
         ("__BRAND__", shell.brand(RESEARCH)),
         ("__METHOD__", shell.method_note(method)),
+        ("__INFO__", shell.info_assets()),
     ):
         page = page.replace(key, value)  # the shell (shell.py)
     return page.replace("__DATA__", data)
@@ -108,13 +109,18 @@ def render(payload: dict) -> str:
     return _inline("template.html", payload)
 
 
-def render_index(summaries: list[dict], overview: dict | None = None, week: dict | None = None, top: str = "") -> str:
-    """Landing page: `top` (start.py: lead, stories, Im Gespräch, Themen der Woche), „Diese Woche“ from hib
-    (`woche.load`), the period's themes over the weeks (`period.overview`), then one card per week, from `summary()`
-    of each week payload."""
+def render_index(
+    summaries: list[dict], overview: dict | None = None, week: dict | None = None, top: dict[str, str] | None = None
+) -> str:
+    """Landing page in two parts. „Diese Woche“: `top["lead"]` (start.py), a tile to the newest week's map, the hib
+    tiles (`woche.load`), `top["stories"]` and `top["rising"]`. „Die ganze Wahlperiode“: the period's themes over the
+    weeks (`period.overview`), the tours, then one card per week, from `summary()` of each week payload."""
     method = f"{woche.METHOD} {shell.METHOD}" if week else shell.METHOD
     page = _inline("index.html", {"weeks": summaries, "period": overview, "woche": week}, method)
-    return page.replace("__START__", top)
+    top = top or {}
+    for key in ("lead", "stories", "rising"):
+        page = page.replace(f"__START_{key.upper()}__", top.get(key, ""))
+    return page
 
 
 def load_payloads(out: Path) -> dict[str, dict]:
