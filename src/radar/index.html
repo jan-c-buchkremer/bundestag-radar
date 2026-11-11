@@ -635,6 +635,7 @@ if (P && P.themes.length && window.Plotly) (() => {
   const start = hashGet('thema');
   if (start != null && byTheme[+start]) select(+start); else { renderCard(); draw(); }
   addEventListener('resize', () => { if (el._fullLayout) Plotly.Plots.resize(el).then(placeLabels); });
+  document.fonts?.ready.then(() => { if (el._fullLayout) placeLabels(); });  // labels are measured in the web font
 })();
 </script>
 </body>
