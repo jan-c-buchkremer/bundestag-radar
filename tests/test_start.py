@@ -2,7 +2,7 @@ from radar import shell, start, themes
 
 
 def test_nothing_built_leaves_the_index_as_before(tmp_path):
-    empty = {"lead": "", "stories": "", "rising": "", "sitting": ""}
+    empty = {"now": "", "lead": "", "stories": "", "rising": "", "sitting": ""}
     assert start.sections(tmp_path, "https://plenar-radar.de/") == empty
 
 

@@ -34,6 +34,8 @@ from radar import llm, shell, stories
 from radar.llm import Document
 
 FILE = "lead.json"
+NOW_FILE = "lead-woche.json"  # „Bisher in dieser Woche“: the running week when it is not the sitting week
+NOW_WORDS = (60, 120)
 LABEL = (
     "Automatisch erstellt aus den Meldungen von „heute im bundestag“ und den Daten des Bundestages. Jeder Satz "
     "nennt seine Quellen. Der Text kann Fehler enthalten."
@@ -100,6 +102,13 @@ Geschichten, in dieser Reihenfolge:
 
 Länge: {lo} bis {hi} Wörter, ohne die Klammern gezählt. Der erste Satz nennt drei oder vier Themen der Woche. \
 Danach folgen zwei oder drei kurze Absätze. Trenne Absätze mit einer Leerzeile."""
+
+TASK_NOW = """Schreibe den kurzen Text „Bisher in dieser Woche“ über die Woche vom {start} bis {end}. Er handelt \
+von diesen Vorgängen, in dieser Reihenfolge:
+{stories}
+
+Länge: {lo} bis {hi} Wörter, ohne die Klammern gezählt. Ein Absatz. Schreib nichts über Sitzungen oder Debatten \
+im Plenum, nur was in den Quellen steht."""
 
 TASK_KURZ = """Erkläre die Geschichte „{title}“ in 2 bis 3 Sätzen. Sag, worum es geht, wer was will und was in der \
 Woche vom {start} bis {end} passiert ist."""
@@ -534,19 +543,42 @@ def generate(
     }
 
 
-def _lead_task(payload: dict, top: list[dict]) -> str:
+def _lead_task(payload: dict, top: list[dict], task: str = TASK_LEAD, length: tuple[int, int] = LEAD_WORDS) -> str:
     lines = [
         f"{i}. {s['title']} (Stand: {s['stage']['label'] if s.get('stage') else 'ohne Stand'}; Quellen der "
         f"Woche: {s['quellen']})"
         for i, s in enumerate(top, 1)
     ]
-    return TASK_LEAD.format(
+    return task.format(
         start=german_date(payload["start"]),
         end=german_date(payload["end"]),
         stories="\n".join(lines),
-        lo=LEAD_WORDS[0],
-        hi=LEAD_WORDS[1],
+        lo=length[0],
+        hi=length[1],
     )
+
+
+def build_now(
+    conn: sqlite3.Connection, payload: dict, backend: llm.Backend, cache: Cache, top_n: int = stories.TOP_N, log=print
+) -> dict:
+    """lead-woche.json: „Bisher in dieser Woche“ over the top stories of the running week (stories.load of that
+    week: hib items and Drucksachen), checked like the lead. Regenerated each night its sources change."""
+    top = payload["stories"][:top_n]
+    sources = unique([s for st in top for s in story_sources(conn, st, max_drucksachen=2)])
+    log(f"bisher: {len(sources)} sources")
+    task = _lead_task(payload, top, TASK_NOW, NOW_WORDS)
+    text = generate(backend, cache, sources, task, person_names(conn), "lead", NOW_WORDS)
+    return {
+        "week": payload["week"], "start": payload["start"], "end": payload["end"], "label": LABEL,
+        "backend": backend.name, "model": backend.model,
+        "generated": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "lead": text,
+    }  # fmt: skip
+
+
+def write_now(out: Path, conn: sqlite3.Connection, payload: dict, backend: str = "cli", cache: Path | None = None):
+    data = build_now(conn, payload, llm.backend(backend), Cache(cache or out.parent / "llm-cache"))
+    (out / NOW_FILE).write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    return data
 
 
 def build(
@@ -673,13 +705,13 @@ CSS = """
 """
 
 
-def render_section(data: dict) -> str:
-    """The lead „Die Woche im Bundestag“ as an HTML fragment, with the label that it is generated."""
+def render_section(data: dict, title: str = "Die Woche im Bundestag") -> str:
+    """A generated text (the lead, or „Bisher in dieser Woche“) as an HTML fragment, labelled as generated."""
     checked = data["lead"]
     dropped = len(checked["dropped"])
     note = f" {dropped} Sätze fielen bei der Prüfung heraus." if dropped else ""
     gen = f'<span class="gen-tag">automatisch erstellt</span>{shell.info(_e(data["label"]) + _e(note))}'
     return (
-        f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>Die Woche im Bundestag{gen}</h2>'
+        f'<section class="radar-lead"><style>{CSS}{stories.CSS}</style><h2>{_e(title)}{gen}</h2>'
         f"{render_text(checked)}</section>"
     )

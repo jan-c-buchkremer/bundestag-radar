@@ -99,3 +99,27 @@ def test_api_backend_builds_document_blocks_and_turns_citations_into_ids():
     assert [b["title"] for b in body["messages"][0]["content"][:2]] == ["hib 1/2026", "Drucksache 21/1"]
     assert body["messages"][0]["content"][-1] == {"type": "text", "text": "Aufgabe"}
     assert api.generate("SYS", docs, "Aufgabe").text == "Erster Satz. [Drucksache 21/1]"
+
+
+def test_now_text_reads_the_running_weeks_stories_and_renders_with_its_title(tmp_path, monkeypatch):
+    text = "Die Bundesregierung plant ein Gesetz zur Reserve."
+    src = [Source("hib 1/2026", text, "https://www.bundestag.de/1", "hib")]
+    monkeypatch.setattr(lead, "story_sources", lambda conn, st, max_drucksachen=4: src)
+    monkeypatch.setattr(lead, "person_names", lambda conn: set())
+    tasks = []
+
+    class Fake:
+        name, model = "fake", "m"
+
+        def generate(self, system, documents, task):
+            tasks.append(task)
+            return llm.Result(text="Die Bundesregierung plant ein Gesetz zur Reserve. [hib 1/2026]", model="m",
+                              backend="fake")  # fmt: skip
+
+    payload = {"week": "2026-W46", "start": "2026-11-09", "end": "2026-11-15",
+               "stories": [{"title": "Reservestärkungsgesetz", "quellen": "hib", "stage": None}]}  # fmt: skip
+    data = lead.build_now(None, payload, Fake(), lead.Cache(tmp_path), log=lambda *_: None)
+    assert "Bisher in dieser Woche" in tasks[0] and "1. Reservestärkungsgesetz" in tasks[0]
+    assert data["week"] == "2026-W46" and data["lead"]["sentences"][0]["cites"] == ["hib 1/2026"]
+    html = lead.render_section(data, "Bisher in dieser Woche")
+    assert "<h2>Bisher in dieser Woche" in html and 'href="https://www.bundestag.de/1"' in html

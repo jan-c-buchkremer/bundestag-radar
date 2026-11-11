@@ -118,7 +118,7 @@ def render_index(
     method = f"{woche.METHOD} {shell.METHOD}" if week else shell.METHOD
     page = _inline("index.html", {"weeks": summaries, "period": overview, "woche": week}, method)
     top = top or {}
-    for key in ("lead", "stories", "rising", "sitting"):
+    for key in ("now", "lead", "stories", "rising", "sitting"):
         page = page.replace(f"__START_{key.upper()}__", top.get(key, ""))
     return page
 

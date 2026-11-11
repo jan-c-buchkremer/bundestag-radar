@@ -86,11 +86,14 @@ def sections(out: Path, research: str) -> dict[str, str]:
     news in one line); also writes the full pages next to it. A part that is not built is ""."""
     from radar import gespraech, lead, stories
 
-    parts = {"lead": "", "stories": "", "rising": "", "sitting": ""}
+    parts = {"now": "", "lead": "", "stories": "", "rising": "", "sitting": ""}
     st, ld = _load(out, stories.FILE), _load(out, lead.FILE)
     wk = _load(out, "woche.json")
     if st and st.get("sittings") and (not wk or wk.get("week") != st["week"]):
         parts["sitting"] = sitting_part(st)
+        now = _load(out, lead.NOW_FILE)
+        if now and wk and now.get("week") == wk.get("week"):
+            parts["now"] = lead.render_section(now, "Bisher in dieser Woche")
     if ld and st and ld.get("week") != st.get("week"):
         ld = None  # a lead of another week would describe the wrong stories
     if ld:

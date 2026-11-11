@@ -27,7 +27,8 @@ def main(argv: list[str] | None = None) -> None:
         "`gespraech` (Im Gespräch: attention of the 7 days up to --date); or `stories` (Geschichten der Woche) / "
         "`lead` (stories + generated texts) alone",
     )
-    b.add_argument("--week", help="stories/lead/themen: the ISO week (default: the newest hib week)")
+    b.add_argument("--week", help="stories/lead: the ISO week (default: the newest sitting week); themen: (default: "
+                   "the newest hib week)")  # fmt: skip
     b.add_argument("--backend", default="cli", choices=("cli", "api"), help="lead: claude -p or the Anthropic API")
     b.add_argument("--no-positions", action="store_true", help="lead: skip the per-Fraktion sentences")
     b.add_argument("--date", help="gespraech: last day of the week, ISO (default: yesterday)")
@@ -173,6 +174,14 @@ def _stories(conn, args) -> None:
     if args.weeks[0] == "lead":
         texts = lead.write(args.out, conn, payload, backend=args.backend, positions=not args.no_positions)
         print(f"{lead.FILE}: {texts['lead']['words']} words, {len(texts['stories'])} stories explained")
+        from radar.woche import latest_week
+
+        now = latest_week(conn) if not args.week else None
+        if now and now != payload["week"] and (running := stories.load(conn, now)):
+            data = lead.write_now(args.out, conn, running, backend=args.backend)
+            print(f"{lead.NOW_FILE}: {now}, {data['lead']['words']} words")
+        else:
+            (args.out / lead.NOW_FILE).unlink(missing_ok=True)
     elif (args.out / lead.FILE).exists():
         old = json.loads((args.out / lead.FILE).read_text(encoding="utf-8"))
         texts = lead.with_html(old) if old.get("week") == payload["week"] else None
