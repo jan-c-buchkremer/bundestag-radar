@@ -36,6 +36,14 @@ def drucksache_pdf(number: str) -> str:
     return f"https://dserver.bundestag.de/btd/{wp}/{n5[:3]}/{wp}{n5}.pdf"
 
 
+def sitting_week(conn: sqlite3.Connection, today: str | None = None) -> str | None:
+    """The newest ISO week with a sitting up to `today`: the unit of the lead and the Geschichten der Woche."""
+    from radar.corpus import weeks
+
+    last = week_id(today or dt.date.today().isoformat())
+    return next((w["week"] for w in reversed(weeks(conn)) if w["week"] <= last), None)
+
+
 def latest_week(conn: sqlite3.Connection, today: str | None = None) -> str | None:
     """The ISO week of the newest hib item up to `today`; None without hib in the store."""
     if not has_table(conn, "hib_item"):

@@ -2,7 +2,14 @@ from radar import shell, start, themes
 
 
 def test_nothing_built_leaves_the_index_as_before(tmp_path):
-    assert start.sections(tmp_path, "https://plenar-radar.de/") == {"lead": "", "stories": "", "rising": ""}
+    empty = {"lead": "", "stories": "", "rising": "", "sitting": ""}
+    assert start.sections(tmp_path, "https://plenar-radar.de/") == empty
+
+
+def test_sitting_week_heading_names_its_sitting_days():
+    st = {"week": "2026-W45", "sittings": [{"date": "2026-11-04"}, {"date": "2026-11-06"}]}
+    part = start.sitting_part(st)
+    assert "Sitzungswoche" in part and "KW 45 · 04.11.2026 bis 06.11.2026" in part
 
 
 def test_start_page_keeps_the_news_and_a_few_others():

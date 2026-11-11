@@ -38,7 +38,15 @@ from pathlib import Path
 from radar import shell
 from radar.corpus import HIB_URL, has_table, short_title, week_range
 from radar.origin import fraction_name
-from radar.woche import AREA_OF_RESSORT, EINBRINGER, drucksache_pdf, einbringer, latest_week, research_path
+from radar.woche import (
+    AREA_OF_RESSORT,
+    EINBRINGER,
+    drucksache_pdf,
+    einbringer,
+    latest_week,
+    research_path,
+    sitting_week,
+)
 
 FILE = "stories.json"
 RESEARCH = os.environ.get("RESEARCH_URL", "https://plenar-radar.de/").rstrip("/") + "/"
@@ -775,8 +783,10 @@ def _vote_story(d: dict) -> dict:
 
 
 def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = None) -> dict | None:
-    """The stories of `week` (default: the newest hib week); None without hib in the store."""
-    week = week or latest_week(conn, today)
+    """The stories of `week` (default: the newest sitting week); None without hib in the store."""
+    if not has_table(conn, "hib_item"):
+        return None
+    week = week or sitting_week(conn, today) or latest_week(conn, today)
     if week is None:
         return None
     start, end = week_range(week)

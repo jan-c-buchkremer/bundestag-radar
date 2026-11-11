@@ -67,14 +67,30 @@ def people_line(payload: dict, n: int = PEOPLE_ON_START) -> str:
             f'{len(payload["people"])} mit Zahlen →</a></p>')  # fmt: skip
 
 
+def de(iso: str) -> str:
+    return f"{iso[8:10]}.{iso[5:7]}.{iso[:4]}"
+
+
+def sitting_part(st: dict) -> str:
+    """The heading of the newest sitting week when it is not the running week: its lead and stories follow."""
+    first, last = st["sittings"][0]["date"], st["sittings"][-1]["date"]
+    days = de(first) if first == last else f"{de(first)} bis {de(last)}"
+    kw = int(st["week"].split("-W")[1])
+    return (f'<div class="part part-now part-sit"><span class="part-k">Sitzungswoche</span>'
+            f'<span class="part-d">KW {kw} · {days}</span></div>')  # fmt: skip
+
+
 def sections(out: Path, research: str) -> dict[str, str]:
     """The parts of index.html's „Diese Woche“ that come from the weekly JSON files, by placeholder: `lead` (Die
     Woche im Bundestag), `stories` (Geschichten der Woche) and `rising` (Steigende Themen, with the people in the
     news in one line); also writes the full pages next to it. A part that is not built is ""."""
     from radar import gespraech, lead, stories
 
-    parts = {"lead": "", "stories": "", "rising": ""}
+    parts = {"lead": "", "stories": "", "rising": "", "sitting": ""}
     st, ld = _load(out, stories.FILE), _load(out, lead.FILE)
+    wk = _load(out, "woche.json")
+    if st and st.get("sittings") and (not wk or wk.get("week") != st["week"]):
+        parts["sitting"] = sitting_part(st)
     if ld and st and ld.get("week") != st.get("week"):
         ld = None  # a lead of another week would describe the wrong stories
     if ld:
