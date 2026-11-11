@@ -5,15 +5,33 @@ not before? If that sentence is hard to write, the release is not a finished ver
 
 ## Unreleased
 
-Readers who open the Radar see first what is going on in the Bundestag this week, as „heute im bundestag“ reports
-it: a mosaic of policy areas sized by the number of items, with the headlines inside, each item linked to its
-article, its Vorgang and the debate in the plenum, and the newest sitting week's topics leading into the map.
+Readers who open the Radar see what is going on in the Bundestag now: what „heute im bundestag“ reported this week by
+policy area, with a short generated summary and the themes that are rising, then the newest sitting week as a
+checked lead and its Geschichten der Woche, and who is in the news.
 
-- „Diese Woche“ on top of `index.html` (`woche.py`, `woche.json`); `radar build woche` refreshes it and the index
-  without re-clustering. Needs the foundation's `hib_item` and `hib_drucksache` (optional: an older store builds the
-  index without the section). The method note names hib's selection and our grouping.
-- Fraktion chips: who tabled the Vorgang behind an item (for an Antwort, who asked), from the Vorgang's initiators
-  (`woche.einbringer`), in the Fraktion colours.
+- Two week units (docs/decisions.md, 2026-11-11). „Diese Woche“ is the running calendar week, rebuilt every night:
+  the hib mosaic (`woche.py`, `woche.json`; areas sized by items, Fraktion chips for who tabled the Vorgang, no tile
+  narrower than 100 px), „Bisher in dieser Woche“ and „Steigende Themen“. The newest sitting week follows under its
+  own heading with its sitting days when it is not the running week.
+- „Die Woche im Bundestag“ (`lead.py`, `llm.py`, `lead.json`) and „Bisher in dieser Woche“ (`lead-woche.json`):
+  generated in Einfacher Sprache from the sources of the top stories only; every sentence names its sources, and
+  code checks that each number and name is in them; failing sentences get one retry, then are dropped. Cached by a
+  hash of the inputs in `data/llm-cache/`.
+- Geschichten der Woche (`stories.py`, `stories.json`, `geschichten.html`): the sitting week's Vorgänge ranked by
+  how many sources carry them (hib, Drucksachen, agenda, votes), with their stage, a „kurz erklärt“ and one sentence
+  per Fraktion from the debate.
+- „Steigende Themen“ (`themes.py`, `themen.json`): about 60 themes refitted every Monday on the 26 weeks before
+  (speeches and hib items), every new document sorted in each night. A theme keeps its id and name while it holds
+  the same documents; a retired one names its successor. Kleine Anfragen and Antworten are sorted in and counted,
+  but never shape a theme or make it rise. Theme names are generated once per new theme.
+- Im Gespräch (`gespraech.py`, `gespraech.html`): members and topics whose Wikipedia views, plenary mentions or
+  news jump against their own usual level, over the last seven days.
+- Links to a hib Meldung use the short form `bundestag.de/<id>`, as the Parlamentsnachrichten asked; the text of a
+  Meldung is never shown.
+- New nightly steps besides `build --all`: `radar themes weekly` (refit when due, name new themes), `radar build
+  themen`, `radar build lead` (needs a logged-in `claude` CLI or `--backend api`), `radar build gespraech`, then
+  `radar build woche` for the index.
+- The Wahlperiode stream places its labels again once the web font has loaded, so none sticks out on a phone.
 
 ## v0.2.2 (2026-10-16)
 
