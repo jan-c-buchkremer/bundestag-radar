@@ -332,6 +332,19 @@ if (WK && WK.items.length) (() => {
     if (row.length) lay(row);
     return out;
   }
+  // the treemap leaves its last, smallest tiles as thin strips; so the small areas get a floor share of the mosaic, the
+  // smallest floor at which no tile is narrower than 100 px, about what a policy area's longest word needs (else the
+  // floor that makes the thinnest tile widest). The count on each tile stays exact.
+  function tiles(vals, W, H) {
+    const total = vals.reduce((a, b) => a + b, 0), thin = rs => Math.min(...rs.map(r => Math.min(r.w, r.h)));
+    let best = null;
+    for (let k = 0; k <= 12; k++) {
+      const rs = squarify(vals.map(v => Math.max(v, total * k / 100)), W, H);
+      if (thin(rs) >= 100) return rs;
+      if (!best || thin(rs) > thin(best)) best = rs;
+    }
+    return best;
+  }
 
   const mosaic = document.getElementById('mosaic'), detail = document.getElementById('wdetail');
   const shown = () => I.filter(i => !fr || (i.einbringer || []).includes(fr));
@@ -355,7 +368,7 @@ if (WK && WK.items.length) (() => {
     if (area && !groups.some(g => g.k === area)) area = null;
     const W = mosaic.clientWidth, H = W < 600 ? Math.round(W * 1.45) : 470;
     mosaic.style.height = `${H}px`;
-    const rects = squarify(groups.map(g => g.items.length), W, H), gap = 3;
+    const rects = tiles(groups.map(g => g.items.length), W, H), gap = 3;
     mosaic.innerHTML = groups.map((g, n) => {
       const r = rects[n], a = AREA[g.k], big = r.w * r.h > W * H * 0.2 && r.w > 220;
       const sorted = [...g.items].sort((p, q) => prio(p) - prio(q) || q.date.localeCompare(p.date));
