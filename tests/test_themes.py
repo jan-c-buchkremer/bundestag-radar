@@ -89,7 +89,8 @@ def test_refit_keeps_ids_by_hungarian_matching():
     assert len(act) == 3 and len(retired) == 1
     assert {"T004"} == set(act) - set(by_old)  # the new theme gets the next id, never a reused one
     assert retired[0]["id"] not in act and reg["next_id"] == 5
-    assert reg["history"][-1] == {"version": 2, "date": "2026-12-01", "themes": 3, "kept": 2, "born": 1, "retired": 1}
+    assert reg["history"][-1] == {"version": 2, "date": "2026-12-01", "themes": 3, "kept": 2, "moved": 0, "born": 1,
+                                  "retired": 1, "continued": 0, "split": 0}  # fmt: skip
 
 
 def test_match_needs_cosine_and_member_overlap():
@@ -117,8 +118,8 @@ def test_week_payload_and_section(conn):
     conn.executemany(
         "INSERT INTO hib_item (id, number, date, wahlperiode, title, ressort, kind, text, source_url) "
         "VALUES (?,?,?,?,?,?,?,?,?)",
-        [(str(i), f"{i}/2026", "2026-09-08", 21, "Mieten steigen", "Bau", "Antwort", "Wohnen Mieten",
-          f"https://hib/{i}") for i in range(4)],
+        [(str(i), f"{i}/2026", "2026-09-08", 21, "Mieten steigen", "Bau", "Gesetzentwurf" if i < 4 else "Antwort",
+          "Wohnen Mieten", f"https://hib/{i}") for i in range(6)],
     )  # fmt: skip
 
     def embed_fn(docs, _store):
@@ -126,14 +127,17 @@ def test_week_payload_and_section(conn):
 
     reg = {
         "version": 1, "fitted": "2026-10-01", "next_id": 3,
-        "means": {"reden": [0, 0, 0, 0], "hib": [0, 0, 0, 0]}, "floors": {"reden": 0.5, "hib": 0.5},
+        "means": {"reden": [0, 0, 0, 0], "hib": [0, 0, 0, 0], "hib_fragen": [0, 0, 0, 0]},
+        "floors": {"reden": 0.5, "hib": 0.5, "hib_fragen": 0.5},
         "themes": [{"id": "T001", "terms": ["wohnen", "mieten"], "centroid": [1, 0, 0, 0]},
                    {"id": "T002", "terms": ["haushalt"], "centroid": [0, 1, 0, 0]}],
     }  # fmt: skip
     p = themes.week_payload(conn, None, reg, "2026-W37", embed_fn=embed_fn)
-    assert p["baseline_weeks"] == ["2026-W28"]
+    assert p["baseline_weeks"] == ["2026-W28"]  # speeches: the sitting weeks before
+    assert p["baselines"]["hib"][-1] == "2026-W36" and len(p["baselines"]["hib"]) == themes.BASELINE_WEEKS
     t1 = next(t for t in p["themes"] if t["id"] == "T001")
     assert t1["sources"]["hib"]["n"] == 4 and t1["sources"]["hib"]["share"] == 1.0
+    assert "hib_fragen" not in t1["sources"] and t1["fragen"]["n"] == 2  # the two Antworten: counted, not in shares
     assert t1["sources"]["hib"]["docs"][0]["url"].startswith("https://www.bundestag.de/")  # the short link
     assert t1["sources"]["hib"]["rising"]  # 4 items, none in the baseline week
     assert not t1["sources"]["reden"]["rising"]  # one speech is below MIN_DOCS
@@ -143,6 +147,56 @@ def test_week_payload_and_section(conn):
     p["themes"][0]["thema_der_woche"] = True
     p["themes"][0]["label_by"] = "generated 2026-10-12"
     assert 'class="card"' in themes.render_section(p) and "automatisch erstellt" in themes.render_section(p)
+    assert "Dazu 2 Kleine Anfragen und Antworten" in themes.render_section(p)
+
+
+def test_fragen_get_their_own_source(conn):
+    conn.executescript(HIB)
+    conn.executemany(
+        "INSERT INTO hib_item (id, number, date, wahlperiode, title, ressort, kind, text, source_url) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
+        [("1", "1/2026", "2026-09-08", 21, "a", "Bau", "Kleine Anfrage", "x", "u"),
+         ("2", "2/2026", "2026-09-08", 21, "b", "Bau", "Bericht", "x", "u")],
+    )  # fmt: skip
+    assert [d.source for d in themes.hib(conn)] == ["hib_fragen", "hib"]
+
+
+def fake_registry(groups: dict[str, list[str]]) -> dict:
+    """A fit result whose themes have the given members (centroids far apart, so only the overlap decides)."""
+    out = []
+    for k, members in enumerate(groups.values()):
+        c = np.zeros(8)
+        c[k] = 1.0
+        out.append({"terms": [], "n": {}, "examples": {}, "members": members, "centroid": c})
+    return {"params": {}, "n_docs": {}, "means": {}, "floors": {}, "themes": out}
+
+
+def test_lineage_moves_continues_and_splits():
+    a, b, c, d = ([f"{x}{i}" for i in range(n)] for x, n in (("a", 10), ("b", 10), ("c", 10), ("d", 15)))
+    old = themes.register(fake_registry({"A": a, "B": b, "C": c, "D": d}), today="2026-10-05")
+    old["themes"][0]["label"] = "Thema A"
+    # the refit: A moved (same members, other centroid), B merged into D, C split in two; new documents (x) only
+    # count where both fits contain them, so D growing by them keeps it D
+    new = fake_registry({"A": a, "BD": b + d + [f"x{i}" for i in range(9)], "C1": c[:5], "C2": c[5:]})
+    for t in new["themes"]:  # no centroid matches its old one
+        t["centroid"] = np.roll(t["centroid"], 4)
+    reg = themes.register(new, old, today="2026-10-12")
+    act = {t["id"]: t for t in themes.active(reg)}
+    gone = {t["id"]: t for t in reg["themes"] if t.get("retired")}
+    assert act["T001"]["members"] == a and act["T001"]["label"] == "Thema A"  # moved: id and name kept
+    assert "T004" in act and gone["T002"]["successor"] == "T004"
+    assert sorted(gone["T003"]["split_into"]) == ["T005", "T006"] and act["T005"]["parent"] == "T003"
+    assert sorted(themes.current(reg, "T003")) == ["T005", "T006"]
+    assert themes.current(reg, "T002") == ["T004"] and themes.current(reg, "T001") == ["T001"]
+    h = reg["history"][-1]
+    assert (h["kept"], h["moved"], h["born"], h["continued"], h["split"]) == (2, 2, 2, 1, 1)
+
+
+def test_refit_is_due_once_a_week():
+    assert themes.due(None)
+    assert themes.monday("2026-11-11") == "2026-11-09"
+    assert not themes.due({"fitted": "2026-11-09"}, "2026-11-15")
+    assert themes.due({"fitted": "2026-11-09"}, "2026-11-16")
 
 
 def test_speech_url():

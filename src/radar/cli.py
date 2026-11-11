@@ -1,7 +1,7 @@
 """radar weeks | radar build 2026-W28 [2026-W26 …] | radar build overview | radar build woche | radar build --all |
 radar build stories [--week 2026-W41] | radar build lead [--week 2026-W41] [--backend cli|api] |
 radar build gespraech [--date 2026-10-11] | radar build themen [--week 2026-W41] | radar themes embed |
-radar themes fit [--refit] | radar themes label | radar serve"""
+radar themes fit [--refit] | radar themes label | radar themes weekly | radar serve"""
 
 from __future__ import annotations
 
@@ -38,13 +38,13 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--min-cluster-size", type=int, default=8)
     b.add_argument("--period-min-cluster-size", type=int, default=None, help="HDBSCAN size for the period themes")
     b.add_argument("--registry", type=Path, default=Path("data/themes.json"), help="`themen`: the theme registry")
-    th = sub.add_parser("themes", help="the frozen theme registry (data/themes.json)")
-    th.add_argument("action", choices=["embed", "fit", "label"])
+    th = sub.add_parser("themes", help="the theme registry (data/themes.json), refitted weekly")
+    th.add_argument("action", choices=["embed", "fit", "label", "weekly"],
+                    help="weekly: refit when due (once a week), then name the new themes")  # fmt: skip
     th.add_argument("--registry", type=Path, default=Path("data/themes.json"))
     th.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
     th.add_argument("--refit", action="store_true", help="keep the ids of the existing registry where themes match")
-    th.add_argument("--until", help="fit only on documents up to this date (default: all)")
-    th.add_argument("--subset", type=float, default=1.0, help="fit on a random share of the documents (a test)")
+    th.add_argument("--until", help="fit on the 26 weeks before this date (default: this week's Monday)")
     th.add_argument("--seed", type=int, default=42)
     th.add_argument("--min-cluster-size", type=int, default=None)
     sv = sub.add_parser("serve", help="dev server: pages are re-rendered from data/out/*.json on every request")

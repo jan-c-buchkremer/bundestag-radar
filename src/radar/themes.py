@@ -30,8 +30,14 @@ from radar.build import RESEARCH
 from radar.corpus import has_table, week_id, week_range
 from radar.woche import drucksache_pdf, research_path
 
-SOURCES = ("reden", "hib", "drucksachen")
-SOURCE_LABEL = {"reden": "Reden", "hib": "hib", "drucksachen": "Drucksachen"}
+SOURCES = ("reden", "hib", "drucksachen")  # what is discussed: these shape the themes and count for "steigend"
+# Kleine Anfragen and their Antworten (hib kind, Drucksache type) never shape the themes nor count for "steigend":
+# they are only sorted into the themes (decided 2026-11-11). Each gets a source of its own, centred on its own mean.
+FRAGEN = ("Kleine Anfrage", "Antwort")
+FRAGEN_SOURCE = {"hib": "hib_fragen", "drucksachen": "drucksachen_fragen"}
+ALL_SOURCES = SOURCES + tuple(FRAGEN_SOURCE.values())
+SOURCE_LABEL = {"reden": "Reden", "hib": "hib", "drucksachen": "Drucksachen", "hib_fragen": "hib (Anfragen)",
+                "drucksachen_fragen": "Kleine Anfragen und Antworten"}  # fmt: skip
 # Drucksache types whose title names no single subject: bundles of written questions
 SKIP_DRUCKSACHE_TYPES = ("Schriftliche Fragen", "Fragen", "Plenarprotokoll")
 VERSION = 1  # of the themes.json format
@@ -94,7 +100,7 @@ def hib(conn: sqlite3.Connection, start: str = "0000", end: str = "9999") -> lis
     return [
         Doc(
             id=f"hib-{r['id']}",
-            source="hib",
+            source=FRAGEN_SOURCE["hib"] if r["kind"] in FRAGEN else "hib",
             date=r["date"],
             title=r["title"],
             text=f"{r['title']}\n\n{r['text']}",
@@ -128,7 +134,7 @@ def drucksachen(conn: sqlite3.Connection, start: str = "0000", end: str = "9999"
     return [
         Doc(
             id=f"drs-{r['number']}",
-            source="drucksachen",
+            source=FRAGEN_SOURCE["drucksachen"] if r["type"] in FRAGEN else "drucksachen",
             date=r["date"],
             title=r["title"],
             text=r["title"],
@@ -163,10 +169,13 @@ def embed_all(conn: sqlite3.Connection, store: sqlite3.Connection) -> None:
 
 # --- the registry: fit and refit ---------------------------------------------------------------------------------
 
-MIN_CLUSTER_SIZE = 60  # as period.py on WP 21; see docs/decisions.md
+MIN_CLUSTER_SIZE = 20  # the weekly refit: ~60 themes on 26 weeks (radar-lab report-themen-dynamik.md, round 4)
+WINDOW_DAYS = 182  # the refit sees the 26 weeks before its Monday
 FLOOR_QUANTILE = 0.05  # a document joins a theme at ≥ the 5th percentile of member-to-own-centroid cosines
-MATCH_COS = 0.90  # refit: an old and a new theme are the same at this centroid cosine (source-centred space) …
-MATCH_JACCARD = 0.4  # … and this overlap of the member documents both fits share
+MATCH_COS = 0.80  # refit: an old and a new theme are the same at this centroid cosine (source-centred space) …
+MATCH_JACCARD = 0.2  # … and this overlap of the member documents both fits share
+MAJORITY = 0.5  # lineage: a new theme holds more than this share of an old theme's members (both fits contain)
+SPLIT = 0.25  # … and the share each of two or more new themes must hold for a split
 ID_FORMAT = "T{:03d}"
 
 
@@ -312,12 +321,23 @@ def fit(
     }  # fmt: skip
 
 
+def overlap(a: set[str], b: set[str]) -> float:
+    """The share of a's members that b holds."""
+    return len(a & b) / len(a) if a else 0.0
+
+
 def register(new: dict, old: dict | None = None, today: str | None = None, vecs_of=None) -> dict:
-    """The registry after a fit: ids carried over from `old` where a new theme matches an old one, else new ids.
+    """The registry after a fit: ids carried over from `old` where a new theme is an old one, else new ids.
 
     `vecs_of(ids) -> source-centred unit vectors` lets the old themes' centroids be recomputed from their members in
     the new fit's space (the source means move a little between fits); without it the stored centroids are used.
-    Unmatched old themes are retired, with the new theme they are closest to as `merged_into` when that is close."""
+
+    Ids carry over in two passes. First the Hungarian match on centroid cosine and member overlap (`match`); then a
+    new theme that holds the majority of an unmatched old theme's members, and draws the majority of its own members
+    from it, keeps that id (the same theme, moved). Member overlap counts only the documents both fits contain. An
+    old theme still unmatched is retired with its lineage after MONIC (Spiliopoulou et al. 2006): `successor` when
+    one new theme holds the majority of its members, `split_into` when two or more hold a quarter each. A new theme
+    drawn mostly from one old theme names it as `parent` (a split-off, or the successor of a retired one)."""
     today = today or dt.date.today().isoformat()
     version = (old or {}).get("version", 0) + 1
     next_id = (old or {}).get("next_id", 1)
@@ -334,15 +354,26 @@ def register(new: dict, old: dict | None = None, today: str | None = None, vecs_
     new_members = [set(t["members"]) for t in new["themes"]]
     common = set().union(*old_members) & set().union(*new_members) if old_members and new_members else set()
     pairs = match(old_cents, new_cents, old_members, new_members, common)
+    om, nm = [m & common for m in old_members], [m & common for m in new_members]
+    by_match = len(pairs)
+    for k in range(len(nm)):
+        if k in pairs:
+            continue
+        free = [j for j in range(len(om)) if j not in pairs.values()]
+        j = max(free, key=lambda j: len(nm[k] & om[j]), default=None)
+        if j is not None and overlap(nm[k], om[j]) > MAJORITY and overlap(om[j], nm[k]) > MAJORITY:
+            pairs[k] = j
     themes = []
     for k, t in enumerate(new["themes"]):
         if k in pairs:
             prev = old_active[pairs[k]]
-            entry = {**{f: prev[f] for f in ("id", "born") if f in prev}, **{f: prev[f] for f in ("label", "label_by")
-                                                                            if f in prev}}  # fmt: skip
+            entry = {f: prev[f] for f in ("id", "born", "label", "label_by", "parent") if f in prev}
         else:
             entry = {"id": ID_FORMAT.format(next_id), "born": today}
             next_id += 1
+            j = max(range(len(om)), key=lambda j: len(nm[k] & om[j]), default=None)
+            if j is not None and overlap(nm[k], om[j]) > MAJORITY:
+                entry["parent"] = old_active[j]["id"]
         themes.append({**entry, **{f: t[f] for f in ("terms", "n", "examples", "members")},
                        "centroid": [round(float(v), 5) for v in t["centroid"]]})  # fmt: skip
     matched_old = set(pairs.values())
@@ -350,13 +381,20 @@ def register(new: dict, old: dict | None = None, today: str | None = None, vecs_
     for j, t in enumerate(old_active):
         if j in matched_old:
             continue
-        sims = new_cents @ old_cents[j] if len(new_cents) else np.zeros(0)
-        into = themes[int(sims.argmax())]["id"] if len(sims) and sims.max() >= MATCH_COS - 0.05 else None
-        retired.append({**t, "retired": today, **({"merged_into": into} if into else {})})
+        shares = [overlap(om[j], m) for m in nm]
+        best = int(np.argmax(shares)) if shares else -1
+        if best >= 0 and shares[best] > MAJORITY:
+            line = {"successor": themes[best]["id"]}
+        elif sum(x >= SPLIT for x in shares) >= 2:
+            line = {"split_into": [themes[k]["id"] for k in np.argsort(shares)[::-1] if shares[k] >= SPLIT]}
+        else:
+            line = {}
+        retired.append({**t, "retired": today, **line})
     already = [t for t in (old or {}).get("themes", []) if t.get("retired")]
     history = (old or {}).get("history", []) + [{
-        "version": version, "date": today, "themes": len(themes), "kept": len(pairs),
+        "version": version, "date": today, "themes": len(themes), "kept": len(pairs), "moved": len(pairs) - by_match,
         "born": len(themes) - len(pairs), "retired": len(retired),
+        "continued": sum("successor" in t for t in retired), "split": sum("split_into" in t for t in retired),
     }]  # fmt: skip
     return {
         "format": VERSION, "version": version, "fitted": today, "params": new["params"], "n_docs": new["n_docs"],
@@ -364,6 +402,24 @@ def register(new: dict, old: dict | None = None, today: str | None = None, vecs_
         "floors": {s: round(f, 4) for s, f in new["floors"].items()},
         "next_id": next_id, "themes": themes + already + retired, "history": history,
     }  # fmt: skip
+
+
+def current(registry: dict, theme_id: str) -> list[str]:
+    """The active themes an id lives on in: itself, its successor, or the themes it split into (followed through
+    later refits); [] when its line ended."""
+    by_id = {t["id"]: t for t in registry["themes"]}
+    todo, out, seen = [theme_id], [], set()
+    while todo:
+        i = todo.pop()
+        if i in seen or i not in by_id:
+            continue
+        seen.add(i)
+        t = by_id[i]
+        if not t.get("retired"):
+            out.append(i)
+        else:
+            todo += [t["successor"]] if t.get("successor") else t.get("split_into", [])
+    return out
 
 
 def active(registry: dict) -> list[dict]:
@@ -415,14 +471,15 @@ def week_docs(conn: sqlite3.Connection, source: str, week: str) -> list[Doc]:
     start, end = week_range(week)
     if source == "reden":
         return speeches(conn, [week])
-    return hib(conn, start, end) if source == "hib" else drucksachen(conn, start, end)
+    docs = hib(conn, start, end) if source.startswith("hib") else drucksachen(conn, start, end)
+    return [d for d in docs if d.source == source]
 
 
 def doc_entry(d: Doc, cos: float) -> dict:
     e = {"id": d.id, "title": d.title, "date": d.date, "url": d.url, "cos": round(float(cos), 3)}
     if d.source == "reden":
         e.update(speaker=d.extra["speaker"], fraction=d.extra["fraction"])
-    elif d.source == "hib":
+    elif d.source.startswith("hib"):
         e.update(number=d.extra["number"], kind=d.extra["kind"])
     else:
         e.update(number=d.extra["number"], type=d.extra["type"])
@@ -460,23 +517,34 @@ def new_topics(docs: list[Doc], x: np.ndarray, cents: np.ndarray, floor: float, 
     return out
 
 
+def weeks_before(week: str, n: int) -> list[str]:
+    """The n calendar weeks before `week`, oldest first."""
+    monday = dt.date.fromisoformat(week_range(week)[0])
+    return [week_id((monday - dt.timedelta(weeks=k)).isoformat()) for k in range(n, 0, -1)]
+
+
 def week_payload(conn: sqlite3.Connection, store: sqlite3.Connection, registry: dict, week: str, embed_fn=None) -> dict:
-    """Per theme and source: this week's share against the trailing sitting weeks, z, whether it rises, the
-    strongest documents; the Themen der Woche (rising in ≥ 2 of 3 sources) and the new candidates."""
+    """Per theme and source: this week's share against the weeks before, z, whether it rises, the strongest
+    documents; the Themen der Woche (rising in ≥ 2 of 3 sources) and the new candidates.
+
+    `week` is a calendar week, usually the running one (shares, so a week in progress compares fairly). Speeches
+    compare with the sitting weeks before, hib and Drucksachen with the calendar weeks before (they appear every
+    week). Kleine Anfragen and Antworten are sorted into the themes and counted per theme, never in the shares."""
     from radar.period import area
 
     sitting = [w["week"] for w in corpus.weeks(conn)]
-    baseline = [w for w in sitting if w < week][-BASELINE_WEEKS:]
+    baselines = {s: [w for w in sitting if w < week][-BASELINE_WEEKS:] if s == "reden" else
+                 weeks_before(week, BASELINE_WEEKS) for s in ALL_SOURCES}  # fmt: skip
     themes = active(registry)
     cents = theme_centroids(registry)
     dim = cents.shape[1]
     stats: dict[str, dict] = {}
     week_docs_all, week_x, week_cos = {}, {}, {}
-    for source in SOURCES:
+    for source in ALL_SOURCES:
         if source not in registry["means"]:
             continue
         per_week = {}
-        for w in [*baseline, week]:
+        for w in [*(baselines[source] if source in SOURCES else []), week]:
             docs = week_docs(conn, source, w)
             x = centre(vectors(docs, store, embed_fn), registry["means"][source]) if docs else np.zeros((0, dim))
             idx, cos = assign(x, cents, registry["floors"][source])
@@ -485,37 +553,47 @@ def week_payload(conn: sqlite3.Connection, store: sqlite3.Connection, registry: 
             if w == week:
                 week_docs_all[source], week_x[source], week_cos[source] = docs, x, (idx, cos)
         stats[source] = per_week
+
+    def top_docs(source: str, k: int, n: int = TOP_DOCS) -> list[dict]:
+        idx, cos = week_cos[source]
+        sel = np.flatnonzero(idx == k)
+        return [doc_entry(week_docs_all[source][i], cos[i]) for i in sel[np.argsort(-cos[sel])][:n]]
+
     out_themes = []
     for k, t in enumerate(themes):
         entry = {"id": t["id"], "label": label(t), "terms": t["terms"], "area": area(t["terms"]), "sources": {},
+                 "born": t.get("born"), **({"parent": t["parent"]} if t.get("parent") else {}),
                  **({"label_by": t["label_by"]} if t.get("label_by") else {})}  # fmt: skip
+        fragen = {"n": 0, "docs": []}
         for source, per_week in stats.items():
             p, n, idx = per_week[week]
             count = int((idx == k).sum())
-            base = [float(per_week[w][0][k]) for w in baseline if per_week[w][1]]
+            if source not in SOURCES:
+                fragen["n"] += count
+                fragen["docs"] += top_docs(source, k, 3) if source == FRAGEN_SOURCE["drucksachen"] else []
+                continue
+            weeks = [w for w in baselines[source] if per_week[w][1]]
+            base = [float(per_week[w][0][k]) for w in weeks]
             z, mu, spread = zscore(float(p[k]), base, n)
-            docs = week_docs_all[source]
-            sel = np.flatnonzero(week_cos[source][0] == k)
-            top = sel[np.argsort(-week_cos[source][1][sel])][:TOP_DOCS]
             entry["sources"][source] = {
                 "share": round(float(p[k]), 4), "mean": round(mu, 4), "spread": round(spread, 4),
                 "z": round(z, 2), "n": count, "rising": bool(z >= Z_RISING and count >= MIN_DOCS[source]),
-                "baseline": [round(b, 4) for b in base],
-                "docs": [doc_entry(docs[i], week_cos[source][1][i]) for i in top],
+                "baseline": [round(b, 4) for b in base], "weeks": weeks, "docs": top_docs(source, k),
             }  # fmt: skip
+        entry["fragen"] = fragen
         entry["rising_in"] = [s for s, v in entry["sources"].items() if v["rising"]]
         entry["thema_der_woche"] = len(entry["rising_in"]) >= 2
         out_themes.append(entry)
     out_themes.sort(key=lambda e: (-len(e["rising_in"]), -max((v["z"] for v in e["sources"].values()), default=0)))
-    pool = [(s, i) for s in week_docs_all for i in np.flatnonzero(week_cos[s][0] < 0)]
+    pool = [(s, i) for s in week_docs_all if s in SOURCES for i in np.flatnonzero(week_cos[s][0] < 0)]
     new = new_topics(
         [week_docs_all[s][i] for s, i in pool],
         np.vstack([week_x[s][i] for s, i in pool]) if pool else np.zeros((0, dim)),
-        cents, min(registry["floors"].values()), week,
+        cents, min(registry["floors"][s] for s in SOURCES if s in registry["floors"]), week,
     )  # fmt: skip
     start, end = week_range(week)
     return {
-        "week": week, "start": start, "end": end, "baseline_weeks": baseline,
+        "week": week, "start": start, "end": end, "baseline_weeks": baselines["reden"], "baselines": baselines,
         "registry": {"version": registry["version"], "fitted": registry["fitted"], "themes": len(themes)},
         "params": {"z_rising": Z_RISING, "min_docs": MIN_DOCS, "baseline": BASELINE_WEEKS,
                    "floors": registry["floors"]},
@@ -538,31 +616,42 @@ def save_registry(path: Path, registry: dict) -> None:
     path.write_text(json.dumps(registry, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
-def period_docs(conn: sqlite3.Connection, until: str | None = None) -> list[Doc]:
-    """Every document a fit can use: the period's speeches, hib items and Drucksachen, up to `until`."""
-    weeks = [w["week"] for w in corpus.weeks(conn)]
-    end = until or "9999"
-    return [d for d in speeches(conn, weeks) + hib(conn) + drucksachen(conn) if d.date <= end]
+def monday(day: str | None = None) -> str:
+    """The Monday of the week of `day` (default: today)."""
+    d = dt.date.fromisoformat(day) if day else dt.date.today()
+    return (d - dt.timedelta(days=d.weekday())).isoformat()
+
+
+def window_docs(conn: sqlite3.Connection, end: str, days: int = WINDOW_DAYS) -> list[Doc]:
+    """Every document a fit can use from the `days` before `end` (exclusive): speeches, hib items, Drucksachen."""
+    start = (dt.date.fromisoformat(end) - dt.timedelta(days=days)).isoformat()
+    last = (dt.date.fromisoformat(end) - dt.timedelta(days=1)).isoformat()
+    weeks = [w["week"] for w in corpus.weeks(conn) if week_range(w["week"])[1] >= start and w["week"] <= week_id(last)]
+    docs = speeches(conn, weeks) + hib(conn, start, last) + drucksachen(conn, start, last)
+    return [d for d in docs if start <= d.date <= last]
+
+
+def due(registry: dict | None, today: str | None = None) -> bool:
+    """A refit is due once a week: when the registry was fitted before this week's Monday."""
+    return registry is None or registry["fitted"] < monday(today)
 
 
 def run_fit(
     conn,
     store,
     registry_path: Path,
-    refit: bool = False,
-    until: str | None = None,
-    subset: float = 1.0,
+    refit: bool = True,
+    end: str | None = None,
     seed: int = 42,
     min_cluster_size: int | None = None,
 ) -> dict:
-    """Fit the themes and write the registry; with `refit`, ids of the existing registry carry over."""
-    docs = period_docs(conn)
+    """Fit the themes on the 26 weeks before `end` (default: this week's Monday) and write the registry; with
+    `refit`, ids of the existing registry carry over and retired themes keep their lineage."""
+    end = end or monday()
+    docs = window_docs(conn, end)
     vecs = vectors(docs, store)
-    rng = np.random.default_rng(seed)
-    keep = np.array([d.date <= (until or "9999") for d in docs]) & (rng.random(len(docs)) < subset)
-    fit_docs = [d for d, k in zip(docs, keep, strict=True) if k]
-    print(f"fit on {Counter(d.source for d in fit_docs)}")
-    new = fit(fit_docs, vecs[keep], min_cluster_size=min_cluster_size or MIN_CLUSTER_SIZE, seed=seed)
+    print(f"fit on {dict(Counter(d.source for d in docs))} before {end}")
+    new = fit(docs, vecs, min_cluster_size=min_cluster_size or MIN_CLUSTER_SIZE, seed=seed)
     old = load_registry(registry_path) if refit else None
     pos = {d.id: i for i, d in enumerate(docs)}
     src = {d.id: d.source for d in docs}
@@ -571,14 +660,15 @@ def run_fit(
         rows = [i for i in ids if i in pos and src[i] in new["means"]]
         return np.vstack([centre(vecs[pos[i]], new["means"][src[i]]) for i in rows]) if rows else np.zeros((1, 768))
 
-    registry = register(new, old, vecs_of=vecs_of)
-    registry["params"].update(until=until, subset=subset)
+    registry = register(new, old, today=end, vecs_of=vecs_of)
+    registry["params"].update(window_end=end, window_days=WINDOW_DAYS)
     save_registry(registry_path, registry)
     h = registry["history"][-1]
-    print(f"registry v{registry['version']}: {h['themes']} themes, {h['kept']} kept, {h['born']} new, "
-          f"{h['retired']} retired; floors {registry['floors']}")  # fmt: skip
+    print(f"registry v{registry['version']}: {h['themes']} themes, {h['kept']} kept ({h['moved']} moved), "
+          f"{h['born']} new, {h['retired']} retired ({h['continued']} continued, {h['split']} split); "
+          f"floors {registry['floors']}")  # fmt: skip
     for t in active(registry):
-        print(f"  {t['id']} {t['n']} {', '.join(t['terms'])}")
+        print(f"  {t['id']} {t['born']} {sum(t['n'].values()):4} {', '.join(t['terms'])}")
     return registry
 
 
@@ -637,7 +727,13 @@ def command(args, conn) -> None:
     if args.action == "embed":
         embed_all(conn, store)
     elif args.action == "fit":
-        run_fit(conn, store, args.registry, args.refit, args.until, args.subset, args.seed, args.min_cluster_size)
+        run_fit(conn, store, args.registry, args.refit, args.until, args.seed, args.min_cluster_size)
+    elif args.action == "weekly":  # nightly: refit on Mondays (or when a week was missed), then name new themes
+        if due(load_registry(args.registry)):
+            run_fit(conn, store, args.registry)
+        else:
+            print(f"registry fitted {load_registry(args.registry)['fitted']}: no refit due")
+        print(f"{run_label(args.registry)} labels generated")
     else:
         print(f"{run_label(args.registry)} labels generated")
 
@@ -670,13 +766,15 @@ VIOLET = "#7c3aed"
 GREY = "#9ca3af"
 SOURCE_NAME = {"reden": "Reden", "hib": "hib", "drucksachen": "Drucksachen"}
 METHOD = (
-    "Die Themen hat ein Verfahren aus den Texten der Wahlperiode gebildet: Reden und hib-Meldungen als "
-    "Sprachmodell-Vektoren (multilingual-e5), gruppiert nach Ähnlichkeit. Sie bleiben fest und behalten ihre Nummer, "
-    "auch wenn sie neu berechnet werden. Jedes neue Dokument gehört zu dem Thema, dessen Mitte es am nächsten liegt, "
-    "wenn es ihr nahe genug liegt; sonst bleibt es ohne Thema. Die Zuordnung ist automatisch und im Einzelfall falsch. "
-    "Ein Thema steigt in einer Quelle, wenn sein Anteil mindestens zwei Standardabweichungen über dem Mittel der acht "
-    "Sitzungswochen davor liegt, bei mindestens fünf Reden oder drei Meldungen oder Drucksachen. Reden zählen nach "
-    "Wörtern, hib-Meldungen und Drucksachen nach Stück. Die Zahlen messen Aufmerksamkeit, nicht Bedeutung."
+    "Die Themen bildet ein Verfahren jede Woche neu aus den Texten der 26 Wochen davor: Reden und hib-Meldungen als "
+    "Sprachmodell-Vektoren (multilingual-e5), gruppiert nach Ähnlichkeit. Ein Thema behält seine Nummer, solange es "
+    "im Kern dieselben Dokumente umfasst. Kleine Anfragen und die Antworten darauf bilden keine Themen und zählen "
+    "nicht für den Anstieg. Sie werden den Themen nur zugeordnet. Jedes neue Dokument gehört zu dem Thema, dessen "
+    "Mitte es am nächsten liegt, wenn es ihr nahe genug liegt. Sonst bleibt es ohne Thema. Die Zuordnung ist "
+    "automatisch und im Einzelfall falsch. Ein Thema steigt in einer Quelle, wenn sein Anteil mindestens zwei "
+    "Standardabweichungen über dem Mittel der acht Wochen davor liegt, bei Reden der acht Sitzungswochen davor. "
+    "Es braucht dazu mindestens fünf Reden oder drei Meldungen oder Drucksachen. Reden zählen nach Wörtern, "
+    "hib-Meldungen und Drucksachen nach Stück. Die Zahlen messen Aufmerksamkeit, nicht Bedeutung."
 )
 
 _CSS = """
@@ -698,6 +796,7 @@ _CSS = """
 .thw ul{margin:.3rem 0 .2rem;padding-left:1.1rem}.thw li{margin:.15rem 0}.thw a{color:#1d4ed8}
 .thw .legend{font-size:.78rem;color:var(--mute);display:flex;gap:.9rem;flex-wrap:wrap;margin:.2rem 0 .4rem}
 .thw .legend svg{vertical-align:-2px}
+.thw .fragen{font-size:.8rem;color:var(--mute);margin:.35rem 0 0}
 .thw .one li{margin:.25rem 0}
 @media (max-width:480px){.thw .row{grid-template-columns:5.2rem 1fr 6.6rem;font-size:.78rem}}
 """
@@ -725,7 +824,7 @@ def strip(v: dict, xmax: float, weeks: list[str]) -> str:
         f'<rect x="{x(lo):.1f}" y="{h / 2 - 4}" width="{max(x(hi) - x(lo), 1):.1f}" height="8" rx="4" fill="#e5e7eb">'
         f"<title>üblicher Bereich: {pct(lo)} bis {pct(hi)}</title></rect>",
     ]
-    for wk, b in zip(weeks[-len(v["baseline"]) :], v["baseline"], strict=False):
+    for wk, b in zip(v.get("weeks") or weeks[-len(v["baseline"]) :], v["baseline"], strict=False):
         parts.append(f'<circle cx="{x(b):.1f}" cy="{h / 2}" r="3" fill="{GREY}"><title>{wk}: {pct(b)}</title></circle>')
     fill = VIOLET if v["rising"] else "#fff"
     parts.append(
@@ -759,10 +858,20 @@ def card(t: dict, weeks: list[str]) -> str:
         for s, v in t["sources"].items()
         if v["docs"]
     )
+    fr = t.get("fragen") or {}
+    if fr.get("docs"):
+        lines = "".join(doc_line("drucksachen", d) for d in fr["docs"])
+        docs += f"<li><b>Kleine Anfragen und Antworten</b><ul>{lines}</ul></li>"
+    what = "Kleine Anfrage oder Antwort" if fr.get("n") == 1 else "Kleine Anfragen und Antworten"
+    fragen = (
+        f'<div class="fragen">Dazu {fr["n"]} {what} in dieser Woche. Sie zählen nicht für den Anstieg.</div>'
+        if fr.get("n")
+        else ""
+    )
     gen = '<span class="gen">Name automatisch erstellt</span>' if t.get("label_by") else ""
     return (
         f'<div class="card" id="thema-{esc(t["id"])}"><h4>{esc(t["label"])}{gen}</h4>'
-        f'<div class="terms">{esc(" · ".join(t["terms"]))}</div>{"".join(rows)}'
+        f'<div class="terms">{esc(" · ".join(t["terms"]))}</div>{"".join(rows)}{fragen}'
         f"<details><summary>Dokumente dieser Woche</summary><ul>{docs}</ul></details></div>"
     )
 
@@ -788,14 +897,14 @@ def render_section(payload: dict) -> str:
         '<div class="legend"><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#7c3aed"/></svg>'
         ' diese Woche, steigt</span><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#fff" '
         'stroke="#7c3aed" stroke-width="2"/></svg> diese Woche</span><span><svg width="10" height="10"><circle cx="5" '
-        'cy="5" r="3" fill="#9ca3af"/></svg> die acht Sitzungswochen davor</span><span><svg width="18" height="10">'
+        'cy="5" r="3" fill="#9ca3af"/></svg> die acht Wochen davor</span><span><svg width="18" height="10">'
         '<rect x="0" y="1" width="18" height="8" rx="4" fill="#e5e7eb"/></svg> üblicher Bereich</span></div>'
     )
     out = [
         f'<section class="thw"><style>{_CSS}</style>',
         f'<h2><span class="tag">Radar</span>Themen der Woche {esc(payload["week"].split("-W")[1])}/'
         f"{esc(payload['week'][:4])}</h2>",
-        '<p class="intro">Themen, die in dieser Woche mehr Raum bekamen als in den acht Sitzungswochen davor. Gezählt '
+        '<p class="intro">Themen, die in dieser Woche mehr Raum bekamen als in den acht Wochen davor. Gezählt '
         "wird in drei Quellen: Reden im Plenum, Meldungen von „heute im bundestag“ (hib) und neue Drucksachen. Ein "
         "Thema der Woche steigt in mindestens zwei der drei Quellen.</p>",
         legend,
@@ -882,7 +991,7 @@ def render_rising(payload: dict, extra: str = "") -> str:
     rising = [t for t in payload["themes"] if t["rising_in"]]
     kw = f"KW {int(payload['week'].split('-W')[1])}/{payload['week'][:4]}"
     expl = (
-        "Themen, die in dieser Woche mehr Raum bekamen als in den acht Sitzungswochen davor. Gezählt wird in drei "
+        "Themen, die in dieser Woche mehr Raum bekamen als in den acht Wochen davor. Gezählt wird in drei "
         "Quellen: Reden im Plenum, Meldungen von „heute im bundestag“ (hib) und neue Drucksachen. Die Zahl gibt an, "
         "wie viel Mal so groß der Anteil des Themas in dieser Woche ist wie sonst. Sie gilt für die Quellen, in "
         "denen das Thema steigt. Der Balken zeigt sie logarithmisch. Ein Thema der Woche steigt in mindestens zwei "
@@ -900,7 +1009,7 @@ def render_rising(payload: dict, extra: str = "") -> str:
         '<div class="legend"><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#7c3aed"/></svg>'
         ' diese Woche, steigt</span><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#fff" '
         'stroke="#7c3aed" stroke-width="2"/></svg> diese Woche</span><span><svg width="10" height="10"><circle cx="5" '
-        'cy="5" r="3" fill="#9ca3af"/></svg> die acht Sitzungswochen davor</span><span><svg width="18" height="10">'
+        'cy="5" r="3" fill="#9ca3af"/></svg> die acht Wochen davor</span><span><svg width="18" height="10">'
         '<rect x="0" y="1" width="18" height="8" rx="4" fill="#e5e7eb"/></svg> üblicher Bereich</span></div>'
     )
     rows = []
