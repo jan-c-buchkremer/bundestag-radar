@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from radar import shell
-from radar.corpus import short_title, week_id
+from radar.corpus import HIB_URL, short_title, week_id
 from radar.origin import fraction_name
 
 FILE = "gespraech.json"
@@ -410,7 +410,9 @@ def mentions(texts: list[tuple[str, str]], variants: dict[str, str], first_names
 
 def hib_texts(conn: sqlite3.Connection, start: str, end: str) -> list[sqlite3.Row]:
     return conn.execute(
-        "SELECT id, date, title, text, source_url FROM hib_item WHERE date BETWEEN ? AND ? ORDER BY date", (start, end)
+        "SELECT id, date, title, text, " + HIB_URL + " AS source_url FROM hib_item "
+        "WHERE date BETWEEN ? AND ? ORDER BY date",
+        (start, end),
     ).fetchall()
 
 

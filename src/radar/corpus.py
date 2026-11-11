@@ -222,6 +222,11 @@ def load_week(conn: sqlite3.Connection, week: str) -> list[Speech]:
     return kept
 
 
+# A hib item's link in the short form the Parlamentsnachrichten asked for (bundestag.de/<id>); hib_item.source_url
+# keeps the long /presse/hib/kurzmeldungen-<id> it was fetched from. SQL, for "SELECT …, HIB_URL AS url".
+HIB_URL = "'https://www.bundestag.de/' || id"
+
+
 def has_table(conn: sqlite3.Connection, table: str, column: str | None = None) -> bool:
     """Whether the store has this table (and column): newer foundation tables are optional."""
     cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]

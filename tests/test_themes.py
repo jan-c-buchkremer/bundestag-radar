@@ -134,7 +134,7 @@ def test_week_payload_and_section(conn):
     assert p["baseline_weeks"] == ["2026-W28"]
     t1 = next(t for t in p["themes"] if t["id"] == "T001")
     assert t1["sources"]["hib"]["n"] == 4 and t1["sources"]["hib"]["share"] == 1.0
-    assert t1["sources"]["hib"]["docs"][0]["url"].startswith("https://hib/")
+    assert t1["sources"]["hib"]["docs"][0]["url"].startswith("https://www.bundestag.de/")  # the short link
     assert t1["sources"]["hib"]["rising"]  # 4 items, none in the baseline week
     assert not t1["sources"]["reden"]["rising"]  # one speech is below MIN_DOCS
     json.dumps(p)

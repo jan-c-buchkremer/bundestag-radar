@@ -86,7 +86,8 @@ def hib(conn: sqlite3.Connection, start: str = "0000", end: str = "9999") -> lis
     if not has_table(conn, "hib_item"):
         return []
     rows = conn.execute(
-        "SELECT id, number, date, title, ressort, kind, text, source_url FROM hib_item WHERE date BETWEEN ? AND ? "
+        "SELECT id, number, date, title, ressort, kind, text, " + corpus.HIB_URL + " AS source_url FROM hib_item "
+        "WHERE date BETWEEN ? AND ? "
         "ORDER BY date, CAST(id AS INTEGER)",
         (start, end),
     )

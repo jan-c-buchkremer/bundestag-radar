@@ -14,7 +14,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from radar.corpus import has_table, week_id, week_range
+from radar.corpus import HIB_URL, has_table, week_id, week_range
 from radar.origin import FRACTIONS, initiators
 
 FILE = "woche.json"  # in the output directory, next to period.json; build.index_page reads it
@@ -142,7 +142,7 @@ def load(conn: sqlite3.Connection, week: str | None = None, today: str | None = 
         return None
     start, end = week_range(week)
     rows = conn.execute(
-        "SELECT id, number, date, title, ressort, kind, committee, source_url FROM hib_item "
+        "SELECT id, number, date, title, ressort, kind, committee, " + HIB_URL + " AS source_url FROM hib_item "
         "WHERE date BETWEEN ? AND ? ORDER BY date DESC, CAST(id AS INTEGER) DESC",
         (start, end),
     ).fetchall()

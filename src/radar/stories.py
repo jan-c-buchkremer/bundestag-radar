@@ -36,7 +36,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from radar import shell
-from radar.corpus import has_table, short_title, week_range
+from radar.corpus import HIB_URL, has_table, short_title, week_range
 from radar.origin import fraction_name
 from radar.woche import AREA_OF_RESSORT, EINBRINGER, drucksache_pdf, einbringer, latest_week, research_path
 
@@ -192,7 +192,7 @@ def _hib(conn: sqlite3.Connection, start: str, end: str) -> list[dict]:
     items = [
         dict(r) | {"drucksachen": []}
         for r in conn.execute(
-            "SELECT id, number, date, title, ressort, kind, committee, source_url url, text FROM hib_item "
+            "SELECT id, number, date, title, ressort, kind, committee, " + HIB_URL + " AS url, text FROM hib_item "
             "WHERE date BETWEEN ? AND ? ORDER BY date, CAST(id AS INTEGER)",
             (start, end),
         )
