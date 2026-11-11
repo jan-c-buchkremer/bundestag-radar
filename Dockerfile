@@ -20,7 +20,14 @@ ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1 \
     HF_HOME=/cache/huggingface \
     BDF_DB=/foundation/bundestag.sqlite
 RUN mkdir -p /work/data /cache && chown radar:radar /work /work/data /cache
+# the Claude Code CLI for the generated texts and theme names (`claude -p`, llm.ClaudeCLI); it logs in with
+# CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`) at run time, and without it those steps fail on their own
+RUN apt-get update && apt-get install -y --no-install-recommends bash curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 USER radar
+ARG CLAUDE_CODE_VERSION=2.1.322
+RUN curl -fsSL https://claude.ai/install.sh | bash -s "$CLAUDE_CODE_VERSION" && /home/radar/.local/bin/claude --version
+ENV PATH=/home/radar/.local/bin:$PATH DISABLE_AUTOUPDATER=1
 WORKDIR /work
 VOLUME ["/work/data", "/cache"]
 ENTRYPOINT ["radar"]
