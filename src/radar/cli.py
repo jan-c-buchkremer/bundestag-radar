@@ -32,7 +32,6 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--no-positions", action="store_true", help="lead: skip the per-Fraktion sentences")
     b.add_argument("--date", help="gespraech: last day of the week, ISO (default: yesterday)")
     b.add_argument("--no-fetch", action="store_true", help="gespraech: no Wikipedia calls (cached or not)")
-    b.add_argument("--tagesschau", action="store_true", help="gespraech: count tagesschau hits (max 30 calls)")
     b.add_argument("--all", action="store_true", help="every week in the store, the period overview and the index")
     b.add_argument("--out", type=Path, default=Path("data/out"))
     b.add_argument("--store", type=Path, default=Path("data/landscape.sqlite"), help="embedding cache")
@@ -81,7 +80,7 @@ def main(argv: list[str] | None = None) -> None:
         from radar import gespraech
 
         date = args.date or (dt.date.today() - dt.timedelta(days=1)).isoformat()
-        payload = gespraech.build(conn, date, fetch=not args.no_fetch, with_tagesschau=args.tagesschau)
+        payload = gespraech.build(conn, date, fetch=not args.no_fetch)
         gespraech.log_summary(payload)
         print(f"wrote {gespraech.write(args.out, payload)} and {args.out / gespraech.PREVIEW}")
         args.weeks = [w for w in args.weeks if w != "gespraech"]

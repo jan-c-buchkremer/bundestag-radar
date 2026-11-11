@@ -16,7 +16,6 @@ Signals per person (research 02-hot-signals.md):
   received, answers in the Regierungsbefragung and Fragestunde.
 - hib mentions: the full name (never the surname alone: "Bas", "Frei", "Bär" are words, 30 surnames are shared by
   two or more MdBs) in the week's hib texts. hib texts are read for matching only; the page links the articles.
-- optional, external: tagesschau search hits whose title or teaser carry the name (counts and links only).
 
 Topics: the share of each DIP Sachgebiet among new Drucksachen (28 days against the 182 before, shares not counts
 because of the summer break), the week's Aktuelle Stunden with the Fraktion that asked for them, and the
@@ -416,7 +415,7 @@ def hib_texts(conn: sqlite3.Connection, start: str, end: str) -> list[sqlite3.Ro
     ).fetchall()
 
 
-# ---------------------------------------------------------------- network (Wikidata, Wikimedia, tagesschau)
+# ---------------------------------------------------------------- network (Wikidata, Wikimedia)
 
 
 def fetch_json(url: str, cache: Path, sleep: float = 0.05, not_found: dict | None = None) -> dict | None:
@@ -474,29 +473,10 @@ def pageviews(title: str, start: str, end: str, cache: Path = CACHE) -> dict[str
             for i in data.get("items", [])}  # fmt: skip
 
 
-def tagesschau(name: str, start: str, end: str, cache: Path = CACHE) -> dict | None:
-    """tagesschau search hits for a full name, counted only when the name is in the title or teaser and the item
-    is dated in the window. Counts and links, never texts (the API's content is protected). The API allows 60
-    calls per hour: callers keep to a handful of names per run."""
-    url = "https://www.tagesschau.de/api2u/search/?" + urllib.parse.urlencode({"searchText": name, "pageSize": 30})
-    key = hashlib.sha1(f"{name}|{end}".encode()).hexdigest()[:16]
-    data = fetch_json(url, cache / "tagesschau" / f"{key}.json", sleep=1.0)
-    if data is None:
-        return None
-    hits = []
-    for item in data.get("searchResults", []):
-        date = (item.get("date") or "")[:10]
-        text = f"{item.get('title', '')} {item.get('topline', '')} {item.get('firstSentence', '')}"
-        if start <= date <= end and name in text and item.get("shareURL"):
-            hits.append({"title": item.get("title", ""), "date": date, "url": item["shareURL"]})
-    return {"total": data.get("totalItemCount"), "hits": hits}
-
-
 # ---------------------------------------------------------------- the people list
 
 
-def people_payload(conn: sqlite3.Connection, date: str, fetch: bool = True, cache: Path = CACHE,
-                   with_tagesschau: bool = False) -> dict:  # fmt: skip
+def people_payload(conn: sqlite3.Connection, date: str, fetch: bool = True, cache: Path = CACHE) -> dict:
     """The people part of the payload for the week ending on `date`."""
     start, end, base_start, base_end = window(date)
     persons = people(conn, start, end)
@@ -561,13 +541,6 @@ def people_payload(conn: sqlite3.Connection, date: str, fetch: bool = True, cach
                 "abweichungen": devs.get(pid, []),
             },
         })  # fmt: skip
-    for e in out:  # what the news was: the reader should not have to guess (a handful of calls)
-        if e["group"] == "nachricht" and fetch:
-            next_day = (dt.date.fromisoformat(end) + dt.timedelta(days=1)).isoformat()  # the morning's coverage
-            e["tagesschau"] = tagesschau(e["name"], start, next_day, cache)
-    if with_tagesschau:
-        for e in [e for e in out if "tagesschau" not in e][:30]:  # 60 calls an hour: at most half in one run
-            e["tagesschau"] = tagesschau(e["name"], start, end, cache)
     order = {"nachricht": 0, "beides": 1, "plenum": 2, "wikipedia": 3}
     out.sort(key=lambda e: (order[e["group"]], persons[e["id"]]["last"], e["name"]))
     return {"people": out, "n_persons": len(persons), "n_with_wiki": len(views),
@@ -699,11 +672,10 @@ def topics_payload(conn: sqlite3.Connection, date: str) -> dict:
             "sachgebiete_window": {"recent_days": TOPIC_RECENT_DAYS, "base_days": TOPIC_BASE_DAYS}}  # fmt: skip
 
 
-def build(conn: sqlite3.Connection, date: str, fetch: bool = True, cache: Path = CACHE,
-          with_tagesschau: bool = False) -> dict:  # fmt: skip
+def build(conn: sqlite3.Connection, date: str, fetch: bool = True, cache: Path = CACHE) -> dict:
     start, end, base_start, base_end = window(date)
     return {"start": start, "end": end, "baseline": [base_start, base_end], "week": week_id(end),
-            **people_payload(conn, date, fetch, cache, with_tagesschau), "topics": topics_payload(conn, date),
+            **people_payload(conn, date, fetch, cache), "topics": topics_payload(conn, date),
             "method": METHOD}  # fmt: skip
 
 
@@ -721,15 +693,14 @@ METHOD = (
     "derselben Person oder demselben Sachgebiet in den 90 Tagen davor verglichen, nicht mit anderen. Eine Person "
     "steht hier, wenn mindestens zwei Werte deutlich über ihrem Normalwert liegen oder wenn ihre Wikipedia-Seite "
     "ein Vielfaches der üblichen Aufrufe hat und sie in der Woche im Bundestag aufgetreten ist. Bei mehr als dem "
-    "Zwanzigfachen steht sie auch ohne Auftritt hier: dann gibt es Nachrichten über sie, die tagesschau-Meldungen "
-    "nennen sie. Gezählt werden "
+    "Zwanzigfachen steht sie auch ohne Auftritt im Bundestag hier. Gezählt werden "
     "Aufrufe der Wikipedia-Seite, Reden, Zurufe während der Reden je 1.000 Wörter, Zwischenfragen, Antworten in "
     "Regierungsbefragung und Fragestunde und Nennungen in hib-Meldungen. Die Reihenfolge ist keine Rangfolge. "
     "Aufmerksamkeit ist keine Bewertung. Ämter wie Ministerium oder Fraktionsvorsitz bringen mehr Aufmerksamkeit."
 )
 
 GROUPS = {
-    "nachricht": "In den Nachrichten: ein Vielfaches der üblichen Aufrufe",
+    "nachricht": "Mehr als zwanzigmal so viele Wikipedia-Aufrufe wie sonst",
     "beides": "Mehr Aufrufe und mehr Aufmerksamkeit im Bundestag",
     "plenum": "Mehr Aufmerksamkeit im Bundestag",
     "wikipedia": "Viel mehr Aufrufe, in der Woche im Bundestag aufgetreten",
@@ -797,8 +768,6 @@ def render_person(e: dict, research: str) -> str:
         links.append(_a(h["url"], f"hib {de_date(h['date'])}: {h['title']}", research))
     for d in ev["abweichungen"]:
         links.append(_a(d["url"], f"Gegen die eigene Fraktion gestimmt: {d['title']}", research))
-    for t in (e.get("tagesschau") or {}).get("hits", [])[:3]:
-        links.append(_a(t["url"], f"tagesschau {de_date(t['date'])}: {t['title']}", research))
     if e.get("wiki"):
         links.append(_a(f"https://de.wikipedia.org/wiki/{urllib.parse.quote(e['wiki'].replace(' ', '_'))}",
                         "Wikipedia-Artikel", research))  # fmt: skip
