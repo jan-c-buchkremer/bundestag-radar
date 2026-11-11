@@ -24,8 +24,9 @@ checked lead and its Geschichten der Woche, and who is in the news.
   (speeches and hib items), every new document sorted in each night. A theme keeps its id and name while it holds
   the same documents; a retired one names its successor. Kleine Anfragen and Antworten are sorted in and counted,
   but never shape a theme or make it rise. Theme names are generated once per new theme.
-- Im Gespräch (`gespraech.py`, `gespraech.html`): members and topics whose Wikipedia views, plenary mentions or
-  news jump against their own usual level, over the last seven days.
+- Im Gespräch (`gespraech.py`, `gespraech.html`): members whose Wikipedia readers, plenary activity or hib
+  mentions rise well above their own 90 days before, over the last seven days, and the Sachgebiete, Aktuelle
+  Stunden and Regierungsbefragung of the week.
 - Links to a hib Meldung use the short form `bundestag.de/<id>`, as the Parlamentsnachrichten asked; the text of a
   Meldung is never shown.
 - New nightly steps besides `build --all`: `radar themes weekly` (refit when due, name new themes), `radar build
