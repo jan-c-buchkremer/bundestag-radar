@@ -44,9 +44,17 @@ def brand(research: str, cls: str = "") -> str:
             f'<span class="wm">plenar<b>radar</b></span><span class="mode">{RADAR_ICON}Radar</span></a>')  # fmt: skip
 
 
+# Research's reader count (bundestag-research-platform ui.COUNTER; infra services/stats, GoatCounter): count.js
+# reports the page view to /count. Loaded on the public host only, so local builds and previews don't count.
+COUNTER = (
+    '<script>if(location.hostname==="plenar-radar.de"){var s=document.createElement("script");'
+    's.async=true;s.src="/count.js";s.dataset.goatcounter="/count";document.head.appendChild(s)}</script>'
+)
+
+
 def head(research: str) -> str:
-    """The shell's stylesheet, before a page's own styles."""
-    return f'<link rel="stylesheet" href="{html.escape(research)}shell.css">'
+    """The shell's stylesheet, before a page's own styles, and the reader count."""
+    return f'<link rel="stylesheet" href="{html.escape(research)}shell.css">{COUNTER}'
 
 
 def site_header(research: str, landscape: str = "index.html") -> str:
