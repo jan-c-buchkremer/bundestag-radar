@@ -163,7 +163,7 @@ def test_render_section(store, tmp_path):
     p = stories.write(tmp_path, store, "2026-W41")
     assert (tmp_path / stories.FILE).exists()
     page = stories.render_section(p, {"stories": {"v300001": {"kurz": "Kurz <b>x</b>", "positions": ["SPD: y"]}}})
-    assert "Quellen: hib, Drucksache, Debatte, Abstimmung, namentliche Abstimmung" in page
+    assert "Belege · hib, Drucksache, Debatte, Abstimmung, namentliche Abstimmung" in page
     assert 'href="https://plenar-radar.de/vorgaenge/300001.html"' in page and "Positionen in der Debatte" in page
     assert '<span class="chip gru">Grüne</span>' in page
     assert "<script" not in page

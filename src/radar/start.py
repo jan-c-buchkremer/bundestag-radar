@@ -71,13 +71,52 @@ def de(iso: str) -> str:
     return f"{iso[8:10]}.{iso[5:7]}.{iso[:4]}"
 
 
-def sitting_part(st: dict) -> str:
+# hib's kinds in the plural, for the pills of „Diese Woche“
+PLURAL = {"Kleine Anfrage": "Kleine Anfragen", "Antwort": "Antworten", "Anhörung": "Anhörungen", "Antrag": "Anträge",
+          "Unterrichtung": "Unterrichtungen", "Gesetzentwurf": "Gesetzentwürfe", "Bericht": "Berichte",
+          "Beschlussempfehlung": "Beschlussempfehlungen", "Verordnung": "Verordnungen"}  # fmt: skip
+
+
+def _tag(n: int, one: str, many: str) -> str:
+    return f'<span class="utag">{n} {html.escape(one if n == 1 else many)}</span>'
+
+
+def hib_tags(wk: dict) -> list[str]:
+    """One pill per hib kind of the week, the most frequent first: „4 Anhörungen“."""
+    kinds: dict[str, int] = {}
+    for i in wk.get("items", []):
+        k = i.get("kind") or "Meldung"
+        kinds[k] = kinds.get(k, 0) + 1
+    return [_tag(n, k, PLURAL.get(k, k)) for k, n in sorted(kinds.items(), key=lambda kv: -kv[1])]
+
+
+def plenum_tags(out: Path, st: dict) -> list[str]:
+    """The pills of a sitting week: its Themenlandschaft (a link) first, then sitting days, speeches, votes."""
+    week = st["week"]
+    tags = [f'<a class="utag" href="{week}.html">Themenlandschaft</a>'] if (out / f"{week}.html").exists() else []
+    tags.append(_tag(len(st["sittings"]), "Sitzungstag", "Sitzungstage"))
+    if wp := _load(out, f"{week}.json"):
+        tags.append(_tag(len(wp["speeches"]), "Rede", "Reden"))
+        if n := sum(len(v) for v in wp.get("decisions", {}).values()):
+            tags.append(_tag(n, "Abstimmung", "Abstimmungen"))
+    return tags
+
+
+def tags(items: list[str]) -> str:
+    return f'<span class="utags">{"".join(items)}</span>' if items else ""
+
+
+def sitting_part(st: dict, out: Path | None = None) -> str:
     """The heading of the newest sitting week when it is not the running week: its lead and stories follow."""
     first, last = st["sittings"][0]["date"], st["sittings"][-1]["date"]
     days = de(first) if first == last else f"{de(first)} bis {de(last)}"
     kw = int(st["week"].split("-W")[1])
-    return (f'<div class="part part-now part-sit"><span class="part-k">Sitzungswoche</span>'
-            f'<span class="part-d">KW {kw} · {days}</span></div>')  # fmt: skip
+    pills = tags(plenum_tags(out, st)) if out else ""
+    return (f'<div class="part part-now part-sit" id="sitzungswoche"><span class="part-k">Letzte Sitzungswoche</span>'
+            f'<span class="part-d">KW {kw} · {days}</span>{pills}</div>')  # fmt: skip
+
+
+PARTS = ("now", "lead", "stories", "rising", "sitting", "jump", "nowtags", "sitrising")  # index.html's __START_*__
 
 
 def sections(out: Path, research: str) -> dict[str, str]:
@@ -86,14 +125,18 @@ def sections(out: Path, research: str) -> dict[str, str]:
     news in one line); also writes the full pages next to it. A part that is not built is ""."""
     from radar import gespraech, lead, stories
 
-    parts = {"now": "", "lead": "", "stories": "", "rising": "", "sitting": ""}
+    parts = dict.fromkeys(PARTS, "")
     st, ld = _load(out, stories.FILE), _load(out, lead.FILE)
     wk = _load(out, "woche.json")
     if st and st.get("sittings") and (not wk or wk.get("week") != st["week"]):
-        parts["sitting"] = sitting_part(st)
+        parts["sitting"] = sitting_part(st, out)
+        parts["jump"] = '<a class="jump" href="#sitzungswoche">Letzte Sitzungswoche ↓</a>'
         now = _load(out, lead.NOW_FILE)
         if now and wk and now.get("week") == wk.get("week"):
             parts["now"] = lead.render_section(now, "Bisher in dieser Woche")
+    if wk:  # in a sitting week „Diese Woche“ holds the plenum too, and its pills say so
+        same = st and st.get("sittings") and wk.get("week") == st["week"]
+        parts["nowtags"] = tags((plenum_tags(out, st) if same else []) + hib_tags(wk))
     if ld and st and ld.get("week") != st.get("week"):
         ld = None  # a lead of another week would describe the wrong stories
     if ld:
@@ -114,8 +157,12 @@ def sections(out: Path, research: str) -> dict[str, str]:
         from radar import themes
     except ImportError:  # the theme registry is not part of every build
         themes = None
-    if themes is not None and (th := _load(out, "themen.json")):
+    th = _load(out, "themen.json") if themes is not None else None
+    if th and any(t["rising_in"] for t in th["themes"]):  # a quiet week shows no empty chart, only the people
         parts["rising"] = themes.render_rising(th, people)
     elif people:
         parts["rising"] = f'<section class="rise">{people}</section>'
+    ts = _load(out, themes.SITTING_FILE) if parts["sitting"] and themes is not None else None
+    if ts and st and ts.get("week") == st["week"]:
+        parts["sitrising"] = themes.render_rising(ts)
     return parts

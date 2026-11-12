@@ -850,7 +850,8 @@ CHIP = {"BÜNDNIS 90/DIE GRÜNEN": "Grüne"}  # as Research's pages and the hib 
 FRACTION_CLASS = {"CDU/CSU": "cdu", "SPD": "spd", "AfD": "afd", "BÜNDNIS 90/DIE GRÜNEN": "gru", "Die Linke": "lin"}
 
 CSS = """
-.stories{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin:12px 0}
+.stories{display:grid;gap:14px;align-items:start;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  margin:12px 0}
 .story{border:1px solid #e4e0f0;border-radius:10px;padding:12px 14px;background:#fff;display:flex;
   flex-direction:column;gap:6px}
 .story h3{font-size:1rem;line-height:1.3;margin:0}
@@ -868,6 +869,14 @@ CSS = """
 .story a.ev{color:#2563eb}
 .story .positions{font-size:.88rem;margin:0;padding-left:18px}
 .radar-gen{font-size:.78rem;color:#5b5670}
+.story .teaser{margin:0;color:#3f3b4f}
+.story .more>summary{font-size:.8rem;color:#7c3aed;font-weight:600}
+.story .more[open]>summary{margin-bottom:4px}
+.story:has(.more[open]) .teaser{display:none}
+.story .einb{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:.8rem;color:#5b5670;margin:6px 0}
+.story .less{display:block;margin:8px 0 0;padding:0;border:0;background:none;color:#7c3aed;font:600 .8rem Inter,
+  system-ui,sans-serif;cursor:pointer}
+.story .sub{font-size:.8rem;font-weight:600;color:#5b5670;margin:8px 0 2px}
 """
 
 
@@ -919,23 +928,25 @@ def render_card(s: dict, extra: dict | None = None) -> str:
         )
     if s.get("type"):
         meta.append(_e(s["type"]))
-    if s["einbringer"]:
-        meta.append(_chips(s["einbringer"]))
     if s["n_reden"]:
         meta.append(f"{s['n_reden']} Reden")
-    parts = [
-        f"<h3>{title}</h3>",
-        f'<div class="meta">{"".join(f"<span>{m}</span>" for m in meta)}</div>',
-        f'<div class="quellen">Quellen: {_e(s["quellen"])}</div>',
-    ]
+    parts = [f"<h3>{title}</h3>", f'<div class="meta">{"".join(f"<span>{m}</span>" for m in meta)}</div>']
+    if extra.get("teaser"):
+        parts.append(f'<p class="kurz teaser">{_e(extra["teaser"])}</p>')
+    # the rest on demand: the whole "kurz erklärt" with its sources, who tabled the Vorlagen, the positions, evidence
+    more = []
     if extra.get("kurz"):
-        parts.append(f'<p class="kurz">{extra["kurz"]}</p>')  # already escaped and linked by lead.render_text
+        more.append(f'<p class="kurz">{extra["kurz"]}</p>')  # already escaped and linked by lead.render_text
+    if s["einbringer"]:
+        more.append(f'<div class="einb"><span>Vorlagen von</span>{_chips(s["einbringer"])}</div>')
     if extra.get("positions"):
         lis = "".join(f"<li>{p}</li>" for p in extra["positions"])
-        parts.append(
-            f'<details open><summary>Positionen in der Debatte</summary><ul class="positions">{lis}</ul></details>'
-        )
-    parts.append(f"<details><summary>Belege</summary>{_sources(s)}</details>")
+        more.append(f'<div class="sub">Positionen in der Debatte</div><ul class="positions">{lis}</ul>')
+    more.append(f'<div class="sub">Belege · {_e(s["quellen"])}</div>{_sources(s)}')
+    # a long card closes from its end too, and the page scrolls back to it
+    less = ('<button type="button" class="less" onclick="const d=this.closest(\'details\');d.open=false;'
+            'd.closest(\'.story\').scrollIntoView({block:\'nearest\'})">Weniger ▴</button>')  # fmt: skip
+    parts.append(f'<details class="more"><summary>Mehr</summary>{"".join(more)}{less}</details>')
     return f'<article class="story" id="{_e(s["id"])}">{"".join(parts)}</article>'
 
 

@@ -2,7 +2,7 @@ from radar import shell, start, themes
 
 
 def test_nothing_built_leaves_the_index_as_before(tmp_path):
-    empty = {"now": "", "lead": "", "stories": "", "rising": "", "sitting": ""}
+    empty = dict.fromkeys(start.PARTS, "")
     assert start.sections(tmp_path, "https://plenar-radar.de/") == empty
 
 
@@ -10,6 +10,17 @@ def test_sitting_week_heading_names_its_sitting_days():
     st = {"week": "2026-W45", "sittings": [{"date": "2026-11-04"}, {"date": "2026-11-06"}]}
     part = start.sitting_part(st)
     assert "Sitzungswoche" in part and "KW 45 · 04.11.2026 bis 06.11.2026" in part
+
+
+def test_unit_pills_count_hib_kinds_and_the_plenum(tmp_path):
+    wk = {"items": [{"kind": "Antrag"}, {"kind": "Antrag"}, {"kind": "Anhörung"}]}
+    assert [t.split(">")[1].split("<")[0] for t in start.hib_tags(wk)] == ["2 Anträge", "1 Anhörung"]
+    (tmp_path / "2026-W45.html").write_text("x")
+    (tmp_path / "2026-W45.json").write_text('{"speeches": [1, 2], "decisions": {"a": [1], "b": [2, 3]}}')
+    st = {"week": "2026-W45", "sittings": [{"date": "2026-11-04"}]}
+    pills = "".join(start.plenum_tags(tmp_path, st))
+    assert pills.startswith('<a class="utag" href="2026-W45.html">Themenlandschaft</a>')
+    assert "1 Sitzungstag" in pills and "2 Reden" in pills and "3 Abstimmungen" in pills
 
 
 def test_start_page_keeps_the_news_and_a_few_others():

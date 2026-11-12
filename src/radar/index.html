@@ -26,7 +26,7 @@ a.ev { color: var(--research); }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, -apple-system, sans-serif; }
 main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 64px; }
 .eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
-h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 6px; }
+h1 { font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.025em; margin: 0 0 6px; }
 .year { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 28px 0 12px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; color: inherit; text-decoration: none; transition: border-color .12s, transform .12s, box-shadow .12s; }
@@ -45,12 +45,22 @@ a.tour span { color: var(--muted); font-size: 13px; }
 a.tour em { display: block; margin-top: 8px; font-style: normal; color: var(--accent); font-size: 13px; }
 footer { color: var(--faint); font-size: 12.5px; margin-top: 48px; }
 /* the page's two parts: this week, then the whole Wahlperiode on a tinted band */
-.part { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
-.part-k { font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+.part { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
+.part-k { font-size: 25px; font-weight: 800; letter-spacing: -.02em; }
+.part-now .part-k::before { content: ""; display: inline-block; width: 26px; height: 10px; margin-right: 10px; vertical-align: .1em; border-radius: 5px; background: linear-gradient(90deg, #c4b5fd, var(--accent)); }
+/* section headings inside the parts: one size and weight, whichever module drew them */
+main .phead h2, main .radar-lead h2, main .radar-stories h2, main .rise h2 { font-size: 19px; font-weight: 750; letter-spacing: -.015em; }
 .part-d { color: var(--muted); font-size: 13.5px; }
-.era { margin: 56px -24px 0; padding: 6px 24px 24px; background: #ebe9e3; border-radius: 18px; }
-.part-era { border-bottom-color: #8a8a84; }
-.part-era .part-k::before { content: ""; display: inline-block; width: 26px; height: 10px; margin-right: 10px; vertical-align: .08em; border-radius: 5px; background: linear-gradient(90deg, #d4d1c8, #8a8a84); }
+/* what a unit holds: small pills next to its dates; the Themenlandschaft one is a link */
+.utags { display: flex; flex-wrap: wrap; gap: 5px; flex-basis: 100%; }
+.utag { font-size: 11.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+a.utag { background: var(--accent); color: #fff; text-decoration: none; }
+a.utag:hover { background: #6d28d9; }
+h1 a.jump { display: inline-block; margin-left: 12px; vertical-align: .2em; font-size: 12.5px; font-weight: 600; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 999px; padding: 2px 11px; text-decoration: none; letter-spacing: 0; }
+h1 a.jump:hover { background: var(--accent-soft); }
+.era { margin: 56px -24px 0; padding: 6px 24px 24px; background: #f1eff8; border-radius: 18px; }
+.part-era { border-bottom-color: #a39bc9; }
+.part-era .part-k::before { content: ""; display: inline-block; width: 26px; height: 10px; margin-right: 10px; vertical-align: .08em; border-radius: 5px; background: linear-gradient(90deg, #ddd8f0, #a39bc9); }
 .era .year:first-of-type { margin-top: 8px; }
 /* the tile to the newest week's Themenlandschaft */
 a.mapcta { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 18px; margin: 14px 0 18px; padding: 14px 18px; border-radius: 14px; background: var(--accent); color: #fff; text-decoration: none; box-shadow: 0 6px 18px rgba(124,58,237,.22); transition: transform .12s, box-shadow .12s; }
@@ -62,8 +72,8 @@ a.mapcta .mt { font-size: 13px; opacity: .9; }
 a.mapcta .mc { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
 a.mapcta .mc span { background: rgba(255,255,255,.18); border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 500; }
 a.mapcta .go { font-weight: 700; font-size: 14px; white-space: nowrap; }
-@media (max-width: 600px) { a.mapcta { grid-template-columns: 1fr; } a.mapcta svg { display: none; } .era { margin: 40px -16px 0; padding: 4px 16px 20px; border-radius: 0; } .part-k { font-size: 19px; } }
-@media (max-width: 600px) { main { padding: 28px 16px 48px; } h1 { font-size: 22px; } .grid, .tours { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { a.mapcta { grid-template-columns: 1fr; } a.mapcta svg { display: none; } .era { margin: 40px -16px 0; padding: 4px 16px 20px; border-radius: 0; } .part-k { font-size: 21px; } }
+@media (max-width: 600px) { main { padding: 28px 16px 48px; } h1 { font-size: 27px; } .grid, .tours { grid-template-columns: 1fr; } }
 footer a { color: var(--muted); }
 
 /* period overview: themes of the Wahlperiode as a streamgraph over the sitting weeks */
@@ -198,9 +208,9 @@ __INFO__
 __SITE_HEADER__
 <main>
   <span class="eyebrow">Radar</span>
-  <h1>Was im Bundestag los ist<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">„Diese Woche“ zeigt einen Überblick über die letzte Sitzungswoche, die Meldungen von „heute im bundestag“ nach Politikfeld, die Geschichten der Woche und die steigenden Themen. „Die ganze Wahlperiode“ zeigt die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Themenlandschaft. Darin ist eine Rede ein Punkt, und nahe Punkte haben ähnliche Inhalte.</span></span></h1>
+  <h1>Was im Bundestag los ist<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">„Diese Woche“ zeigt einen Überblick über die letzte Sitzungswoche, die Meldungen von „heute im bundestag“ nach Politikfeld, die Geschichten der Woche und die steigenden Themen. „Die ganze Wahlperiode“ zeigt die Themen der 21. Wahlperiode im Zeitverlauf und jede Sitzungswoche als Themenlandschaft. Darin ist eine Rede ein Punkt, und nahe Punkte haben ähnliche Inhalte.</span></span>__START_JUMP__</h1>
 
-  <div class="part part-now"><span class="part-k">Diese Woche</span><span class="part-d" id="nowDates"></span></div>
+  <div class="part part-now"><span class="part-k">Diese Woche</span><span class="part-d" id="nowDates"></span>__START_NOWTAGS__</div>
   __START_NOW__
   <section id="woche" hidden>
     <div class="phead"><h2 id="wtitle">Meldungen der Woche</h2><span class="sub" id="wsub"></span></div>
@@ -212,6 +222,7 @@ __SITE_HEADER__
   __START_SITTING__
   __START_LEAD__
   <a class="mapcta" id="mapcta" hidden></a>
+  __START_SITRISING__
   __START_STORIES__
 
   <div class="era">

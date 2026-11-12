@@ -738,16 +738,28 @@ def command(args, conn) -> None:
         print(f"{run_label(args.registry)} labels generated")
 
 
+SITTING_FILE = "themen-sitzung.json"  # the newest sitting week's rising themes, when it is not the running week
+
+
 def build_command(args, conn) -> None:
-    from radar.woche import latest_week
+    from radar.woche import latest_week, sitting_week
 
     registry = load_registry(args.registry)
     if registry is None:
         raise SystemExit(f"no registry at {args.registry}; run `radar themes fit` first")
     week = args.week or latest_week(conn)
-    payload = week_payload(conn, embed.open_store(args.store), registry, week)
+    store = embed.open_store(args.store)
+    payload = week_payload(conn, store, registry, week)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "themen.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    sitting = sitting_week(conn) if not args.week else None
+    if sitting and sitting != week:
+        sp = week_payload(conn, store, registry, sitting)
+        (args.out / SITTING_FILE).write_text(json.dumps(sp, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"{SITTING_FILE} {sitting}: {len(sp['themen_der_woche'])} Themen der Woche, "
+              f"{sum(bool(t['rising_in']) for t in sp['themes'])} rising")  # fmt: skip
+    else:
+        (args.out / SITTING_FILE).unlink(missing_ok=True)
     (args.out / "lab-themen.html").write_text(lab_page(payload), encoding="utf-8")
     print(f"themen.json {week}: {len(payload['themen_der_woche'])} Themen der Woche, "
           f"{sum(bool(t['rising_in']) for t in payload['themes'])} rising somewhere, "
@@ -991,12 +1003,9 @@ def render_rising(payload: dict, extra: str = "") -> str:
     rising = [t for t in payload["themes"] if t["rising_in"]]
     kw = f"KW {int(payload['week'].split('-W')[1])}/{payload['week'][:4]}"
     expl = (
-        "Themen, die in dieser Woche mehr Raum bekamen als in den acht Wochen davor. Gezählt wird in drei "
-        "Quellen: Reden im Plenum, Meldungen von „heute im bundestag“ (hib) und neue Drucksachen. Die Zahl gibt an, "
-        "wie viel Mal so groß der Anteil des Themas in dieser Woche ist wie sonst. Sie gilt für die Quellen, in "
-        "denen das Thema steigt. Der Balken zeigt sie logarithmisch. Ein Thema der Woche steigt in mindestens zwei "
-        "der drei Quellen und steht deshalb oben. Ein Klick auf eine Zeile zeigt die Quellen einzeln und die "
-        "Dokumente. " + esc(METHOD)
+        "Themen, die in dieser Woche mehr Raum bekamen als in den acht Wochen davor, in Reden, Meldungen von "
+        "„heute im bundestag“ oder neuen Drucksachen. Die Zahl sagt, wie viel Mal so groß ihr Anteil ist wie sonst. "
+        "Ein Thema der Woche steigt in mindestens zwei Quellen. Kleine Anfragen zählen nicht."
     )
     head = f"<h2>Steigende Themen{shell.info(expl)}</h2>"
     if not rising:
