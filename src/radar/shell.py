@@ -114,6 +114,13 @@ INFO_CSS = """
   font:400 13px/1.5 Inter,system-ui,sans-serif;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;
   max-height:min(60vh,420px);overflow-y:auto;overscroll-behavior:contain}
 .info:hover .info-t,.info-b:focus-visible+.info-t,.info.pinned .info-t{display:block}
+.cite{margin-left:2px;vertical-align:.3em}
+.cite .info-b.cite-b{width:auto;height:13px;min-width:13px;padding:0 3px;border:0;border-radius:3px;background:#efeaf9;
+  color:#8b7fb0;font:600 9px/13px Inter,system-ui,sans-serif;font-style:normal;letter-spacing:.02em}
+.cite .info-b.cite-b:hover,.cite.pinned .info-b.cite-b{background:#7c3aed;color:#fff}
+.cite-t .it{display:block;margin:0 0 7px}.cite-t .it:last-child{margin:0}
+.cite-t a{color:#1d4ed8;font-weight:500;text-decoration:none}.cite-t a:hover{text-decoration:underline}
+.cite-t .d{display:block;color:#6b7280;font-size:12px}
 .gen-tag{display:inline-block;vertical-align:.15em;margin-left:8px;font-size:11px;font-weight:500;color:#5b5670;
   border:1px solid #d9d3ea;border-radius:4px;padding:1px 5px;line-height:1.3}
 """
@@ -157,6 +164,22 @@ INFO_JS = """
 def info_assets() -> str:
     """The info button's style and script, once per page."""
     return f"<style>{INFO_CSS}</style><script>{INFO_JS}</script>"
+
+
+def cite(sources: list[dict]) -> str:
+    """The source button after a sentence or a group of sentences: slim, numbered by its sources; hover or click
+    lists each with its title (link) and a line on what it is. `sources`: {url, title, desc, label} each. Spans only:
+    it sits inside a <p>, which a list would close."""
+    items = "".join(
+        f'<span class="it"><a href="{html.escape(s["url"])}">'
+        f"{html.escape(s.get('title') or s.get('label') or s['url'])}</a>"
+        f'<span class="d">{html.escape(s.get("desc") or s.get("label") or "")}</span></span>'
+        for s in sources
+    )
+    n = len(sources)
+    return (f'<span class="info cite"><button type="button" class="info-b cite-b" aria-expanded="false" '
+            f'aria-label="{"Quelle" if n == 1 else f"{n} Quellen"}">Q{n if n > 1 else ""}</button>'
+            f'<span class="info-t cite-t" role="tooltip">{items}</span></span>')  # fmt: skip
 
 
 def info(text: str, label: str = "Erklärung") -> str:

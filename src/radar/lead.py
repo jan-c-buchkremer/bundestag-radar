@@ -82,17 +82,19 @@ ablehnt.
 Regeln für die Sprache (Einfache Sprache, Niveau B1):
 - Kurze Sätze mit höchstens 20 Wörtern. Ein Gedanke pro Satz.
 - Aktiv statt Passiv. Alltagswörter statt Fachwörter.
-- Erkläre ein Fachwort beim ersten Mal kurz, zum Beispiel: „Ein Antrag ist ein Vorschlag an den Bundestag.“
+- Erkläre keine Grundbegriffe wie Antrag, Gesetzentwurf, Ausschuss, Fraktion oder Lesung: Die Leser kennen den \
+Bundestag. Erkläre nur ein seltenes Fachwort, und dann im selben Satz.
 - Keine Ketten aus Genitiven wie „die Änderung des Gesetzes zur Regelung der …“. Keine Abkürzungen außer \
 Parteinamen.
 - Zahlen als Ziffern.
 
 Regeln für die Quellen:
-- Jeder Satz endet mit den Kennungen seiner Quellen in eckigen Klammern, genau so geschrieben wie im Attribut id \
-der Quelle, zum Beispiel [hib 787/2026] oder [hib 787/2026; Drucksache 21/8379]. Das gilt auch für Sätze, die ein \
-Wort erklären: Sie nennen die Quelle, in der das Wort vorkommt.
-- Nenne nur Quellen, in denen die Aussage des Satzes steht. Jede Zahl und jeder Name im Satz muss in einer \
-genannten Quelle stehen.
+- Setze die Kennungen der Quellen in eckigen Klammern an das Ende eines Satzes oder einer kurzen Gruppe von \
+Sätzen, genau so geschrieben wie im Attribut id der Quelle, zum Beispiel [hib 787/2026] oder [hib 787/2026; \
+Drucksache 21/8379]. Eine Klammer gilt für alle Sätze seit der letzten Klammer im selben Absatz. Nicht jeder Satz \
+braucht eine eigene Klammer, aber jeder Absatz endet mit einer.
+- Nenne nur Quellen, in denen die Aussagen stehen. Jede Zahl und jeder Name in den Sätzen vor einer Klammer muss \
+in einer der genannten Quellen stehen.
 - Schreibe nur den Text: keine Überschrift, keine Einleitung, keine Aufzählungszeichen, kein Markdown. Ein Satz \
 pro Zeile."""
 
@@ -135,6 +137,8 @@ class Source:
     url: str
     label: str
     fraction: str | None = None  # a speech: the Fraktion it counts for
+    title: str = ""  # what the source button's list shows: the source's own title …
+    desc: str = ""  # … and a line on what it is (kind, date)
 
     def document(self) -> Document:
         return Document(self.id, self.text)
@@ -165,6 +169,8 @@ def _hib_sources(conn: sqlite3.Connection, items: list[dict]) -> list[Source]:
             f"{i['ressort']}. Art: {i['kind']}.\nÜberschrift: {i['title']}\n{texts.get(i['id'], '')}",
             i["url"],
             f"hib {i['number']}",
+            title=i["title"],
+            desc=f"heute im bundestag {i['number']}, {i['kind']}, {german_date(i['date'])}",
         )
         for i in items
     ]
@@ -185,6 +191,8 @@ def _drucksache_sources(conn: sqlite3.Connection, ds: list[dict]) -> list[Source
                 text + (f"\nUrheber: {who}" if who else ""),
                 d["pdf"],
                 f"Drucksache {d['number']}",
+                title=d.get("title") or "",
+                desc=f"Drucksache {d['number']}, {d.get('type') or 'Drucksache'}{date}",
             )
         )
     return out
@@ -210,7 +218,17 @@ def _vote_sources(votes: list[dict]) -> list[Source]:
             lines.append(
                 "Fraktionen: " + ", ".join(f"{f} {POSITION_WORD.get(p, p)}" for f, p in v["fraktionen"].items())
             )
-        out.append(Source(f"Abstimmung {v['id']}", "\n".join(lines), v["url"], "Abstimmung"))
+        result = f": {v['result']}" if v.get("result") else ""
+        out.append(
+            Source(
+                f"Abstimmung {v['id']}",
+                "\n".join(lines),
+                v["url"],
+                "Abstimmung",
+                title=v.get("title") or v["subject"],
+                desc=f"Abstimmung am {german_date(v['date'])}{result}",
+            )  # fmt: skip
+        )
     return out
 
 
@@ -229,6 +247,8 @@ def _debate_sources(conn: sqlite3.Connection, plenum: list[dict]) -> list[Source
                 f"{p['top']}: {title}\n{p['reden']} Reden. Reden nach Fraktion: {counts}.",
                 p["url"],
                 f"Debatte {german_date(p['date'])}",
+                title=title,
+                desc=f"Debatte am {german_date(p['date'])}, {p['reden']} Reden",
             )
         )
     return out
@@ -258,6 +278,8 @@ def _rede_sources(conn: sqlite3.Connection, reden: list[dict]) -> list[Source]:
                     r["url"],
                     f"Rede {r['speaker']}",
                     fraction=f,
+                    title=f"Rede von {r['speaker']} ({FRACTION_LABEL[f]})",
+                    desc="Rede im Plenum",
                 )
             )
     return out
@@ -362,6 +384,27 @@ def parse(text: str) -> list[dict]:
         if rest := line[pos:].strip():
             out.append({"text": strip_cites(rest), "cites": [], "paragraph": paragraph})
     return out
+
+
+KEPT = ("text", "cites", "paragraph", "warnings", "mark")
+
+
+def inherit(sentences: list[dict]) -> list[dict]:
+    """A bracket may close a group of sentences: a sentence without ids takes those of the next sentence with ids in
+    its paragraph, and is checked against them. `mark` says where the model put the bracket: only there the page
+    shows the source button. A paragraph that ends without ids leaves its last sentences without (they fail)."""
+    pending: list[dict] = []
+    for s in sentences:
+        s["mark"] = bool(s["cites"])
+        if pending and pending[-1]["paragraph"] != s["paragraph"]:
+            pending = []
+        if s["cites"]:
+            for p in pending:
+                p["cites"] = list(s["cites"])
+            pending = []
+        else:
+            pending.append(s)
+    return sentences
 
 
 def words(text: str) -> int:
@@ -496,7 +539,7 @@ def generate(
     attempts, prompt = [], task
     for attempt in (1, 2):
         result, cached = _call(backend, cache, documents, prompt)
-        sentences = parse(result.text)
+        sentences = inherit(parse(result.text))
         for s in sentences:
             fraction = _fraction_of(s) if kind == "positions" else None
             s["checks"] = check(s, by_id, people, fraction if kind != "positions" else (fraction or "?"))
@@ -530,16 +573,14 @@ def generate(
         prompt = f"{task}\n\n{RETRY.format(failures=chr(10).join(lines))}"
     final = attempts[-1]
     kept = [
-        {k: s[k] for k in ("text", "cites", "paragraph", "warnings") + (("fraction",) if kind == "positions" else ())}
-        for s in final["sentences"]
-        if s["ok"]
+        {k: s[k] for k in KEPT + (("fraction",) if kind == "positions" else ())} for s in final["sentences"] if s["ok"]
     ]
     return {
         "sentences": kept,
         "words": sum(words(s["text"]) for s in kept),
         "dropped": [{"text": s["text"], "checks": s["checks"]} for s in final["sentences"] if not s["ok"]],
         "attempts": attempts,
-        "sources": {s.id: {"url": s.url, "label": s.label} for s in sources},
+        "sources": {s.id: {"url": s.url, "label": s.label, "title": s.title, "desc": s.desc} for s in sources},
     }
 
 
@@ -667,13 +708,11 @@ def _e(x) -> str:
 
 
 def render_sentence(s: dict, sources: dict[str, dict]) -> str:
-    links = []
-    for c in s["cites"]:
-        src = sources.get(c)
-        if src:
-            links.append(f'<a class="ev" href="{_e(src["url"])}">{_e(src["label"])}</a>')
-    cite = f' <span class="cite">[{"; ".join(links)}]</span>' if links else ""
-    return f"{_e(s['text'])}{cite}"
+    """A sentence, with the source button where the model closed a group of sentences with its sources."""
+    if not s.get("mark", True):
+        return _e(s["text"])
+    entries = [sources[c] for c in s["cites"] if c in sources]
+    return f"{_e(s['text'])}{shell.cite(entries)}" if entries else _e(s["text"])
 
 
 def render_text(text: dict) -> str:
@@ -691,7 +730,8 @@ def with_html(data: dict) -> dict:
     for sid, e in data["stories"].items():
         kurz = " ".join(render_sentence(s, e["kurz"]["sources"]) for s in e["kurz"]["sentences"])
         pos = [render_sentence(s, e["positions"]["sources"]) for s in e.get("positions", {}).get("sentences", [])]
-        out["stories"][sid] = {"kurz": kurz, "positions": pos}
+        first = e["kurz"]["sentences"][0]["text"] if e["kurz"]["sentences"] else ""
+        out["stories"][sid] = {"kurz": kurz, "positions": pos, "teaser": first}
     return out
 
 

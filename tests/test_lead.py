@@ -123,3 +123,14 @@ def test_now_text_reads_the_running_weeks_stories_and_renders_with_its_title(tmp
     assert data["week"] == "2026-W46" and data["lead"]["sentences"][0]["cites"] == ["hib 1/2026"]
     html = lead.render_section(data, "Bisher in dieser Woche")
     assert "<h2>Bisher in dieser Woche" in html and 'href="https://www.bundestag.de/1"' in html
+
+
+def test_a_bracket_closes_a_group_of_sentences_and_only_there_is_the_button():
+    s = lead.inherit(parse("Der Bundestag beriet.\nEs gab 131 Ja-Stimmen. [Abstimmung 21/99/5]\n\nOhne Quelle."))
+    assert [x["cites"] for x in s] == [["Abstimmung 21/99/5"], ["Abstimmung 21/99/5"], []]
+    assert [x["mark"] for x in s] == [False, True, False]
+    assert check(s[1], SOURCES, set()) == [] and check(s[2], SOURCES, set()) == ["keine Quelle genannt"]
+    sources = {"Abstimmung 21/99/5": {"url": "u", "label": "Abstimmung", "title": "Gesetz X", "desc": "am 5. Mai"}}
+    assert lead.render_sentence(s[0], sources) == "Der Bundestag beriet."
+    button = lead.render_sentence(s[1], sources)
+    assert 'class="info cite"' in button and '<a href="u">Gesetz X</a>' in button and "am 5. Mai" in button
