@@ -17,9 +17,10 @@ checked lead and its Geschichten der Woche, and who is in the news.
   generated in Einfacher Sprache from the sources of the top stories only; every sentence names its sources, and
   code checks that each number and name is in them; failing sentences get one retry, then are dropped. Cached by a
   hash of the inputs in `data/llm-cache/`.
-- Geschichten der Woche (`stories.py`, `stories.json`, `geschichten.html`): the sitting week's Vorgänge ranked by
-  how many sources carry them (hib, Drucksachen, agenda, votes), with their stage, a „kurz erklärt“ and one sentence
-  per Fraktion from the debate.
+- Beraten und entschieden (`stories.py`, `stories.json`, `geschichten.html`): the sitting week's Vorgänge that were
+  debated or voted in the plenum, and the government's new Gesetzentwürfe, ranked by how many sources carry them
+  (hib, Drucksachen, agenda, votes), with their stage, a „kurz erklärt“ and one sentence per Fraktion from the
+  debate; 12 on the start page.
 - „Steigende Themen“ (`themes.py`, `themen.json`): about 60 themes refitted every Monday on the 26 weeks before
   (speeches and hib items), every new document sorted in each night. A theme keeps its id and name while it holds
   the same documents; a retired one names its successor. Kleine Anfragen and Antworten are sorted in and counted,

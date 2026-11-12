@@ -168,3 +168,17 @@ def test_render_section(store, tmp_path):
     assert '<span class="chip gru">Grüne</span>' in page
     assert "<script" not in page
     assert "Die Woche im Bundestag" in stories.lab_page(p)
+
+
+def test_only_debated_voted_or_government_bills_get_a_card():
+    def s(signals=(), **kw):
+        return {"signals": list(signals), **kw}
+
+    assert stories.beraten(s(["hib", "debatte"])) and stories.beraten(s(["abstimmung"]))
+    gov = {"type": "Gesetzgebung", "stage": {"label": "Eingebracht"}, "einbringer": ["Bundesregierung"]}
+    assert stories.beraten(s(["drucksache"], **gov))
+    assert not stories.beraten(s(["drucksache"], **{**gov, "einbringer": ["AfD"]}))
+    assert not stories.beraten(s(["hib", "drucksache"], type="Kleine Anfrage"))
+    assert not stories.beraten(s(["drucksache"], type="Antrag", stage={"label": "Beschlussempfehlung liegt vor"}))
+    p = {"stories": [s(["hib"], id="a"), s(["debatte"], id="b")]}
+    assert [x["id"] for x in stories.shown(p)] == ["b"]

@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None) -> None:
         "weeks",
         nargs="*",
         help="ISO weeks, e.g. 2026-W28, and/or `overview` (period themes + index), `woche` (hib week + index), "
-        "`gespraech` (Im Gespräch: attention of the 7 days up to --date); or `stories` (Geschichten der Woche) / "
+        "`gespraech` (Im Gespräch: attention of the 7 days up to --date); or `stories` (Beraten und entschieden) / "
         "`lead` (stories + generated texts) alone",
     )
     b.add_argument("--week", help="stories/lead: the ISO week (default: the newest sitting week); themen: (default: "

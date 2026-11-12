@@ -1,4 +1,4 @@
-"""„Geschichten der Woche“: one story per Vorgang, followed across every source the store has for the week.
+"""„Beraten und entschieden“: one story per Vorgang, followed across every source the store has for the week.
 
 A reader asks "what happened to X this week", not "which hib items appeared". The foundation already holds the
 hard links between the sources (radar-lab research 03 §3): hib items name their Drucksachen (`hib_drucksache`), a
@@ -96,8 +96,29 @@ METHOD = (
     "beraten wurden oder zu denen eine gemeinsame Anhörung stattfand, bilden eine Geschichte. Ausschussmeldungen "
     "ohne Drucksache kommen nur dazu, wenn Ausschuss und Stichwörter passen. Die Reihenfolge richtet sich nach der "
     "Zahl der Quellenarten (hib, Drucksache, Debatte, Abstimmung, namentliche Abstimmung), dann nach der Zahl der "
-    "hib-Meldungen und Reden. Sie zählt, wie viele Quellen eine Geschichte tragen, nicht ihre Bedeutung."
+    "hib-Meldungen und Reden. Sie zählt, wie viele Quellen eine Geschichte tragen, nicht ihre Bedeutung. Gezeigt "
+    "werden nur Geschichten, die in der Woche im Plenum debattiert oder abgestimmt wurden, und neue Gesetzentwürfe "
+    "der Bundesregierung."
 )
+TITLE = "Beraten und entschieden"
+
+
+def beraten(story: dict) -> bool:
+    """A story worth a card: debated or voted in the plenum this week, or a new Gesetzentwurf of the government.
+    Kleine Anfragen, Petitionen and steps before the plenum (Überweisung, Beschlussempfehlung) alone are not."""
+    if {"debatte", "abstimmung"} & set(story.get("signals") or []):
+        return True
+    return (
+        story.get("type") == "Gesetzgebung"
+        and (story.get("stage") or {}).get("label") == "Eingebracht"
+        and "Bundesregierung" in (story.get("einbringer") or [])
+    )
+
+
+def shown(payload: dict) -> list[dict]:
+    """The stories that get a card, in ranking order."""
+    return [s for s in payload["stories"] if beraten(s)]
+
 
 _WORD = re.compile(r"[a-zäöüß]{5,}")
 _STOP = {
@@ -954,10 +975,10 @@ def render_section(payload: dict, lead: dict | None = None, limit: int = 12) -> 
     """The stories of the week as an HTML fragment (cards), for the start page; `lead` is lead.json, whose
     "kurz erklärt" and positions go on the cards it covers."""
     extras = (lead or {}).get("stories", {})
-    cards = "".join(render_card(s, extras.get(s["id"])) for s in payload["stories"][:limit])
+    cards = "".join(render_card(s, extras.get(s["id"])) for s in shown(payload)[:limit])
     return (
         f'<section class="radar-stories"><style>{CSS}</style>'
-        f"<h2>Geschichten der Woche{shell.info(_e(payload['method']))}</h2>"
+        f"<h2>{TITLE}{shell.info(_e(payload['method']))}</h2>"
         f'<div class="stories">{cards}</div></section>'
     )
 

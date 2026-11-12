@@ -17,7 +17,7 @@ from pathlib import Path
 
 from radar import shell
 
-STORIES_ON_START = 6
+STORIES_ON_START = 12
 PEOPLE_ON_START = 6  # besides the news tier, which always shows
 
 PAGE_CSS = """
@@ -121,7 +121,7 @@ PARTS = ("now", "lead", "stories", "rising", "sitting", "jump", "nowtags", "sitr
 
 def sections(out: Path, research: str) -> dict[str, str]:
     """The parts of index.html's „Diese Woche“ that come from the weekly JSON files, by placeholder: `lead` (Die
-    Woche im Bundestag), `stories` (Geschichten der Woche) and `rising` (Steigende Themen, with the people in the
+    Woche im Bundestag), `stories` (Beraten und entschieden) and `rising` (Steigende Themen, with the people in the
     news in one line); also writes the full pages next to it. A part that is not built is ""."""
     from radar import gespraech, lead, stories
 
@@ -143,11 +143,12 @@ def sections(out: Path, research: str) -> dict[str, str]:
         parts["lead"] = lead.render_section(ld)
     if st:
         cards = lead.with_html(ld) if ld else None  # the "kurz erklärt" and positions as HTML
-        parts["stories"] = stories.render_section(st, cards, limit=STORIES_ON_START) + _more(
-            "geschichten.html", f"Alle {len(st['stories'])} Geschichten der Woche"
-        )
-        full = stories.render_section(st, cards, limit=len(st["stories"]))
-        (out / "geschichten.html").write_text(page("Geschichten der Woche", full, research), encoding="utf-8")
+        n = len(stories.shown(st))
+        rest = n - STORIES_ON_START
+        more = _more("geschichten.html", f"{rest} weitere") if rest > 0 else ""
+        parts["stories"] = stories.render_section(st, cards, limit=STORIES_ON_START) + more
+        full = stories.render_section(st, cards, limit=n)
+        (out / "geschichten.html").write_text(page(stories.TITLE, full, research), encoding="utf-8")
     people = ""
     if gs := _load(out, gespraech.FILE):
         people = people_line(gs)

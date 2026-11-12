@@ -631,8 +631,8 @@ def build(
     top_n: int = stories.TOP_N,
     log=print,
 ) -> dict:
-    """lead.json for the week of `payload` (stories.json)."""
-    top = payload["stories"][:top_n]
+    """lead.json for the week of `payload` (stories.json), over the top stories that get a card."""
+    top = stories.shown(payload)[:top_n]
     people = person_names(conn)
     lead_sources = unique([s for st in top for s in story_sources(conn, st, max_drucksachen=2)])
     log(f"lead: {len(lead_sources)} sources")
