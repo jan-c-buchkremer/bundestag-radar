@@ -93,6 +93,7 @@ def _inline(template: str, payload: dict, method: str = shell.METHOD) -> str:
         ("__SHELL__", shell.head(RESEARCH)),
         ("__SITE_HEADER__", shell.site_header(RESEARCH)),
         ("__BRAND__", shell.brand(RESEARCH)),
+        ("__METHOD_INFO__", shell.info_assets() + shell.method_info(method)),  # before __METHOD__, its prefix
         ("__METHOD__", shell.method_note(method)),
         ("__INFO__", shell.info_assets()),
     ):

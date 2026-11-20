@@ -91,6 +91,11 @@ def method_note(text: str) -> str:
             f"<p>{text}</p></aside>")  # fmt: skip
 
 
+def method_info(text: str) -> str:
+    """The same note behind an info button, for pages where a footer has no place (the Themenlandschaft's map)."""
+    return info(f"<b>So entsteht diese Seite.</b> {text}", "So entsteht diese Seite")
+
+
 # The Themenlandschaft's method (docs/architecture.md gives it as the example)
 METHOD = (
     "Jede Rede als Embedding (multilingual-e5-base), angeordnet mit UMAP, gruppiert mit HDBSCAN und benannt nach "

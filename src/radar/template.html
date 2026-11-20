@@ -91,6 +91,11 @@ aside { border-right: 1px solid var(--line); padding: 14px 16px 24px; }
 .tour-target { position: relative; z-index: 21; border-radius: 8px; box-shadow: 0 0 0 3px var(--accent), 0 0 0 7px var(--accent-soft); background: var(--card); }
 #map.tour-target { border-radius: 0; box-shadow: inset 0 0 0 3px var(--accent); background: transparent; }
 #map.tour-keep { position: relative; z-index: 21; }
+/* a tour step on a topic label: the label keeps its place, rings and pulses; the other labels step back */
+.lbl.tour-target { position: absolute; z-index: 6; background: var(--card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px var(--accent-soft); animation: tourPulse 1.6s ease-in-out infinite; }
+#labels.tour-focus .lbl:not(.tour-target) { opacity: .4; }
+@keyframes tourPulse { 50% { box-shadow: 0 0 0 3px var(--accent), 0 0 0 13px rgba(124,58,237,.12); } }
+@media (prefers-reduced-motion: reduce) { .lbl.tour-target { animation: none; } }
 #tourCard { position: fixed; z-index: 22; width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.14); padding: 14px 16px 12px; display: none; font-size: 13px; line-height: 1.5; }
 #tourCard.show { display: block; }
 #tourCard .bar { height: 3px; margin: 0 0 10px; background: var(--line); }
@@ -280,7 +285,7 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
 <body class="mode-radar">
 <header class="m-radar">
   __BRAND__
-  <h1><a href="index.html">Themenlandschaft</a></h1>
+  <h1><a href="index.html">Themenlandschaft</a></h1>__METHOD_INFO__
   <span class="weekwrap"><button class="weekbtn" id="weekBtn" title="Sitzungswoche wählen"></button><div id="weekCal"></div></span>
   <span class="meta" id="meta"></span>
   <span class="spacer"></span>
@@ -313,7 +318,6 @@ aside { grid-area: 1 / 1; } #map { grid-area: 1 / 2; } #panel { grid-area: 1 / 3
       <label class="toggle">Größe nach Redelänge <input type="checkbox" id="size"></label>
       <label class="toggle">Themen-Labels <input type="checkbox" id="showLabels"></label>
     </div></div>
-    __METHOD__
   </aside>
   <div id="panel"></div>
   </div>
@@ -568,8 +572,18 @@ function draw() {
   if (live.length) traces.push({ type: 'scattergl', mode: 'markers', name: `Treffer „${state.live}“ (${live.length})`, hoverinfo: 'skip',
     x: live.map(s => s.x), y: live.map(s => s.y), customdata: live.map(s => s.id), marker: { color: 'rgba(0,0,0,0)', size: live.map(s => size(s) + 6), line: { width: 2, color: '#1f2328' } } });
   const open = byId[state.open];
-  if (open) traces.push({ type: 'scattergl', mode: 'markers', name: 'geöffnet', showlegend: false, hoverinfo: 'skip',
-    x: [open.x], y: [open.y], customdata: [open.id], marker: { color: 'rgba(0,0,0,0)', size: size(open) + 10, line: { width: 2, color: '#1f2328' } } });
+  if (open) {  // the open speech: a glow in its colour, a white gap, an accent ring, the point enlarged on top. The
+    // glow is a large target that takes the click (hover 'none', not 'skip'), so a second click closes this speech
+    // and not a neighbour, also in a dense cluster when zoomed out
+    const c = mode === 'weekday' ? open.dayColor : colorOf[mode](keyOf[mode](open)), d = size(open);
+    const one = (sz, marker, extra = {}) => ({ type: 'scattergl', mode: 'markers', name: 'geöffnet', showlegend: false, hoverinfo: 'none',
+      x: [open.x], y: [open.y], customdata: [open.id], marker: { size: sz, ...marker }, ...extra });
+    traces.push(
+      one(d + 30, { color: c, opacity: .16, line: { width: 0 } }),
+      one(d + 15, { color: '#ffffff', opacity: .95, line: { width: 2.5, color: css('--accent') } }),
+      one(d * 1.6, { color: c, opacity: 1, line: { width: 2, color: '#ffffff' } }),
+    );
+  }
   const peek = byId[state.peek];
   if (peek) traces.push({ type: 'scattergl', mode: 'markers', name: 'Vorschau', showlegend: false, hoverinfo: 'skip',
     x: [peek.x], y: [peek.y], customdata: [peek.id], marker: { color: 'rgba(0,0,0,0)', size: size(peek) + 12, line: { width: 3, color: css('--accent') } } });
@@ -594,6 +608,7 @@ const map = document.getElementById('map');
 const SPAN = Math.max(...S.map(s => s.x)) - Math.min(...S.map(s => s.x));
 let labelAnchors = [];
 const labelLayer = document.getElementById('labels');
+let tourLabel = null;  // the cluster id of the label a tour step points at: kept highlighted across re-placements
 function placeLabels() {
   const fl = map._fullLayout;
   if (!fl || !state.showLabels) { labelLayer.innerHTML = ''; return; }
@@ -617,6 +632,7 @@ function placeLabels() {
     if (!ok) { el.remove(); return; }
     el.style.top = y + 'px'; placed.push({ x, y, w, h });
     el.onclick = () => showCluster(+el.dataset.c);
+    if (tourLabel === el.dataset.c) el.classList.add('tour-target');
   });
 }
 
@@ -671,7 +687,7 @@ const touchWords = t => t.replace(/\bKlicke\b/g, 'Tippe').replace(/\bklicke\b/g,
 const fill = t => (mobile ? touchWords(t) : t).replace('{cluster}', esc(pick.clusterLabel)).replace('{agenda}', esc(pick.agendaTitle.slice(0, 60))).replace('{agendaClusters}', pick.agendaClusters).replace('{speaker}', esc(pick.speaker));
 const spot = el => { document.querySelectorAll('.tour-target').forEach(x => x.classList.remove('tour-target')); if (el) el.classList.add('tour-target'); document.body.classList.toggle('tour-sheet', !!el && sheet.contains(el)); };
 function startTour(id) { tour.id = id; tour.step = 0; tourMenu.classList.remove('open'); document.getElementById('tourDim').classList.add('show'); showStep(); }
-function endTour() { tour.id = ''; spot(null); document.body.classList.remove('tour-sheet'); map.classList.remove('tour-keep'); card.classList.remove('show', 'done'); document.getElementById('tourDim').classList.remove('show'); }
+function endTour() { tour.id = ''; spot(null); labelLayer.classList.remove('tour-focus'); tourLabel = null; document.body.classList.remove('tour-sheet'); map.classList.remove('tour-keep'); card.classList.remove('show', 'done'); document.getElementById('tourDim').classList.remove('show'); }
 function showStep() {
   const steps = TOURS[tour.id].steps;
   if (tour.step >= steps.length) {  // closing card
@@ -693,7 +709,10 @@ function showStep() {
   }
   spot(el);
   document.getElementById('tourDim').classList.toggle('show', !st.intro);
-  map.classList.toggle('tour-keep', !!st.keepMap && el !== map);
+  const inMap = !!el && el !== map && map.contains(el);  // a topic label: lift the map over the dim, fade the others
+  map.classList.toggle('tour-keep', (!!st.keepMap && el !== map) || inMap);
+  labelLayer.classList.toggle('tour-focus', inMap);
+  tourLabel = inMap && el.classList.contains('lbl') ? el.dataset.c : null;
   card.className = 'show';
   card.innerHTML = `<div class="bar"><i style="width:${100 * tour.step / steps.length}%;display:block;height:100%"></i></div>
     <div class="step">Schritt ${tour.step + 1} von ${steps.length}</div><h4>${fill(st.title)}</h4><p>${fill(mobile && st.mText || st.text)}</p>
@@ -981,7 +1000,17 @@ function gestureMove(ts) {  // the data point under the start centre stays under
   gest.next = { x: [x0, x0 + wx * k], y: [y1 - wy * k, y1] };
   gest.frame ||= requestAnimationFrame(() => { gest.frame = 0; applyRange(gest.next); });
 }
-function speechAt(cx, cy) {  // nearest shown speech within a finger's reach, else a dimmed one
+// the open speech's glow is its target: a click or tap within OPEN_REACH px of it means this speech, even where a
+// neighbour lies nearer (WebGL picking goes by distance only, not by marker size)
+const OPEN_REACH = 18;
+function nearOpen(cx, cy) {
+  const o = byId[state.open], fl = map._fullLayout;
+  if (!o || !fl) return false;
+  const r = map.getBoundingClientRect();
+  return Math.hypot(fl.xaxis.l2p(o.x) + fl._size.l + r.left - cx, fl.yaxis.l2p(o.y) + fl._size.t + r.top - cy) <= OPEN_REACH;
+}
+function speechAt(cx, cy) {  // nearest shown speech within a finger's reach, else a dimmed one; the open one first
+  if (nearOpen(cx, cy)) return byId[state.open];
   const fl = map._fullLayout, r = map.getBoundingClientRect(), px = cx - r.left - fl._size.l, py = cy - r.top - fl._size.t;
   const near = list => {
     let best = null, bd = 26 ** 2;
@@ -1087,7 +1116,7 @@ map.on('plotly_hover', e => {
 map.on('plotly_unhover', () => tip.style.display = 'none');
 map.addEventListener('mouseleave', () => tip.style.display = 'none');
 map.on('plotly_click', e => {
-  const id = e.points[0].customdata;
+  const ev = e.event, id = ev && nearOpen(ev.clientX, ev.clientY) ? state.open : e.points[0].customdata;
   if (id === state.open) return closeSpeech();  // second click on the open speech closes it
   showSpeech(byId[id]); draw();
 });

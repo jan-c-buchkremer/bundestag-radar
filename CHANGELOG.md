@@ -34,6 +34,15 @@ checked lead and its Geschichten der Woche, and who is in the news.
   themen`, `radar build lead` (needs a logged-in `claude` CLI or `--backend api`), `radar build gespraech`, then
   `radar build woche` for the index.
 - The Wahlperiode stream places its labels again once the web font has loaded, so none sticks out on a phone.
+- „Die ganze Wahlperiode“: the streamgraph starts compact; „Größer ansehen und alle Themen“ widens it and opens the
+  theme list. Beside it, two tours through the last sitting week's Themenlandschaft. Each week card shows the week's
+  speeches by policy area as a coloured bar, with its topics capitalised.
+- An opened rising theme draws its sources' weeks at any width, with round dots and a scale.
+- Themenlandschaft: the method note sits behind an info button by the title. The open speech is marked by a glow in
+  its colour and an accent ring, and a click near it closes it rather than opening a neighbour. A tour step on a
+  topic label keeps that label bright and ringed.
+- Themes leave out hib's teasers for the weekly paper „Das Parlament“, and a generated theme name keeps quotes
+  inside it.
 
 ## v0.2.2 (2026-10-16)
 
