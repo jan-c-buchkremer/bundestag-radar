@@ -30,19 +30,43 @@ h1 { font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.025
 .year { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 28px 0 12px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; color: inherit; text-decoration: none; transition: border-color .12s, transform .12s, box-shadow .12s; }
-a.card:hover { border-color: #cdcdc8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.05); }
-.card .week { font-weight: 600; font-size: 15px; }
+a.card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.05); }
+.card .week { font-weight: 750; font-size: 17px; letter-spacing: -.01em; }
 .card .dates { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
 .card .n { color: var(--faint); font-size: 12px; float: right; }
 .topics { display: flex; flex-wrap: wrap; gap: 5px; }
-.topic { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 999px; padding: 2px 9px; }
+.topic { font-size: 12px; font-weight: 500; color: #4c1d95; background: var(--accent-soft); border-radius: 999px; padding: 2px 9px; }
 .card.small .topics { display: none; }
-.tours { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-bottom: 8px; }
-a.tour { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; color: inherit; text-decoration: none; transition: border-color .12s, transform .12s, box-shadow .12s; }
+.era-top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: stretch; margin-bottom: 36px; }
+.era-top #period { margin-bottom: 0; display: flex; flex-direction: column; }
+.era-top #period .pmore { margin-top: auto; }
+.era-top #period #stream { margin-bottom: 10px; }
+.tourbox { display: flex; flex-direction: column; }
+/* the large view: the chart takes the whole width, the tours follow as a flat strip */
+.era-top.open { grid-template-columns: minmax(0, 1fr); }
+.era-top.open .tourbox { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: center; }
+.era-top.open .tours { grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .era-top.open .tourbox { grid-template-columns: 1fr; } .era-top.open .tours { grid-template-columns: 1fr; } }
+.era-top #period[hidden] + .tourbox { grid-column: 1 / -1; }
+.tourbox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.tourbox h2 { font-size: 19px; font-weight: 750; letter-spacing: -.015em; margin: 0 0 2px; }
+.tourbox .tsub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.tours { display: grid; gap: 10px; flex: 1; grid-auto-rows: 1fr; }
+.allw { font-size: 19px; font-weight: 750; letter-spacing: -.015em; margin: 30px 0 0; }
+a.tour .tl { display: inline-block; align-self: flex-start; margin-bottom: 6px; padding: 1px 9px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+#period:not(.open) .pbody { display: none; }
+#period:not(.open) #stream { height: 250px; }
+.pmore { display: block; margin: 10px auto 0; padding: 5px 14px; border: 1.5px solid var(--accent); border-radius: 999px; background: #fff; color: var(--accent); font: 600 13px/1.4 inherit; font-family: inherit; cursor: pointer; }
+.pmore:hover { background: var(--accent-soft); }
+.card .mixw { display: block; height: 8px; margin: 0 0 12px; border-radius: 4px; background: #f3f1fa; }
+.card .mix { display: flex; height: 100%; border-radius: 4px; overflow: hidden; gap: 1px; }
+.card .mix i { display: block; min-width: 2px; }
+@media (max-width: 900px) { .era-top { grid-template-columns: minmax(0, 1fr); } }
+a.tour { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; color: inherit; text-decoration: none; transition: border-color .12s, transform .12s, box-shadow .12s; }
 a.tour:hover { border-color: #cdcdc8; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.05); }
 a.tour b { display: block; font-weight: 600; margin-bottom: 4px; }
 a.tour span { color: var(--muted); font-size: 13px; }
-a.tour em { display: block; margin-top: 8px; font-style: normal; color: var(--accent); font-size: 13px; }
+a.tour em { display: block; margin-top: auto; padding-top: 8px; font-style: normal; color: var(--accent); font-size: 13px; }
 footer { color: var(--faint); font-size: 12.5px; margin-top: 48px; }
 /* the page's two parts: this week, then the whole Wahlperiode on a tinted band */
 .part { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 3px solid var(--accent); }
@@ -156,6 +180,7 @@ footer a { color: var(--muted); }
 .tile ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .tile li { font-size: 12.5px; line-height: 1.3; hyphens: auto; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tile.big li { font-size: 14.5px; font-weight: 500; line-height: 1.32; }
+.tile li .lk { white-space: nowrap; }  /* the dots stay with the kind */
 .tile li em { font-style: normal; font-size: 10.5px; font-weight: 600; color: color-mix(in srgb, var(--h) 70%, var(--text)); margin-right: 4px; }
 .tile .more { margin-top: auto; font-size: 11.5px; color: var(--muted); }
 .tile .more:empty, .tile ul:empty { display: none; }
@@ -227,6 +252,7 @@ __SITE_HEADER__
 
   <div class="era">
     <div class="part part-era"><span class="part-k">Die ganze Wahlperiode</span><span class="part-d" id="eraDates"></span></div>
+    <div class="era-top">
     <section id="period" hidden>
       <div class="phead"><h2>Themen der Wahlperiode<span id="pinfo"></span></h2><span class="sub" id="psub"></span>
         <span class="segmented" id="scale"><button data-v="n" class="on">Reden</button><button data-v="share">Anteil</button></span></div>
@@ -236,9 +262,14 @@ __SITE_HEADER__
         <div><h3>Alle Themen</h3><div id="themeList"></div></div>
         <div id="themeCard"></div>
       </div>
+      <button type="button" class="pmore" id="pmore" aria-expanded="false">Größer ansehen und alle Themen</button>
     </section>
-    <div class="year">Touren zum Einstieg</div>
-    <div class="tours" id="tours"></div>
+    <aside class="tourbox" id="tourbox" hidden>
+      <div class="thead"><h2>Touren durch die Themenlandschaft<span id="tinfo"></span></h2><p class="tsub" id="tsub"></p></div>
+      <div class="tours" id="tours"></div>
+    </aside>
+    </div>
+    <h2 class="allw">Alle Sitzungswochen</h2>
     <div id="years"></div>
   </div>
   __METHOD__
@@ -247,24 +278,15 @@ __SITE_HEADER__
 <script>
 const DATA = __DATA__;
 const fmt = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
-const TOURS = [  // ids and titles as in template.html
-  ['woche', 'Überblick über die Woche', 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.'],
-  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.'],
-  ['person', 'Einer Person folgen', 'Alle Reden einer Person, ihre Themen und ähnliche Reden anderer.'],
+const TOURS = [  // ids, titles and step counts as in template.html; its Tour menu also holds „Einer Person folgen“
+  ['woche', 'Überblick über die Woche', 'Die Karte lesen und eine Rede bis zur Quelle verfolgen.', 7],
+  ['debatte', 'Eine Debatte über die Landschaft verfolgen', 'Wie sich ein Tagesordnungspunkt auf die Themen verteilt und wer wo spricht.', 7],
 ];
-const latest = DATA.weeks.filter(w => w.speeches >= 30).at(-1).week;
-document.getElementById('tours').innerHTML = TOURS.map(([id, title, blurb]) => `<a class="tour" href="${latest}.html#tour=${id}"><b>${title}</b><span>${blurb}</span><em>Tour starten in ${latest} →</em></a>`).join('');
-const years = Map.groupBy(DATA.weeks.toReversed(), w => w.week.slice(0, 4));  // newest first
-document.getElementById('years').innerHTML = [...years].map(([y, ws]) => `
-  <div class="year">${y}</div>
-  <div class="grid">${ws.map(w => `
-    <a class="card${w.speeches < 30 ? ' small' : ''}" href="${w.week}.html">
-      <span class="n">${w.speeches} Reden</span>
-      <div class="week">${w.week}</div>
-      <div class="dates">${fmt(w.dates[0])} – ${fmt(w.dates[w.dates.length - 1])}${w.dates[0].slice(0, 4)}${w.speeches < 30 ? ' · Einzelsitzung' : ''}</div>
-      <div class="topics">${w.clusters.slice(0, 6).map(t => `<span class="topic">${t.join(' · ')}</span>`).join('')}</div>
-    </a>`).join('')}</div>`).join('');
-
+const latestW = DATA.weeks.filter(w => w.speeches >= 30).at(-1), latest = latestW.week;
+document.getElementById('tsub').textContent = `In der letzten Sitzungswoche, KW ${+latest.slice(6)} · ${fmt(latestW.dates[0])}–${fmt(latestW.dates.at(-1))}${latestW.dates[0].slice(0, 4)}`;
+document.getElementById('tours').innerHTML = TOURS.map(([id, title, blurb, n], i) => `<a class="tour" href="${latest}.html#tour=${id}"><span class="tl">Tour ${i + 1} · ${n} Schritte</span><b>${title}</b><span>${blurb}</span><em>Tour starten →</em></a>`).join('');
+document.getElementById('tourbox').hidden = false;
+document.getElementById('tinfo').innerHTML = `<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">Eine Tour führt Schritt für Schritt durch die Themenlandschaft einer Sitzungswoche. Jede Sitzungswoche unten hat ihre eigene Themenlandschaft, und die Touren laufen in jeder davon: oben rechts auf „Tour“.</span></span>`;
 // the info button (shell.info): an explanation behind an "i", as tooltip on hover, pinned by a click
 const infoBtn = h => `<span class="info"><button type="button" class="info-b" aria-expanded="false" aria-label="Erklärung">i</button><span class="info-t" role="tooltip">${h}</span></span>`;
 const fmtY = d => fmt(d) + d.slice(0, 4);
@@ -302,6 +324,32 @@ const AREAS = [
   ['digital', 'Digitales, Verkehr & Forschung', '#eda100'], ['demokratie', 'Demokratie & Gesellschaft', '#e87ba4'], ['klima', 'Klima, Energie & Landwirtschaft', '#008300'],
   ['sicherheit', 'Innere Sicherheit & Recht', '#4a3aa7'], ['aussen', 'Außen & Verteidigung', '#e34948'], ['weitere', 'Weitere', '#8a8a84'],
 ];
+// --- all sitting weeks: a card each, with the week's mix of policy areas (the period themes' speeches by area) as a
+// bar whose length is the week's speeches, and the week's own topics
+{
+  const ACR = new Set(['usa', 'nato', 'eu', 'uno', 'un', 'kfw', 'ki', 'eeg', 'geg', 'bka', 'bnd', 'bsi', 'öpnv', 'lng', 'co2', 'gkv', 'pkv', 'iwf', 'oecd', 'bmz', 'kfor', 'unifil', 'kritis', 'spd', 'cdu', 'csu', 'afd', 'ard', 'zdf', 'cum', 'nsu', 'gak', 'bmds', 'eudi', 'ets', 'agg', 'bpb', 'bfv']);
+  const capW = w => ACR.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1);
+  const P = DATA.period, idx = P ? Object.fromEntries(P.weeks.map((w, i) => [w, i])) : {};
+  const most = Math.max(...DATA.weeks.map(w => w.speeches));
+  const mixOf = w => {
+    const i = idx[w.week]; if (i == null) return '';
+    const by = {}; P.themes.forEach(t => { const a = t.area in by || AREAS.some(([k]) => k === t.area) ? t.area : 'weitere'; by[a] = (by[a] || 0) + t.counts[i]; });
+    const sum = Object.values(by).reduce((x, y) => x + y, 0); if (!sum) return '';
+    const segs = AREAS.filter(([k]) => by[k]).map(([k, name, hex]) => `<i style="flex:${by[k]};background:${hex}" title="${name}: ${by[k]} Reden"></i>`).join('');
+    return `<span class="mix" style="width:${Math.max(8, 100 * w.speeches / most).toFixed(1)}%">${segs}</span>`;
+  };
+  const years = Map.groupBy(DATA.weeks.toReversed(), w => w.week.slice(0, 4));  // newest first
+  document.getElementById('years').innerHTML = [...years].map(([y, ws]) => `
+  <div class="year">${y}</div>
+  <div class="grid">${ws.map(w => `
+    <a class="card${w.speeches < 30 ? ' small' : ''}" href="${w.week}.html">
+      <span class="n">${w.speeches} Reden</span>
+      <div class="week">KW ${+w.week.slice(6)}</div>
+      <div class="dates">${fmt(w.dates[0])} – ${fmt(w.dates[w.dates.length - 1])}${w.dates[0].slice(0, 4)}${w.speeches < 30 ? ' · Einzelsitzung' : ''}</div>
+      <span class="mixw">${mixOf(w)}</span>
+      <div class="topics">${w.clusters.slice(0, 6).map(t => `<span class="topic">${t.map(capW).join(' · ')}</span>`).join('')}</div>
+    </a>`).join('')}</div>`).join('');
+}
 const sittingUrl = aid => { const [wp, n, pos] = (aid || '').split('/'); return pos ? `${RESEARCH}sitzungen/${wp}-${n}.html#top-${pos}` : ''; };
 // --- Diese Woche: what hib reported in the newest week (woche.py) as a mosaic of policy areas; title and facts only,
 // the text stays at the Bundestag. A tile's area is its number of items; a tap opens the area's items below.
@@ -385,7 +433,7 @@ if (WK && WK.items.length) (() => {
     mosaic.innerHTML = groups.map((g, n) => {
       const r = rects[n], a = AREA[g.k], big = r.w * r.h > W * H * 0.2 && r.w > 220;
       const sorted = [...g.items].sort((p, q) => prio(p) - prio(q) || q.date.localeCompare(p.date));
-      const lis = sorted.slice(0, 12).map(i => `<li>${dots(i)}<em>${esc(i.kind)}</em>${esc(i.title)}</li>`).join('');
+      const lis = sorted.slice(0, 12).map(i => `<li><span class="lk">${dots(i)}<em>${esc(i.kind)}</em></span>${esc(i.title)}</li>`).join('');
       return `<button type="button" class="tile${big ? ' big' : ''}${area === g.k ? ' on' : ''}" data-a="${g.k}" data-n="${g.items.length}" aria-pressed="${area === g.k}" style="--h:${a.hex};left:${r.x + gap}px;top:${r.y + gap}px;width:${Math.max(0, r.w - 2 * gap)}px;height:${Math.max(0, r.h - 2 * gap)}px">`
         + `<span class="th">${esc(a.name)}<b>${g.items.length}</b></span><ul>${lis}</ul><span class="more"></span></button>`;
     }).join('') || '<p class="wempty">Keine Meldung mit dieser Auswahl.</p>';
@@ -584,6 +632,7 @@ if (P && P.themes.length && window.Plotly) (() => {
 
   function select(id, week = null) {
     sel = id; focusWeek = id == null ? null : week;
+    if (id != null) setOpen(true);
     listEl.querySelectorAll('.trow').forEach(r => r.classList.toggle('on', +r.dataset.t === id));
     const row = listEl.querySelector('.trow.on');  // keep the chosen row visible inside the list, without scrolling the page
     if (row && (row.offsetTop < listEl.scrollTop || row.offsetTop + row.offsetHeight > listEl.scrollTop + listEl.clientHeight)) listEl.scrollTop = row.offsetTop - listEl.clientHeight / 2;
@@ -646,6 +695,14 @@ if (P && P.themes.length && window.Plotly) (() => {
   const start = hashGet('thema');
   if (start != null && byTheme[+start]) select(+start); else { renderCard(); draw(); }
   addEventListener('resize', () => { if (el._fullLayout) Plotly.Plots.resize(el).then(placeLabels); });
+  function setOpen(on) {
+    const sec = document.getElementById('period'), btn = document.getElementById('pmore');
+    if (sec.classList.contains('open') === on) return;
+    sec.classList.toggle('open', on); sec.parentElement.classList.toggle('open', on); btn.setAttribute('aria-expanded', on);
+    btn.textContent = on ? 'Kleiner ansehen' : 'Größer ansehen und alle Themen';
+    if (el._fullLayout) Plotly.Plots.resize(el).then(placeLabels);
+  }
+  document.getElementById('pmore').addEventListener('click', () => setOpen(!document.getElementById('period').classList.contains('open')));
   document.fonts?.ready.then(() => { if (el._fullLayout) placeLabels(); });  // labels are measured in the web font
 })();
 </script>

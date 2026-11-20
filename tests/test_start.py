@@ -13,8 +13,9 @@ def test_sitting_week_heading_names_its_sitting_days():
 
 
 def test_unit_pills_count_hib_kinds_and_the_plenum(tmp_path):
-    wk = {"items": [{"kind": "Antrag"}, {"kind": "Antrag"}, {"kind": "Anhörung"}]}
-    assert [t.split(">")[1].split("<")[0] for t in start.hib_tags(wk)] == ["2 Anträge", "1 Anhörung"]
+    wk = {"items": [{"kind": "Antrag"}, {"kind": "Antrag"}, {"kind": "Anhörung"}, {"kind": "Ausschuss"}]}
+    pills = [t.split(">")[1].split("<")[0] for t in start.hib_tags(wk)]
+    assert pills == ["2 Anträge", "1 Anhörung", "1 Ausschussmeldung"]
     (tmp_path / "2026-W45.html").write_text("x")
     (tmp_path / "2026-W45.json").write_text('{"speeches": [1, 2], "decisions": {"a": [1], "b": [2, 3]}}')
     st = {"week": "2026-W45", "sittings": [{"date": "2026-11-04"}]}

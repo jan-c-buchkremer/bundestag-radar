@@ -71,10 +71,14 @@ def de(iso: str) -> str:
     return f"{iso[8:10]}.{iso[5:7]}.{iso[:4]}"
 
 
-# hib's kinds in the plural, for the pills of „Diese Woche“
-PLURAL = {"Kleine Anfrage": "Kleine Anfragen", "Antwort": "Antworten", "Anhörung": "Anhörungen", "Antrag": "Anträge",
-          "Unterrichtung": "Unterrichtungen", "Gesetzentwurf": "Gesetzentwürfe", "Bericht": "Berichte",
-          "Beschlussempfehlung": "Beschlussempfehlungen", "Verordnung": "Verordnungen"}  # fmt: skip
+# hib's kinds for the pills of „Diese Woche“, one and many: „1 Antrag“, „4 Anhörungen“; hib's kind „Ausschuss“ is
+# a report from a committee's meeting
+NAMES = {"Kleine Anfrage": ("Kleine Anfrage", "Kleine Anfragen"), "Antwort": ("Antwort", "Antworten"),
+         "Anhörung": ("Anhörung", "Anhörungen"), "Antrag": ("Antrag", "Anträge"),
+         "Unterrichtung": ("Unterrichtung", "Unterrichtungen"), "Gesetzentwurf": ("Gesetzentwurf", "Gesetzentwürfe"),
+         "Bericht": ("Bericht", "Berichte"), "Beschlussempfehlung": ("Beschlussempfehlung", "Beschlussempfehlungen"),
+         "Verordnung": ("Verordnung", "Verordnungen"),
+         "Ausschuss": ("Ausschussmeldung", "Ausschussmeldungen")}  # fmt: skip
 
 
 def _tag(n: int, one: str, many: str) -> str:
@@ -87,7 +91,7 @@ def hib_tags(wk: dict) -> list[str]:
     for i in wk.get("items", []):
         k = i.get("kind") or "Meldung"
         kinds[k] = kinds.get(k, 0) + 1
-    return [_tag(n, k, PLURAL.get(k, k)) for k, n in sorted(kinds.items(), key=lambda kv: -kv[1])]
+    return [_tag(n, *NAMES.get(k, (k, k))) for k, n in sorted(kinds.items(), key=lambda kv: -kv[1])]
 
 
 def plenum_tags(out: Path, st: dict) -> list[str]:
