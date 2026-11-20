@@ -87,15 +87,21 @@ def speeches(conn: sqlite3.Connection, week_ids: list[str]) -> list[Doc]:
     ]
 
 
+# hib's teasers for the weekly paper („Das Parlament“: …) retell the week's business; as documents they form a theme
+# of their own about the paper, not about politics
+PAPER_TEASER = "„Das Parlament“%"
+
+
 def hib(conn: sqlite3.Connection, start: str = "0000", end: str = "9999") -> list[Doc]:
-    """hib items between two dates, embedded as title + full text (protected text: analysed, never shown)."""
+    """hib items between two dates, embedded as title + full text (protected text: analysed, never shown); without
+    the paper's teasers."""
     if not has_table(conn, "hib_item"):
         return []
     rows = conn.execute(
         "SELECT id, number, date, title, ressort, kind, text, " + corpus.HIB_URL + " AS source_url FROM hib_item "
-        "WHERE date BETWEEN ? AND ? "
+        "WHERE date BETWEEN ? AND ? AND title NOT LIKE ? "
         "ORDER BY date, CAST(id AS INTEGER)",
-        (start, end),
+        (start, end, PAPER_TEASER),
     )
     return [
         Doc(
@@ -697,7 +703,17 @@ def claude_label(theme: dict) -> str:
     out = subprocess.run(
         args, capture_output=True, text=True, timeout=180, check=True, cwd=tempfile.gettempdir()
     ).stdout
-    return out.strip().splitlines()[0].strip(" „“\"'.") if out.strip() else ""
+    return clean_label(out.strip().splitlines()[0]) if out.strip() else ""
+
+
+def clean_label(line: str) -> str:
+    """The model's name without a final full stop and without quotes around the whole name; quotes inside it stay,
+    so „Wochenzeitung „Das Parlament““ keeps its closing mark."""
+    s = line.strip().rstrip(".").strip()
+    for a, b in (("„", "“"), ('"', '"'), ("'", "'")):
+        if len(s) > 1 and s.startswith(a) and s.endswith(b) and a not in s[1:-1] and b not in s[1:-1]:
+            s = s[1:-1].strip()
+    return s
 
 
 def run_label(registry_path: Path, labeller=claude_label) -> int:
@@ -801,8 +817,20 @@ _CSS = """
 .thw .card h4{margin:0;font-size:1rem}.thw .terms{color:var(--mute);font-size:.8rem;margin:.1rem 0 .4rem}
 .thw .gen{font-size:.72rem;color:var(--mute);border:1px solid #d1d5db;border-radius:4px;padding:0 .3rem;
   margin-left:.3rem;font-weight:400}
-.thw .row{display:grid;grid-template-columns:6.2rem 1fr 7.6rem;align-items:center;gap:.4rem;font-size:.82rem}
-.thw .row svg{width:100%;height:22px;display:block}.thw .val{font-variant-numeric:tabular-nums;color:var(--mute)}
+.thw .row{display:grid;grid-template-columns:6.6rem minmax(0,1fr) 9.4rem;align-items:center;gap:.4rem .9rem;
+  font-size:.82rem;padding:3px 0}
+.thw .st{position:relative;display:block;height:28px;margin:0 9px}
+.thw .st::before{content:"";position:absolute;left:-9px;right:-9px;top:50%;border-top:1px solid #e5e7eb}
+.thw .st i{position:absolute;top:50%;transform:translate(-50%,-50%);border-radius:999px}
+.thw .st .band{transform:translateY(-50%);height:12px;background:#e5e7eb}
+.thw .st .b{width:8px;height:8px;background:var(--g)}
+.thw .st .now{width:16px;height:16px;box-sizing:border-box;border:2.5px solid var(--v);background:#fff;
+  box-shadow:0 0 0 3px #fff}
+.thw .st .now.up{background:var(--v)}
+.thw .axis{color:var(--mute);font-size:.72rem;margin-top:-2px}.thw .axis .st{height:14px}
+.thw .axis .st::before{display:none}.thw .axis span.e{position:absolute;right:0;transform:translateX(50%)}
+.thw .axis span.s{position:absolute;left:0;transform:translateX(-50%)}
+.thw .val{font-variant-numeric:tabular-nums;color:var(--mute);white-space:nowrap}
 .thw .val b{color:var(--ink);font-weight:600}.thw .src{color:var(--ink)}.thw .src.up{font-weight:600}
 .thw details{margin-top:.4rem;font-size:.85rem}.thw summary{cursor:pointer;color:var(--v)}
 .thw ul{margin:.3rem 0 .2rem;padding-left:1.1rem}.thw li{margin:.15rem 0}.thw a{color:#1d4ed8}
@@ -810,7 +838,8 @@ _CSS = """
 .thw .legend svg{vertical-align:-2px}
 .thw .fragen{font-size:.8rem;color:var(--mute);margin:.35rem 0 0}
 .thw .one li{margin:.25rem 0}
-@media (max-width:480px){.thw .row{grid-template-columns:5.2rem 1fr 6.6rem;font-size:.78rem}}
+@media (max-width:560px){.thw .row{grid-template-columns:4.6rem minmax(0,1fr) 7.2rem;gap:.3rem .5rem;
+  font-size:.76rem}.thw .axis>span:last-child{visibility:hidden}}
 """
 
 
@@ -824,26 +853,23 @@ def esc(s) -> str:
 
 def strip(v: dict, xmax: float, weeks: list[str]) -> str:
     """One source's row: the baseline weeks as grey dots, the usual range as a grey band, this week as a violet
-    dot (filled when the theme rises in this source). Hover titles carry the numbers."""
-    w, h, pad = 200, 22, 6
+    dot (filled when the theme rises in this source). Hover titles carry the numbers. Drawn in HTML with positions in
+    per cent, so the row takes any width and the dots stay round."""
 
-    def x(s: float) -> float:
-        return pad + (w - 2 * pad) * min(s / xmax, 1) if xmax else pad
+    def x(s: float) -> str:
+        return f"{100 * min(s / xmax, 1):.2f}%" if xmax else "0%"
 
     lo, hi = max(v["mean"] - v["spread"], 0), v["mean"] + v["spread"]
-    parts = [
-        f'<line x1="{pad}" x2="{w - pad}" y1="{h / 2}" y2="{h / 2}" stroke="#e5e7eb" stroke-width="1"/>',
-        f'<rect x="{x(lo):.1f}" y="{h / 2 - 4}" width="{max(x(hi) - x(lo), 1):.1f}" height="8" rx="4" fill="#e5e7eb">'
-        f"<title>üblicher Bereich: {pct(lo)} bis {pct(hi)}</title></rect>",
-    ]
+    width = f"max({100 * (min(hi / xmax, 1) - min(lo / xmax, 1)):.2f}%, 4px)" if xmax else "4px"
+    band = f"üblicher Bereich: {pct(lo)} bis {pct(hi)}"
+    parts = [f'<i class="band" style="left:{x(lo)};width:{width}" title="{band}"></i>']
     for wk, b in zip(v.get("weeks") or weeks[-len(v["baseline"]) :], v["baseline"], strict=False):
-        parts.append(f'<circle cx="{x(b):.1f}" cy="{h / 2}" r="3" fill="{GREY}"><title>{wk}: {pct(b)}</title></circle>')
-    fill = VIOLET if v["rising"] else "#fff"
+        parts.append(f'<i class="b" style="left:{x(b)}" title="{wk}: {pct(b)}"></i>')
     parts.append(
-        f'<circle cx="{x(v["share"]):.1f}" cy="{h / 2}" r="5.5" fill="{fill}" stroke="{VIOLET}" stroke-width="2">'
-        f"<title>diese Woche: {pct(v['share'])}, {v['n']} Dokumente, z = {v['z']:+.1f}</title></circle>"
+        f'<i class="now{" up" if v["rising"] else ""}" style="left:{x(v["share"])}" '
+        f'title="diese Woche: {pct(v["share"])}, {v["n"]} Dokumente, z = {v["z"]:+.1f}"></i>'
     )
-    return f'<svg viewBox="0 0 {w} {h}" preserveAspectRatio="none" role="img">{"".join(parts)}</svg>'
+    return f'<span class="st" role="img">{"".join(parts)}</span>'
 
 
 def doc_line(source: str, d: dict) -> str:
@@ -865,6 +891,10 @@ def card(t: dict, weeks: list[str]) -> str:
             f"{strip(v, xmax, weeks)}"
             f'<span class="val"><b>{pct(v["share"])}</b> · sonst {pct(v["mean"])}</span></div>'
         )
+    rows.append(
+        f'<div class="row axis"><span></span><span class="st"><span class="s">0 %</span>'
+        f'<span class="e">{pct(xmax)}</span></span><span>Anteil je Quelle</span></div>'
+    )
     docs = "".join(
         f"<li><b>{SOURCE_NAME[s]}</b><ul>{''.join(doc_line(s, d) for d in v['docs'][:3])}</ul></li>"
         for s, v in t["sources"].items()
@@ -973,7 +1003,7 @@ RISE_CSS = """
 .rise .chev{color:#a1a1aa;font-size:12px;transition:transform .15s}
 .rise details[open] .chev{transform:rotate(90deg)}
 .rise .rd{padding:2px 4px 14px}
-.rise .rd.thw{max-width:760px}.rise .rd .card{margin:0}
+.rise .rd.thw{max-width:none}.rise .rd .card{margin:0}
 .rise .people{margin:12px 0 0;font-size:13.5px;color:#374151}
 .rise .people a{color:#7c3aed}
 @media (max-width:640px){

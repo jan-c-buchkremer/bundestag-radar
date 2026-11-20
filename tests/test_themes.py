@@ -202,3 +202,20 @@ def test_refit_is_due_once_a_week():
 def test_speech_url():
     assert themes.speech_url("ID219915100").endswith("reden/ID219915100.html")
     assert themes.speech_url("ID21800600-2").endswith("reden/ID21800600.html#ID21800600-2")
+
+
+def test_clean_label_keeps_inner_quotes():
+    assert themes.clean_label("„Tankrabatt und Übergewinnsteuer“.") == "Tankrabatt und Übergewinnsteuer"
+    assert themes.clean_label("Wochenzeitung „Das Parlament“") == "Wochenzeitung „Das Parlament“"
+    assert themes.clean_label('"Energiewende"') == "Energiewende"
+
+
+def test_hib_leaves_out_the_paper_teasers(conn):
+    conn.executescript(HIB)
+    conn.executemany("INSERT INTO hib_item (id, number, date, wahlperiode, title, ressort, kind, text) "
+                     "VALUES (?,?,?,21,?,?,?,?)", [
+        ("1", "1/2026", "2026-11-11", "„Das Parlament“: Die Sitzungswoche im Bundestag", "Bundestagsnachrichten",
+         "Bericht", "ePaper"),
+        ("2", "2/2026", "2026-11-11", "Reform des Nachrichtendienstrechts", "Inneres", "Gesetzentwurf", "Text"),
+    ])  # fmt: skip
+    assert [d.title for d in themes.hib(conn)] == ["Reform des Nachrichtendienstrechts"]
