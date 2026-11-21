@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Themenlandschaft</title>
+<title>Themenlandschaft | plenar-radar.de</title>
 __SHELL__
 <script src="assets/plotly-2.35.2.min.js" charset="utf-8"></script>
 <style>
@@ -124,6 +124,11 @@ aside { border-right: 1px solid var(--line); padding: 14px 16px 24px; }
 #count { color: var(--muted); font-size: 12px; }
 .linkbtn { font-size: 12.5px; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; }
 .linkbtn:hover { text-decoration: underline; }
+.fbtns { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.fbtn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; box-shadow: 0 6px 14px -8px rgba(109, 40, 217, .7); }
+.fbtn:hover { filter: brightness(1.08); }
+.fbtn.on { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+.fbtn .x { font-weight: 500; opacity: .75; text-decoration: underline; }
 
 .group { border-top: 1px solid var(--line); padding: 8px 0; }
 .group .title { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 3px 0; }
@@ -383,7 +388,7 @@ const AGENDA_COLOR = Object.fromEntries([...Map.groupBy(AGENDA, a => a.date)].fl
 }));
 const DAY_DATE = Object.fromEntries(dates.map(d => [weekdayOf(d), d]));
 document.getElementById('meta').textContent = `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])} · ${S.length} Reden · ${DATA.clusters.length} Themen`;
-document.title = `Themenlandschaft ${DATA.week}`;
+document.title = `Themenlandschaft KW ${+DATA.week.split("-W")[1]}/${DATA.week.split("-W")[0]} | plenar-radar.de`;
 
 // day colouring: one sequential scale per sitting day (blue, orange, green, purple), light = early, dark = late
 const SCALES = [['#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'], ['#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#a63603', '#7f2704'],
@@ -420,7 +425,7 @@ const GROUPS = {
   fraction: { of: s => s.fraction, name: v => v, color: v => FRACTION_COLORS[v] || NOISE, order: (a, b) => (FRACTION_ORDER.indexOf(a) + 1 || 99) - (FRACTION_ORDER.indexOf(b) + 1 || 99) },
   weekday: { of: s => s.weekday, name: v => `${v} ${fmt(DAY_DATE[v]).slice(0, 6)}`, color: v => heat(dates.indexOf(DAY_DATE[v]), .6), swatch: dayGradient, order: (a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b) },
   agenda: { of: s => s.agenda_id, name: v => AGENDA_BY[v].agenda, color: v => AGENDA_COLOR[v], order: (a, b) => a.localeCompare(b, 'de', {numeric: true}) },
-  cluster: { of: s => s.cluster, name: v => v < 0 ? 'ohne Thema' : clusterById[v].terms.join(' · '), color: v => v < 0 ? NOISE : CLUSTER_COLOR[v], order: (a, b) => (a < 0) - (b < 0) || a - b },
+  cluster: { of: s => s.cluster, name: v => v < 0 ? 'ohne Thema' : clusterById[v].terms.map(cap).join(' · '), color: v => v < 0 ? NOISE : CLUSTER_COLOR[v], order: (a, b) => (a < 0) - (b < 0) || a - b },
   speaker: { of: s => s.speaker, name: v => v, color: v => FRACTION_COLORS[S.find(s => s.speaker === v).fraction] || NOISE, order: null },
 };
 document.getElementById('dayScale').innerHTML = dates.map(d => `<span><i style="background:${dayGradient(weekdayOf(d))}"></i>${GROUPS.weekday.name(weekdayOf(d))}</span>`).join('') + '<span class="hint">früh → spät</span>';
@@ -515,6 +520,24 @@ document.getElementById('reset').onclick = () => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement !== searchInput && state.open) closeSpeech(); });
 const setOnly = (k, v) => { state.checked[k] = new Set([v]); renderList(k); draw(); };  // filter to one value
 const setSpeaker = name => { setOnly('speaker', name); showCard('speaker', name); };
+// the filter button of a card: shows whether its value is a filter already and adds or removes it, keeping the other
+// filters; a person's speeches stay highlighted in the week (dim instead of hide)
+const filterBtn = (k, v, label, onLabel = 'Filter aktiv') => {
+  const on = state.checked[k].has(v);
+  return `<button type="button" class="fbtn${on ? ' on' : ''}" data-filter="${k}" data-v="${esc(String(v))}" aria-pressed="${on}">`
+    + `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 3h12l-4.5 5.5V13l-3 1.5V8.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`
+    + `<span>${esc(on ? onLabel : label)}${on ? ' ✓' : ''}</span>${on ? '<span class="x">entfernen</span>' : ''}</button>`;
+};
+function toggleFilter(k, v) {
+  const set = state.checked[k];
+  if (set.has(v)) set.delete(v);
+  else {
+    set.add(v);
+    if (k === 'speaker' && !state.dim) { state.dim = true; document.getElementById('dim').checked = true; }
+  }
+  renderList(k); draw();
+  if (panelKind === 'speech' && byId[state.open]) showSpeech(byId[state.open]); else lastCard();
+}
 const setCluster = id => { setOnly('cluster', id); if (id >= 0) showCluster(id); };
 
 function syncControls() {
@@ -823,6 +846,7 @@ function showSpeech(s) {
       ${s.weekday} ${fmt(s.date)} · ${topLink(s)}<br>${dot(AGENDA_COLOR[s.agenda_id])} ${esc(s.agenda)}<br>
       Thema: <a href="#" onclick="setCluster(${s.cluster});return false">${esc(clusterLabel(s.cluster))}</a> · ${s.chars.toLocaleString('de')} Zeichen · ${s.comments} Zwischenrufe/Beifall<br>
       <a href="${s.pdf}" target="_blank" rel="noopener">${esc(s.cite)} (PDF)</a> · Rede ${s.id}${s.drucksachen.length ? ' · Drs. ' + s.drucksachen.join(', ') : ''}</div>
+    <div class="fbtns">${filterBtn('speaker', s.speaker, `Alle Reden von ${s.speaker} hervorheben`, `Reden von ${s.speaker} hervorgehoben`)}${s.cluster >= 0 ? filterBtn('cluster', s.cluster, 'Thema als Filter setzen', 'Thema gefiltert') : ''}</div>
     ${decisionsHtml(s.agenda_id)}
     ${paras}
     ${next ? `<h3>Nächste Rede</h3>${speechCard(next, esc(next.agenda.slice(0, 80)))}` : ''}
@@ -844,8 +868,9 @@ function showCluster(id) {
   panelKind = 'cluster'; lastCard = () => showCluster(id); toDetail();
   const c = clusterById[id], g = S.filter(s => s.cluster === id);
   panel.innerHTML = `<button class="close" onclick="showHint()" title="Schließen">×</button>
-    <h2>${esc(c.terms.join(' · '))}</h2>
-    <div class="meta">${g.length} Reden · <a href="#" onclick="setCluster(${id});return false">nur dieses Thema zeigen</a></div>${breakdown(g, 'cluster')}`;
+    <h2>${esc(c.terms.map(cap).join(' · '))}</h2>
+    <div class="meta">${g.length} Reden · <a href="#" onclick="setCluster(${id});return false">nur dieses Thema zeigen</a></div>
+    <div class="fbtns">${filterBtn('cluster', id, 'Thema als Filter setzen', 'Thema gefiltert')}</div>${breakdown(g, 'cluster')}`;
   panel.scrollTop = 0;
   tourCheck();
 }
@@ -856,7 +881,7 @@ function showGroup(g, title, subtitle, k, v, extra = '') {
   const list = g.length <= 40 ? `<h3>Reden</h3>${g.map(o => speechCard(o, `${esc(o.agenda.slice(0, 70))}<br>${esc(excerpt(o).slice(0, 110))}`)).join('')}` : '';
   panel.innerHTML = `<button class="close" onclick="showHint()" title="Schließen">×</button>
     ${k === 'speaker' ? whoHead(title, g[0]) : `<h2>${esc(title)}</h2>`}
-    <div class="meta">${subtitle ? subtitle + ' · ' : ''}${g.length} Reden · ${g.reduce((a, s) => a + s.chars, 0).toLocaleString('de')} Zeichen · ${g.reduce((a, s) => a + s.comments, 0)} Zwischenrufe/Beifall${only}</div>${extra}${breakdown(g, k)}${list}`;
+    <div class="meta">${subtitle ? subtitle + ' · ' : ''}${g.length} Reden · ${g.reduce((a, s) => a + s.chars, 0).toLocaleString('de')} Zeichen · ${g.reduce((a, s) => a + s.comments, 0)} Zwischenrufe/Beifall${only}</div>${k && k !== 'weekday' ? `<div class="fbtns">${filterBtn(k, v, k === 'speaker' ? 'Alle Reden hervorheben' : 'Als Filter setzen', k === 'speaker' ? 'Reden hervorgehoben' : 'Filter aktiv')}</div>` : ''}${extra}${breakdown(g, k)}${list}`;
   panel.scrollTop = 0;
   tourCheck();
 }
@@ -870,9 +895,10 @@ function showCard(k, v) {
   showGroup(g, GROUPS[k].name(v), sub, k, v);
 }
 panel.addEventListener('click', e => {
-  const el = e.target.closest('[data-open], [data-aside], [data-card], [data-only]');
+  const el = e.target.closest('[data-open], [data-aside], [data-card], [data-only], [data-filter]');
   if (!el) return;
   e.preventDefault();
+  if (el.dataset.filter) { const k = el.dataset.filter; return toggleFilter(k, k === 'cluster' ? +el.dataset.v : el.dataset.v); }
   if (el.dataset.open) { showSpeech(byId[el.dataset.open]); draw(); return; }
   if ('aside' in el.dataset) { el.classList.toggle('open'); return; }
   const k = el.dataset.card || el.dataset.only, v = k === 'cluster' ? +el.dataset.v : el.dataset.v;

@@ -49,7 +49,7 @@ def page(title: str, body: str, research: str) -> str:
     return (
         "<!doctype html><html lang='de'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-        f"<title>{html.escape(title)} – Radar</title>{shell.head(research)}<style>{PAGE_CSS}</style>"
+        f"<title>{html.escape(title)} – Radar | plenar-radar.de</title>{shell.head(research)}<style>{PAGE_CSS}</style>"
         f"{shell.info_assets()}</head>"
         f"<body class='mode-radar'>{shell.site_header(research)}<main class='lab'>"
         f"<span class='eyebrow'>Radar</span>{body}{_more('index.html', 'Zurück zum Radar')}</main></body></html>"

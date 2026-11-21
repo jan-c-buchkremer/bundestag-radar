@@ -53,8 +53,13 @@ COUNTER = (
 
 
 def head(research: str) -> str:
-    """The shell's stylesheet, before a page's own styles, and the reader count."""
-    return f'<link rel="stylesheet" href="{html.escape(research)}shell.css">{COUNTER}'
+    """The shell's stylesheet, before a page's own styles, the reader count and Research's site icon."""
+    r = html.escape(research)
+    return (
+        f'<link rel="stylesheet" href="{r}shell.css">{COUNTER}<link rel="icon" href="{r}favicon.ico" sizes="32x32">'
+        f'<link rel="icon" href="{r}favicon.svg" type="image/svg+xml">'
+        f'<link rel="apple-touch-icon" href="{r}apple-touch-icon.png">'
+    )
 
 
 def site_header(research: str, landscape: str = "index.html") -> str:

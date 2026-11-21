@@ -9,6 +9,8 @@ Readers who open the Radar see what is going on in the Bundestag now: what „he
 policy area, with a short generated summary and the themes that are rising, then the newest sitting week as a
 checked lead and its Geschichten der Woche, and who is in the news.
 
+- Radar pages carry Research's site icon and end their tab title in „| plenar-radar.de“; the Themenlandschaft
+  names its week as „KW 47/2025“.
 - Two week units (docs/decisions.md, 2026-11-11). „Diese Woche“ is the running calendar week, rebuilt every night:
   the hib mosaic (`woche.py`, `woche.json`; areas sized by items, Fraktion chips for who tabled the Vorgang, no tile
   narrower than 100 px), „Bisher in dieser Woche“ and „Steigende Themen“. The newest sitting week follows under its
@@ -43,6 +45,9 @@ checked lead and its Geschichten der Woche, and who is in the news.
   topic label keeps that label bright and ringed.
 - Themes leave out hib's teasers for the weekly paper „Das Parlament“, and a generated theme name keeps quotes
   inside it.
+- Themenlandschaft: a topic's card, a person's card and an open speech carry a filter button. It shows whether the
+  filter is set and adds or removes it, keeping the other filters; a person's speeches stay highlighted in the week
+  (dimmed instead of hidden). Topic names are capitalised in the cards and the filter list as on the map.
 
 ## v0.2.2 (2026-10-16)
 
