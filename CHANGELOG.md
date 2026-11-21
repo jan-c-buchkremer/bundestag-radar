@@ -5,6 +5,8 @@ not before? If that sentence is hard to write, the release is not a finished ver
 
 ## Unreleased
 
+## v0.3.0 (2026-11-21)
+
 Readers who open the Radar see what is going on in the Bundestag now: what „heute im bundestag“ reported this week by
 policy area, with a short generated summary and the themes that are rising, then the newest sitting week as a
 checked lead and its Geschichten der Woche, and who is in the news.
